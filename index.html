@@ -66,6 +66,7 @@
         <div id="liveSummaryBar"></div>
         <div class="d-grid gap-2 mt-3"><button type="button" id="btnSave" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="saveData(false)">💾 確認儲存班表</button></div>
       </form>
+        <div id="closingNotice" class="text-center mt-2 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
     </div>
     <div id="personalSection" class="container" style="display:none; max-width: 1400px; margin-top: 20px;">
        <h3 class="text-center fw-bold text-primary mb-2">📅 個人班表與出勤紀錄</h3><h5 class="text-center text-secondary mb-4" id="personalNameDisplay">載入中...</h5>
@@ -258,18 +259,31 @@
         document.getElementById('loginSection').style.display = 'block';
         showLoading(false);
       }
-      function loadData() {
+     function loadData() {
         if (!currentStore) return;
         showLoading(true, "讀取資料中...");
         callApi('getStoreData', { store: currentStore }).then(res => {
              showLoading(false);
              if (res.success) {
-                 currentData = res.data || []; monthlyTargets = res.targets || {}; currentParams = res.params || {};
+                 currentData = res.data || []; 
+                 monthlyTargets = res.targets || {}; 
+                 currentParams = res.params || {};
+                 
                  const year = monthlyTargets.year || new Date().getFullYear();
                  const month = monthlyTargets.month || (new Date().getMonth()+1);
+                 
                  document.getElementById('displayYear').innerText = year;
                  document.getElementById('displayMonth').innerText = month;
                  document.getElementById('monthTargetInfo').innerText = `目標: 應有${monthlyTargets.hrs} | 休${monthlyTargets.rest} | 例${monthlyTargets.reg} | 國${monthlyTargets.nat}`;
+
+                 // ★★★ 新增這段：計算下個月並顯示提示文字 ★★★
+                 let nextMonth = (parseInt(month) % 12) + 1; // 自動計算下個月 (12月會變1月)
+                 let closeDay = monthlyTargets.closingDay || 1; // 從後端取得 B10，預設為 1
+                 
+                 let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
+                 document.getElementById('closingNotice').innerText = noticeText;
+                 // ★★★ 結束 ★★★
+
                  if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
                  initNameSelect(); renderTable();
              } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
