@@ -73,8 +73,41 @@
        <div class="table-responsive"><table class="table table-bordered table-hover table-striped"><thead><tr><th style="width: 8%">日期</th><th style="width: 8%">班表狀態</th><th style="width: 10%">排班時間</th><th style="width: 6%">應有時數<br>(H)</th><th style="width: 8%">系統狀態<br>(I)</th><th style="width: 10%">實際打卡<br>(上班/下班)</th><th style="width: 10%">請假時間<br>(L)</th><th style="width: 8%">假別<br>(M)</th><th style="width: 10%">加班時間<br>(N)</th><th style="width: 6%">加班時數<br>(O)</th><th style="width: 10%">異常<br>(P)</th></tr></thead><tbody id="personalTableBody"></tbody></table></div>
     </div>
     <div class="modal fade" id="statsModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-info text-white"><h5 class="modal-title fw-bold">📊 本月排班統計</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-light border d-flex justify-content-around fw-bold mb-3 text-dark bg-light" id="statsTarget"></div><h6 class="fw-bold text-primary border-bottom pb-2 mt-3">🔵 月薪制人員</h6><div class="table-responsive mb-4"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>應有時數(差)</th><th>休(差)</th><th>例(差)</th><th>國定(差)</th><th>空班</th></tr></thead><tbody id="statsTableMonthly"></tbody></table></div><h6 class="fw-bold text-success border-bottom pb-2">🟢 時薪制人員</h6><div class="table-responsive"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>累計應有</th></tr></thead><tbody id="statsTableHourly"></tbody></table></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div></div></div></div>
-    <div class="modal fade" id="indivModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title fw-bold text-dark">👤 目前系統狀態 (整月檢視)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="mb-3 d-flex align-items-center flex-wrap gap-2"><label class="fw-bold">選擇人員：</label><select id="indivSelect" class="form-select w-auto" onchange="renderIndividualTable()"></select><div id="indivStats" class="stat-info"></div><span id="totalOvertimeDisplay" style="margin-left: auto; color: #dc3545; font-weight: bold; font-size: 1.2em;"></span></div><div class="table-responsive"><table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;"><thead class="table-dark"><tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr></thead><tbody id="indivTableBody"></tbody></table></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div></div></div></div>
+<div class="modal fade" id="indivModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title fw-bold text-dark">👤 目前系統狀態 (整月檢視)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 d-flex align-items-center flex-wrap gap-2">
+          <label class="fw-bold">選擇人員：</label>
+          <select id="indivSelect" class="form-select w-auto" onchange="renderIndividualTable()"></select>
+          <div id="indivStats" class="stat-info" style="flex-grow: 1;"></div>
+          <span id="totalOvertimeDisplay" style="margin-left: auto; color: #dc3545; font-weight: bold; font-size: 1.2em;"></span>
+        </div>
 
+        <div id="qrCodeContainer" class="text-center mb-3 p-3 border rounded bg-light" style="display: none;">
+            <h6 class="fw-bold text-success mb-3">📱 請員工使用手機掃描下方 QR Code</h6>
+            <div id="qrCodeCanvas" class="d-flex justify-content-center align-items-center bg-white p-2 mx-auto border shadow-sm" style="width: 200px; height: 200px;"></div>
+            <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;">
+            <thead class="table-dark">
+              <tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr>
+            </thead>
+            <tbody id="indivTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+      </div>
+    </div>
+  </div>
+</div>
     <script>
       // ★★★ 您的後端 API 網址 ★★★
       const API_URL = "https://script.google.com/macros/s/AKfycbxaW0XoCauHhJKl2ag_kprlE-Rt8ymee-wGJcyO4YZkbJsMjaN5w6adOS9jUylRMP1q/exec";
