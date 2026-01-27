@@ -437,29 +437,49 @@
         
         showLoading(true, "儲存中...");
         
-        // ★★★ 關鍵修正處：將 forceSave 改為 force (對應函式參數) ★★★
         callApi('saveStoreData', { 
             store: currentStore, 
             inputData: inputData, 
-            forceSave: force // <--- 這裡原本寫錯成 forceSave，請改成 force
+            forceSave: force 
         })
           .then(res => {
              showLoading(false); 
+             
+             // 情境 1：全部成功
              if (res.status === 'SUCCESS') { 
-                 Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false })
-                 .then((result) => { if (result.isConfirmed) loadData(); }); 
+                 Swal.fire({ 
+                     icon: 'success', 
+                     title: '✅ 儲存成功', 
+                     text: '班表已更新完成', 
+                     confirmButtonText: '確認', 
+                     allowOutsideClick: false 
+                 }).then((result) => { if (result.isConfirmed) loadData(); }); 
              } 
-             else if (res.status === 'PARTIAL' || res.status === 'FAILED') { 
-                 Swal.fire({ icon: 'warning', title: '⚠️ 部分/全部儲存失敗', html: res.message, confirmButtonText: '確認' })
-                 .then(() => loadData()); 
+             // 情境 2：部分成功 (顯示驚嘆號)
+             else if (res.status === 'PARTIAL') { 
+                 Swal.fire({ 
+                     icon: 'warning', 
+                     title: '⚠️ 部分儲存成功', 
+                     html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, 
+                     confirmButtonText: '確認' 
+                 }).then(() => loadData()); 
              } 
+             // 情境 3：全部失敗 (顯示紅色叉叉)
+             else if (res.status === 'FAILED') { 
+                 Swal.fire({ 
+                     icon: 'error', 
+                     title: '❌ 儲存失敗', 
+                     html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, 
+                     confirmButtonText: '確認' 
+                 }).then(() => loadData()); 
+             }
+             // 其他錯誤
              else { 
                  Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); 
              }
           })
           .catch(err => { 
              showLoading(false); 
-             // 使用 alert 比較保險，避免 Swal 沒載入時完全沒反應
              alert("儲存錯誤: " + err.message); 
           });
       }
