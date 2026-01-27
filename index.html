@@ -99,17 +99,25 @@
         }
       };
 
-      // API 呼叫 (Debug 版)
+// ==========================================
+      // API 呼叫核心 (修正 Header 防止 GAS 解析失敗)
+      // ==========================================
       function callApi(op, params = {}) {
          params.op = op;
          return fetch(API_URL, {
              method: 'POST',
-             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+             // ★★★ 關鍵修正：必須用 application/json，否則後端 e.postData.contents 可能為空 ★★★
+             headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify(params)
          }).then(response => {
              return response.text().then(text => {
-                 try { return JSON.parse(text); } 
-                 catch (e) { throw new Error("後端回傳非 JSON: " + text.substring(0, 50)); }
+                 try {
+                     return JSON.parse(text);
+                 } catch (e) {
+                     // 如果解析失敗，印出後端回傳的原始文字以便除錯
+                     console.error("API Error Raw:", text);
+                     throw new Error("後端回應格式錯誤，請檢查執行紀錄");
+                 }
              });
          });
       }
