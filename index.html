@@ -429,17 +429,85 @@
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
+      // ==========================================
+      // 請替換 renderIndividualTable 函式 (找回紅字邏輯)
+      // ==========================================
       function renderIndividualTable() {
-         const name = document.getElementById('indivSelect').value; const tbody = document.getElementById('indivTableBody'); tbody.innerHTML = ''; const statsDiv = document.getElementById('indivStats');
+         const name = document.getElementById('indivSelect').value;
+         const tbody = document.getElementById('indivTableBody'); 
+         tbody.innerHTML = '';
+         const statsDiv = document.getElementById('indivStats');
+         
          const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
+         
+         // ★ 判斷是否為時薪人員 (這是決定顯示紅字與否的關鍵)
+         const isHourly = (pData.length > 0 && pData[0].salaryType && pData[0].salaryType.includes("時薪"));
+
          let hrs=0, rest=0, reg=0, nat=0, totalOvertime=0;
-         pData.forEach(r => { let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h; if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++; let otHrs = parseFloat(r.sys_overtimeHrs); if (!isNaN(otHrs)) totalOvertime += otHrs; });
-         let otDisplay = document.getElementById("totalOvertimeDisplay"); if (otDisplay) otDisplay.innerText = totalOvertime > 0 ? "已申請加班總時數: " + totalOvertime.toFixed(1) : "";
-         let encodedName = encodeNameHex(name); let currentBaseUrl = window.location.href.split('?')[0]; let personalLink = `${currentBaseUrl}?mode=personal&u=${encodedName}`;
-         statsDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center w-100"><div>應有：${hrs.toFixed(1)} | 休：${rest} | 例：${reg} | 國：${nat}</div><button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製個人連結</button></div>`;
+
+         pData.forEach(r => {
+            let h = parseFloat(r.calc_hours); 
+            if(!isNaN(h)) hrs += h;
+            
+            if (r.input_status === '休') rest++;
+            else if (r.input_status === '例') reg++;
+            else if (r.input_status === '國') nat++;
+            
+            let otHrs = parseFloat(r.sys_overtimeHrs);
+            if (!isNaN(otHrs)) totalOvertime += otHrs;
+         });
+
+         let otDisplay = document.getElementById("totalOvertimeDisplay");
+         if (otDisplay) {
+             otDisplay.innerText = totalOvertime > 0 ? "已申請加班總時數: " + totalOvertime.toFixed(1) : "";
+         }
+
+         // ★ 產生連結
+         let encodedName = encodeNameHex(name);
+         let currentBaseUrl = window.location.href.split('?')[0]; 
+         let personalLink = `${currentBaseUrl}?mode=personal&u=${encodedName}`;
+
+         // ★★★ 核心修正：還原「月薪制顯示紅字差額 (formatDiff)」的邏輯 ★★★
+         let statText = "";
+         if (isHourly) {
+             // 時薪制：只顯示累計
+             statText = `<strong>應有：</strong>${hrs.toFixed(1)} | <strong>休：</strong>${rest} | <strong>例：</strong>${reg} | <strong>國：</strong>${nat}`;
+         } else {
+             // 月薪制：顯示差額 (紅字/綠字)
+             // 注意：這裡依賴 global 變數 monthlyTargets
+             statText = `
+                <strong>應有：</strong>${hrs.toFixed(1)} (${formatDiff(hrs - monthlyTargets.hrs)}) | 
+                <strong>休：</strong>${rest} (${formatDiff(rest - monthlyTargets.rest)}) | 
+                <strong>例：</strong>${reg} (${formatDiff(reg - monthlyTargets.reg)}) | 
+                <strong>國：</strong>${nat} (${formatDiff(nat - monthlyTargets.nat)})
+             `;
+         }
+
+         statsDiv.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center w-100">
+               <div>${statText}</div>
+               <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製個人連結</button>
+            </div>
+         `;
+
          pData.forEach(r => {
             let planTimeStr = (r.input_start && String(r.input_start).trim() !== "") ? `${r.input_start}~${r.input_end}` : "";
-            tbody.innerHTML += `<tr><td>${r.date}</td><td class="fw-bold text-primary">${r.input_status}</td><td style="color: #0d6efd; font-weight: bold;">${planTimeStr}</td><td>${r.calc_hours}</td><td>${r.sys_status}</td><td>${r.sys_clockIn}</td><td>${r.sys_clockOut}</td><td>${r.sys_leave}</td><td>${r.sys_leaveType}</td><td>${r.sys_overtime}</td><td>${r.sys_overtimeHrs}</td><td>${r.sys_abnormal}</td><td>${r.log}</td></tr>`;
+            tbody.innerHTML += `
+              <tr>
+                <td>${r.date}</td>
+                <td class="fw-bold text-primary">${r.input_status}</td>
+                <td style="color: #0d6efd; font-weight: bold;">${planTimeStr}</td>
+                <td>${r.calc_hours}</td>
+                <td>${r.sys_status}</td>
+                <td>${r.sys_clockIn}</td>
+                <td>${r.sys_clockOut}</td>
+                <td>${r.sys_leave}</td>
+                <td>${r.sys_leaveType}</td>
+                <td>${r.sys_overtime}</td>
+                <td>${r.sys_overtimeHrs}</td>
+                <td>${r.sys_abnormal}</td>
+                <td>${r.log}</td>
+              </tr>`;
          });
       }
       function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => { Swal.fire({ title: '已複製連結', text: '請傳送給該員工', icon: 'success', timer: 1500, showConfirmButton: false }); }); }
