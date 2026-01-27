@@ -235,8 +235,8 @@
         }
       };
 
-      // ==========================================
-      // API 呼叫核心
+// ==========================================
+      // API 呼叫核心 (Debug版)
       // ==========================================
       function callApi(op, params = {}) {
          params.op = op;
@@ -244,7 +244,19 @@
              method: 'POST',
              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
              body: JSON.stringify(params)
-         }).then(response => response.json());
+         })
+         .then(response => {
+             // 先將回應轉為文字，以便檢查是否為 HTML 錯誤頁面
+             return response.text().then(text => {
+                 try {
+                     return JSON.parse(text); // 嘗試解析 JSON
+                 } catch (e) {
+                     // 如果解析失敗，表示後端回傳了 HTML 錯誤頁面或空值
+                     console.error("Raw Response:", text);
+                     throw new Error("後端回傳錯誤 (非 JSON): " + text.substring(0, 100) + "..."); 
+                 }
+             });
+         });
       }
 
       // ==========================================
