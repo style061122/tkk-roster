@@ -404,26 +404,60 @@
         const errors = document.querySelectorAll('.row-error'); const btn = document.getElementById('btnSave');
         btn.disabled = (errors.length > 0); btn.classList.toggle('btn-success', errors.length === 0); btn.classList.toggle('btn-secondary', errors.length > 0);
       }
+      // ==========================================
+      // 修正版 saveData (解決變數名稱錯誤導致的崩潰)
+      // ==========================================
       function saveData(force) {
-        const rows = document.querySelectorAll('#staffTable tr'); let inputData = []; let incomplete = false;
+        const rows = document.querySelectorAll('#staffTable tr'); 
+        let inputData = []; 
+        let incomplete = false;
+        
         rows.forEach(tr => {
-          const idx = parseInt(tr.getAttribute('data-index')); const s = tr.querySelector('.status-select').value; const verifyName = tr.getAttribute('data-name'); const verifyDate = tr.getAttribute('data-date');
+          const idx = parseInt(tr.getAttribute('data-index')); 
+          const s = tr.querySelector('.status-select').value; 
+          const verifyName = tr.getAttribute('data-name'); 
+          const verifyDate = tr.getAttribute('data-date');
+          
           if (s === '上班') {
-            const start = tr.querySelector('.start-select').value; const end = tr.querySelector('.end-select').value; const rest = tr.querySelector('.rest-select').value;
+            const start = tr.querySelector('.start-select').value; 
+            const end = tr.querySelector('.end-select').value; 
+            const rest = tr.querySelector('.rest-select').value;
             if (!start || !end || rest === "") { incomplete = true; tr.classList.add('row-error'); }
             inputData.push({ rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, d: s, e: start, f: end, g: rest });
-          } else { inputData.push({ rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, d: s, e: "", f: "", g: "" }); }
+          } else { 
+            inputData.push({ rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, d: s, e: "", f: "", g: "" }); 
+          }
         });
+        
         if (incomplete) { Swal.fire('錯誤', '上班需填寫完整時間', 'warning'); return; }
+        
         showLoading(true, "儲存中...");
-        callApi('saveStoreData', { store: currentStore, inputData: inputData, forceSave: forceSave })
+        
+        // ★★★ 關鍵修正處：將 forceSave 改為 force (對應函式參數) ★★★
+        callApi('saveStoreData', { 
+            store: currentStore, 
+            inputData: inputData, 
+            forceSave: force // <--- 這裡原本寫錯成 forceSave，請改成 force
+        })
           .then(res => {
              showLoading(false); 
-             if (res.status === 'SUCCESS') { Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false }).then((result) => { if (result.isConfirmed) loadData(); }); } 
-             else if (res.status === 'PARTIAL' || res.status === 'FAILED') { Swal.fire({ icon: 'warning', title: '⚠️ 部分/全部儲存失敗', html: res.message, confirmButtonText: '確認' }).then(() => loadData()); } 
-             else { Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); }
+             if (res.status === 'SUCCESS') { 
+                 Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false })
+                 .then((result) => { if (result.isConfirmed) loadData(); }); 
+             } 
+             else if (res.status === 'PARTIAL' || res.status === 'FAILED') { 
+                 Swal.fire({ icon: 'warning', title: '⚠️ 部分/全部儲存失敗', html: res.message, confirmButtonText: '確認' })
+                 .then(() => loadData()); 
+             } 
+             else { 
+                 Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); 
+             }
           })
-          .catch(err => { showLoading(false); alert("儲存錯誤: " + err.message); });
+          .catch(err => { 
+             showLoading(false); 
+             // 使用 alert 比較保險，避免 Swal 沒載入時完全沒反應
+             alert("儲存錯誤: " + err.message); 
+          });
       }
       function showMonthlyStats() {
          if (!currentData.length) return;
