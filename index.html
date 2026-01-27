@@ -196,6 +196,12 @@
               document.getElementById('personalSection').style.display = 'block';
               const meta = data.meta;
               document.getElementById('personalNameDisplay').innerText = `${meta.year}年 ${meta.month}月 - ${data.name}`;
+              // ★★★ 新增：顯示結算提示 ★★★
+              let nextMonth = (parseInt(meta.month) % 12) + 1;
+              let closeDay = meta.closingDay || 1; // 從後端取得 B10
+              let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
+              document.getElementById('personalClosingNotice').innerText = noticeText;
+              // ★★★ 結束 ★★★
               let totalOvertime = 0;
               if (data.data) {
                  data.data.forEach(r => { let otVal = parseFloat(r.sys_overtimeHrs); if (!isNaN(otVal)) totalOvertime += otVal; });
