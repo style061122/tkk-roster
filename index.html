@@ -11,9 +11,7 @@
     <title>門市排班管理系統</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -44,6 +42,7 @@
 </head>
   <body>
     <div id="loadingOverlay"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div><h5 class="mt-3 text-dark fw-bold" id="loadingText">系統載入中...</h5></div>
+    
     <div id="loginSection" style="display:none;">
       <h3 class="mb-4 fw-bold text-primary">頂呱呱門市排班系統</h3>
       <div class="mb-3 text-start"><label class="form-label fw-bold">所屬公司</label><select id="loginCompany" class="form-select form-select-lg" onchange="updateStoreOptions()"><option value="">載入中...</option></select></div>
@@ -51,6 +50,7 @@
       <div class="mb-4 text-start"><label class="form-label fw-bold">登入密碼</label><input type="password" id="loginPassword" class="form-control form-select-lg" placeholder="請輸入密碼"></div>
       <div class="d-grid"><button class="btn btn-primary btn-lg fw-bold shadow" onclick="handleLogin()">登入系統</button></div>
     </div>
+
     <div id="appSection" class="main-container" style="display:none;">
       <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 flex-wrap gap-3">
         <div><h2 class="fw-bold text-primary mb-1"><span id="displayStoreName"></span> 排班表</h2><span class="badge bg-secondary fs-6" id="monthTargetInfo">載入中...</span></div>
@@ -58,7 +58,12 @@
            <div class="d-flex align-items-center border rounded px-2 py-1 bg-light"><span id="displayYear" class="fw-bold fs-5 text-primary">2026</span><span class="mx-1">年</span><span id="displayMonth" class="fw-bold fs-5 text-primary">1</span><span class="mx-1">月</span></div>
            <div class="btn-group"><button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 依日期排班</button><button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 依人名排班</button></div>
            <div id="filterContainer" class="d-flex"><div id="filterDateGroup" class="filter-group"><label class="fw-bold mx-2">日：</label><select id="selectDay" class="form-select fw-bold border-primary custom-select-day" onchange="renderTable()"></select></div><div id="filterNameGroup" class="filter-group" style="display:none;"><label class="fw-bold mx-2">人員：</label><select id="selectName" class="form-select fw-bold border-primary custom-select-name" onchange="renderTable()"></select></div></div>
-           <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button><button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button><button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button><button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button><button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
+           
+           <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
+           <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
+           <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
+           <button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button>
+           <button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
         </div>
       </div>
       <form id="scheduleForm">
@@ -66,81 +71,64 @@
         <div id="liveSummaryBar"></div>
         <div class="d-grid gap-2 mt-3"><button type="button" id="btnSave" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="saveData(false)">💾 確認儲存班表</button></div>
       </form>
-        <div id="closingNotice" class="text-center mt-2 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
+      <div id="closingNotice" class="text-center mt-2 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
     </div>
-<div id="personalSection" class="container" style="display:none; max-width: 1400px; margin-top: 20px;">
+
+    <div id="personalSection" class="container" style="display:none; max-width: 1400px; margin-top: 20px;">
        <h3 class="text-center fw-bold text-primary mb-2">📅 個人班表與出勤紀錄</h3>
        <h5 class="text-center text-secondary mb-4" id="personalNameDisplay">載入中...</h5>
        <div id="personalStats"></div>
-       
        <div class="table-responsive">
            <table class="table table-bordered table-hover table-striped">
-               <thead>
-                   <tr>
-                       <th style="width: 8%">日期</th>
-                       <th style="width: 8%">班表狀態</th>
-                       <th style="width: 10%">排班時間</th>
-                       <th style="width: 6%">應有時數<br>(H)</th>
-                       <th style="width: 8%">系統狀態<br>(I)</th>
-                       <th style="width: 10%">實際打卡<br>(上班/下班)</th>
-                       <th style="width: 10%">請假時間<br>(L)</th>
-                       <th style="width: 8%">假別<br>(M)</th>
-                       <th style="width: 10%">加班時間<br>(N)</th>
-                       <th style="width: 6%">加班時數<br>(O)</th>
-                       <th style="width: 10%">異常<br>(P)</th>
-                   </tr>
-               </thead>
+               <thead><tr><th style="width: 8%">日期</th><th style="width: 8%">班表狀態</th><th style="width: 10%">排班時間</th><th style="width: 6%">應有時數<br>(H)</th><th style="width: 8%">系統狀態<br>(I)</th><th style="width: 10%">實際打卡<br>(上班/下班)</th><th style="width: 10%">請假時間<br>(L)</th><th style="width: 8%">假別<br>(M)</th><th style="width: 10%">加班時間<br>(N)</th><th style="width: 6%">加班時數<br>(O)</th><th style="width: 10%">異常<br>(P)</th></tr></thead>
                <tbody id="personalTableBody"></tbody>
            </table>
        </div>
-
        <div id="personalClosingNotice" class="text-center mt-3 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
-       </div>
-    <div class="modal fade" id="statsModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-info text-white"><h5 class="modal-title fw-bold">📊 本月排班統計</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-light border d-flex justify-content-around fw-bold mb-3 text-dark bg-light" id="statsTarget"></div><h6 class="fw-bold text-primary border-bottom pb-2 mt-3">🔵 月薪制人員</h6><div class="table-responsive mb-4"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>應有時數(差)</th><th>休(差)</th><th>例(差)</th><th>國定(差)</th><th>空班</th></tr></thead><tbody id="statsTableMonthly"></tbody></table></div><h6 class="fw-bold text-success border-bottom pb-2">🟢 時薪制人員</h6><div class="table-responsive"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>累計應有</th></tr></thead><tbody id="statsTableHourly"></tbody></table></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div></div></div></div>
-<div class="modal fade" id="indivModal" tabindex="-1">
-  <div class="modal-dialog modal-xl">
-    <div class="modal-content">
-      <div class="modal-header bg-warning">
-        <h5 class="modal-title fw-bold text-dark">👤 目前系統狀態 (整月檢視)</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3 d-flex align-items-center flex-wrap gap-2">
-          <label class="fw-bold">選擇人員：</label>
-          <select id="indivSelect" class="form-select w-auto" onchange="renderIndividualTable()"></select>
-          <div id="indivStats" class="stat-info" style="flex-grow: 1;"></div>
-          <span id="totalOvertimeDisplay" style="margin-left: auto; color: #dc3545; font-weight: bold; font-size: 1.2em;"></span>
-        </div>
+    </div>
 
-        <div id="qrCodeContainer" class="text-center mb-3 p-3 border rounded bg-light" style="display: none;">
-            <h6 class="fw-bold text-success mb-3">📱 請員工使用手機掃描下方 QR Code</h6>
-            <div id="qrCodeCanvas" class="d-flex justify-content-center align-items-center bg-white p-2 mx-auto border shadow-sm" style="width: 200px; height: 200px;"></div>
-            <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
+    <div class="modal fade" id="statsModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-info text-white"><h5 class="modal-title fw-bold">📊 本月排班統計</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-light border d-flex justify-content-around fw-bold mb-3 text-dark bg-light" id="statsTarget"></div><h6 class="fw-bold text-primary border-bottom pb-2 mt-3">🔵 月薪制人員</h6><div class="table-responsive mb-4"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>應有時數(差)</th><th>休(差)</th><th>例(差)</th><th>國定(差)</th><th>空班</th></tr></thead><tbody id="statsTableMonthly"></tbody></table></div><h6 class="fw-bold text-success border-bottom pb-2">🟢 時薪制人員</h6><div class="table-responsive"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>累計應有</th></tr></thead><tbody id="statsTableHourly"></tbody></table></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div></div></div></div>
+
+    <div class="modal fade" id="indivModal" tabindex="-1">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header bg-warning">
+            <h5 class="modal-title fw-bold text-dark">👤 目前系統狀態 (整月檢視)</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3 d-flex align-items-center flex-wrap gap-2">
+              <label class="fw-bold">選擇人員：</label>
+              <select id="indivSelect" class="form-select w-auto" onchange="renderIndividualTable()"></select>
+              <div id="indivStats" class="stat-info" style="flex-grow: 1;"></div>
+              <span id="totalOvertimeDisplay" style="margin-left: auto; color: #dc3545; font-weight: bold; font-size: 1.2em;"></span>
+            </div>
+            <div id="qrCodeContainer" class="text-center mb-3 p-3 border rounded bg-light" style="display: none;">
+                <h6 class="fw-bold text-success mb-3">📱 請員工使用手機掃描下方 QR Code</h6>
+                <div id="qrCodeCanvas" class="d-flex justify-content-center align-items-center bg-white p-2 mx-auto border shadow-sm" style="width: 200px; height: 200px;"></div>
+                <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;">
+                <thead class="table-dark"><tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr></thead>
+                <tbody id="indivTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;">
-            <thead class="table-dark">
-              <tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr>
-            </thead>
-            <tbody id="indivTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
       </div>
     </div>
-  </div>
-</div>
+
     <script>
-      // ★★★ 您的後端 API 網址 (請確認網址沒變) ★★★
+      // ★★★ 請務必確認這個網址是您最新的後端網址 ★★★
       const API_URL = "https://script.google.com/macros/s/AKfycbxaW0XoCauHhJKl2ag_kprlE-Rt8ymee-wGJcyO4YZkbJsMjaN5w6adOS9jUylRMP1q/exec";
 
       // 全域變數
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
       let currentParams = {}, currentMode = 'date', allStoreData = {}; 
       
-      // ★ 新增：用來存放本次登入的識別碼
+      // ★ Token 變數 (防多開關鍵)
       let currentToken = ""; 
 
       const statusOpts = ["", "上班", "休", "例", "國", "空班"];
@@ -201,25 +189,22 @@
         } 
         // 2. 店長管理模式
         else {
-           // ★★★ 新增：檢查 Session 是否有登入紀錄 (防手殘按F5被登出) ★★★
+           // ★★★ SessionStorage 檢查 (防F5登出) ★★★
            const savedStore = sessionStorage.getItem('tkk_store');
            const savedToken = sessionStorage.getItem('tkk_token');
            
            if (savedStore && savedToken) {
-               // 自動恢復登入狀態
+               // 自動恢復登入
                currentStore = savedStore;
                currentToken = savedToken;
                document.getElementById('displayStoreName').innerText = savedStore;
                document.getElementById('loginSection').style.display = 'none';
                document.getElementById('appSection').style.display = 'block';
                
-               // 背景偷偷載入選單資料 (雖然已經登入，但選單還是要初始化)
+               // 背景載入選單
                callApi('getStoreList').then(res => { if(res.success) allStoreData = res.data; });
-               
-               // 直接讀取班表
                loadData(); 
            } else {
-               // 沒有 Session，正常載入登入頁
                showLoading(true, "連線中...");
                callApi('getStoreList').then(res => {
                    if (res.success) initLogin(res.data);
@@ -230,8 +215,9 @@
       };
 
       // ==========================================
-      // 登入與登出邏輯 (修改過)
+      // 功能函式 (API / 登入 / 存檔 / UI)
       // ==========================================
+      
       function handleLogin() {
         const store = document.getElementById('loginStore').value;
         const pwd = document.getElementById('loginPassword').value;
@@ -242,10 +228,9 @@
              showLoading(false);
              if (res.success) {
                 currentStore = store;
-                // ★ 接收後端發來的亂碼 Token
-                currentToken = res.token; 
+                currentToken = res.token; // ★ 存下 Token
                 
-                // ★ 寫入 SessionStorage (關鍵：這樣F5就不會被登出)
+                // ★ 寫入 SessionStorage
                 sessionStorage.setItem('tkk_store', store);
                 sessionStorage.setItem('tkk_token', res.token);
 
@@ -259,12 +244,10 @@
 
       function logout() { 
         currentStore = ""; currentData = []; currentToken = "";
-        
-        // ★ 清除 Session，這才是真正的登出
-        sessionStorage.removeItem('tkk_store'); 
+        sessionStorage.removeItem('tkk_store'); // ★ 清除 Session
         sessionStorage.removeItem('tkk_token'); 
-        
         idleTime = 0; 
+        
         document.getElementById('loginPassword').value = "";
         document.getElementById('selectName').innerHTML = ""; 
         document.getElementById('selectDay').innerHTML = "";
@@ -275,16 +258,28 @@
         document.getElementById('appSection').style.display = 'none';
         document.getElementById('loginSection').style.display = 'block';
         
-        // 如果還沒載入過選單，補載入一下
         if(Object.keys(allStoreData).length === 0) {
             callApi('getStoreList').then(res => { if(res.success) initLogin(res.data); });
         }
         showLoading(false);
       }
 
-      // ==========================================
-      // 存檔邏輯 (修改過：帶入 Token)
-      // ==========================================
+      function refreshData() {
+          loadData();
+          const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+              toast.addEventListener('mouseenter', Swal.stopTimer)
+              toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+          });
+          Toast.fire({ icon: 'success', title: '資料已更新' });
+      }
+
       function saveData(force) {
         const rows = document.querySelectorAll('#staffTable tr'); 
         let inputData = []; 
@@ -311,49 +306,27 @@
         
         showLoading(true, "儲存中...");
         
+        // ★ 呼叫後端時帶上 Token
         callApi('saveStoreData', { 
             store: currentStore, 
             inputData: inputData, 
             forceSave: force,
-            token: currentToken // ★ 關鍵：把手上的票根傳回去驗證
+            token: currentToken 
         })
           .then(res => {
              showLoading(false); 
-             
              if (res.status === 'SUCCESS') { 
-                 Swal.fire({ 
-                     icon: 'success', 
-                     title: '✅ 儲存成功', 
-                     text: '班表已更新完成', 
-                     confirmButtonText: '確認', 
-                     allowOutsideClick: false 
-                 }).then((result) => { if (result.isConfirmed) loadData(); }); 
+                 Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false }).then((result) => { if (result.isConfirmed) loadData(); }); 
              } 
-             // ★ 新增：如果被踢出 (驗票失敗)
              else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
-                 Swal.fire({ 
-                     icon: 'error', 
-                     title: '❌ 驗證失敗', 
-                     html: res.message, 
-                     confirmButtonText: '確定',
-                     allowOutsideClick: false 
-                 }).then(() => logout()); // 強制登出
+                 // ★ 搶旗失敗，被強制登出
+                 Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
              }
              else if (res.status === 'PARTIAL') { 
-                 Swal.fire({ 
-                     icon: 'warning', 
-                     title: '⚠️ 部分儲存成功', 
-                     html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, 
-                     confirmButtonText: '確認' 
-                 }).then(() => loadData()); 
+                 Swal.fire({ icon: 'warning', title: '⚠️ 部分儲存成功', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
              } 
              else if (res.status === 'FAILED') { 
-                 Swal.fire({ 
-                     icon: 'error', 
-                     title: '❌ 儲存失敗', 
-                     html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, 
-                     confirmButtonText: '確認' 
-                 }).then(() => loadData()); 
+                 Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
              }
              else { 
                  Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); 
@@ -363,27 +336,6 @@
              showLoading(false); 
              alert("儲存錯誤: " + err.message); 
           });
-      }
-
-      // ==========================================
-      // 其他功能函式 (保持原本邏輯)
-      // ==========================================
-      function refreshData() {
-          // 重新讀取資料，不消耗額外驗證流量
-          loadData();
-          // 用 Toast 提示使用者
-          const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-            timerProgressBar: true,
-            didOpen: (toast) => {
-              toast.addEventListener('mouseenter', Swal.stopTimer)
-              toast.addEventListener('mouseleave', Swal.resumeTimer)
-            }
-          });
-          Toast.fire({ icon: 'success', title: '資料已更新' });
       }
 
       function callApi(op, params = {}) {
