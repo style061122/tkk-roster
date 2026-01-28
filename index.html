@@ -133,7 +133,7 @@
   </div>
 </div>
     <script>
-      // ★★★ 您的後端 API 網址 ★★★
+      // ★★★ 您的後端 API 網址 (請確認網址沒變) ★★★
       const API_URL = "https://script.google.com/macros/s/AKfycbxaW0XoCauHhJKl2ag_kprlE-Rt8ymee-wGJcyO4YZkbJsMjaN5w6adOS9jUylRMP1q/exec";
 
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
@@ -141,9 +141,47 @@
       const statusOpts = ["", "上班", "休", "例", "國", "空班"];
       const timeOptions = generateTimeOptions(), restOptions = generateRestOptions();
 
+      // ==========================================
+      // ★★★ 新增：閒置自動登出變數 ★★★
+      // ==========================================
+      let idleTime = 0;
+      const IDLE_LIMIT = 20; // 設定 20 分鐘自動登出
+
+      // 每 1 分鐘 (60000毫秒) 檢查一次
+      setInterval(() => {
+          // 只有在「已登入 (currentStore有值)」且「在操作畫面 (appSection顯示中)」才計時
+          if (currentStore && document.getElementById('appSection').style.display !== 'none') {
+              idleTime++;
+              if (idleTime >= IDLE_LIMIT) {
+                  // 強制登出提示
+                  Swal.fire({
+                      icon: 'warning',
+                      title: '閒置過久',
+                      text: '為保護資料安全，系統已自動登出。請重新登入。',
+                      confirmButtonText: '重新登入',
+                      allowOutsideClick: false
+                  }).then(() => {
+                      logout(); // 執行登出
+                  });
+              }
+          }
+      }, 60000); 
+
+      // 重置計時器 (只要有動滑鼠或按鍵盤)
+      function resetTimer() { idleTime = 0; }
+
+      // ==========================================
+      // window.onload 入口
+      // ==========================================
       window.onload = function() {
+        // ★ 綁定監聽器：只要滑鼠動、按鍵盤、或是手機觸控，就重置計時
+        document.onmousemove = resetTimer;
+        document.onkeypress = resetTimer;
+        document.ontouchstart = resetTimer;
+
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode'), userParam = urlParams.get('u');
+        
         if (mode === 'personal' && userParam) {
            document.getElementById('loadingOverlay').style.display = 'flex';
            document.getElementById('loadingText').innerText = "讀取個人班表中...";
@@ -155,7 +193,7 @@
              })
              .catch(err => {
                 showLoading(false);
-                alert("錯誤：" + err.message); // 使用 alert 確保手機看得到錯誤
+                alert("錯誤：" + err.message); 
              });
         } else {
            showLoading(true, "連線中...");
@@ -166,14 +204,16 @@
         }
       };
 
-// ==========================================
-      // API 呼叫核心 (修正版：避開 CORS 檢查)
+      // ... (以下保留您原本所有的函式：callApi, renderPersonalPage, saveData 等等，完全不需要動) ...
+      // 為了篇幅簡潔，請確保您原本下方的所有 function 都有保留在 script 標籤內
+      
+      // ==========================================
+      // API 呼叫核心 (請確保這段有在您的代碼裡)
       // ==========================================
       function callApi(op, params = {}) {
          params.op = op;
          return fetch(API_URL, {
              method: 'POST',
-             // ★★★ 關鍵修正：必須用 text/plain，否則會出現 Failed to fetch ★★★
              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
              body: JSON.stringify(params)
          }).then(response => {
@@ -188,20 +228,43 @@
          });
       }
 
+      // ... (請繼續保留您原本的 renderPersonalPage, initLogin, updateStoreOptions, handleLogin, logout 等所有函式) ...
+      // ... (請確保不要遺漏任何原本的函式) ...
+      
+      // 這裡僅列出 logout 確保它會被呼叫
+      function logout() { 
+        currentStore = ""; currentData = [];
+        idleTime = 0; // 重置計時
+        document.getElementById('loginPassword').value = "";
+        document.getElementById('selectName').innerHTML = ""; 
+        document.getElementById('selectDay').innerHTML = "";
+        document.getElementById('staffTable').innerHTML = "";
+        switchMode('date'); 
+        document.getElementById('loginStore').innerHTML = '<option value="">請先選擇公司</option>';
+        document.getElementById('loginCompany').value = ""; 
+        document.getElementById('appSection').style.display = 'none';
+        document.getElementById('loginSection').style.display = 'block';
+        showLoading(false);
+      }
+
+      // ... (請繼續保留您原本後面的 loadData, initDaySelect, ... 直到 </script>) ...
+      
       function renderPersonalPage(data) {
           try {
               document.getElementById('loadingOverlay').style.display = 'none';
               document.getElementById('loginSection').style.display = 'none';
               document.getElementById('appSection').style.display = 'none';
               document.getElementById('personalSection').style.display = 'block';
+              
               const meta = data.meta;
               document.getElementById('personalNameDisplay').innerText = `${meta.year}年 ${meta.month}月 - ${data.name}`;
-              // ★★★ 新增：顯示結算提示 ★★★
+              
+              // 結算提示
               let nextMonth = (parseInt(meta.month) % 12) + 1;
-              let closeDay = meta.closingDay || 1; // 從後端取得 B10
+              let closeDay = meta.closingDay || 1; 
               let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
               document.getElementById('personalClosingNotice').innerText = noticeText;
-              // ★★★ 結束 ★★★
+
               let totalOvertime = 0;
               if (data.data) {
                  data.data.forEach(r => { let otVal = parseFloat(r.sys_overtimeHrs); if (!isNaN(otVal)) totalOvertime += otVal; });
@@ -213,6 +276,7 @@
               let rightContent = totalOvertime > 0 ? `已申請加班總時數: ${totalOvertime.toFixed(1)}` : "";
               const finalLeftContent = (data.isStoreStaff) ? leftContent : "";
               document.getElementById('personalStats').innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap"><div class="text-center flex-grow-1">${finalLeftContent}</div><div class="text-danger fw-bold" style="min-width: 200px; text-align: right;">${rightContent}</div></div>`;
+              
               const tbody = document.getElementById('personalTableBody');
               tbody.innerHTML = "";
               if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='11' class='text-muted'>本月無資料</td></tr>"; return; }
@@ -243,6 +307,12 @@
               alert("渲染錯誤: " + e.message);
           }
       }
+
+      // ... (後面請確保您的 generateTimeOptions, toggleQRCode, saveData 等所有函式都在) ...
+      // ... (請將上方那段 idleTime 與 window.onload 整合進去您的程式碼即可) ...
+      // 建議：您可以把您原本的 <script> 到 </script> 中間的內容，
+      // 把最上面的 window.onload 區塊，替換成我上面提供的這個「包含 idleTime」的版本。
+    </script>
 
       function initLogin(data) {
         showLoading(false); allStoreData = data || {}; 
