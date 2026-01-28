@@ -595,6 +595,67 @@
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
+        // ==========================================
+      // ★★★ 補回遺失的：個人班表渲染函式 ★★★
+      // ==========================================
+      function renderPersonalPage(data) {
+          try {
+              document.getElementById('loadingOverlay').style.display = 'none';
+              document.getElementById('loginSection').style.display = 'none';
+              document.getElementById('appSection').style.display = 'none';
+              document.getElementById('personalSection').style.display = 'block';
+              
+              const meta = data.meta;
+              document.getElementById('personalNameDisplay').innerText = `${meta.year}年 ${meta.month}月 - ${data.name}`;
+              
+              // 結算提示
+              let nextMonth = (parseInt(meta.month) % 12) + 1;
+              let closeDay = meta.closingDay || 1; 
+              let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
+              document.getElementById('personalClosingNotice').innerText = noticeText;
+
+              let totalOvertime = 0;
+              if (data.data) {
+                 data.data.forEach(r => { let otVal = parseFloat(r.sys_overtimeHrs); if (!isNaN(otVal)) totalOvertime += otVal; });
+              }
+              const s = data.stats;
+              let leftContent = data.isHourly 
+                  ? `累計應有：${s.hrs.toFixed(1)} | 休：${s.rest} | 例：${s.reg} | 國：${s.nat}`
+                  : `應有：${s.hrs.toFixed(1)} (${formatDiff(s.hrs - meta.hrs)}) | 休：${s.rest} (${formatDiff(s.rest - meta.rest)}) | 例：${s.reg} (${formatDiff(s.reg - meta.reg)}) | 國：${s.nat} (${formatDiff(s.nat - meta.nat)})`;
+              let rightContent = totalOvertime > 0 ? `已申請加班總時數: ${totalOvertime.toFixed(1)}` : "";
+              const finalLeftContent = (data.isStoreStaff) ? leftContent : "";
+              document.getElementById('personalStats').innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap"><div class="text-center flex-grow-1">${finalLeftContent}</div><div class="text-danger fw-bold" style="min-width: 200px; text-align: right;">${rightContent}</div></div>`;
+              
+              const tbody = document.getElementById('personalTableBody');
+              tbody.innerHTML = "";
+              if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='11' class='text-muted'>本月無資料</td></tr>"; return; }
+              data.data.forEach(r => {
+                 let dPart = r.date.split('/')[2] + "日";
+                 let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
+                 let planTime = (r.input_status === '上班' && r.input_start) ? `${r.input_start}~${r.input_end}` : "";
+                 let clockStr = (r.sys_clockIn || r.sys_clockOut) ? `${formatTime(r.sys_clockIn)}<br>${formatTime(r.sys_clockOut)}` : "";
+                 let abnormalStr = r.sys_abnormal ? `<span class="badge badge-abnormal">${r.sys_abnormal}</span>` : "";
+                 let leaveType = r.sys_leaveType ? `<span class="badge badge-leave">${r.sys_leaveType}</span>` : "";
+                 const tr = document.createElement('tr');
+                 tr.innerHTML = `
+                   <td class="fw-bold">${dPart}<br><small class="text-muted">${wDay}</small></td>
+                   <td class="fw-bold text-primary">${r.input_status}</td>
+                   <td>${planTime}</td>
+                   <td class="fw-bold">${formatNumber(r.calc_hours)}</td>
+                   <td>${r.sys_status}</td>
+                   <td>${clockStr}</td>
+                   <td>${formatTime(r.sys_leave)}</td>
+                   <td>${leaveType}</td>
+                   <td>${formatTime(r.sys_overtime)}</td>
+                   <td>${r.sys_overtimeHrs || ""}</td>
+                   <td>${abnormalStr}</td>
+                 `;
+                 tbody.appendChild(tr);
+              });
+          } catch(e) {
+              alert("渲染錯誤: " + e.message);
+          }
+      }
       function renderIndividualTable() {
         const name = document.getElementById('indivSelect').value;
         const tbody = document.getElementById('indivTableBody'); 
