@@ -170,7 +170,9 @@
         document.ontouchstart = resetTimer;
 
         const urlParams = new URLSearchParams(window.location.search);
-        const mode = urlParams.get('mode'), userParam = urlParams.get('u');
+        const mode = urlParams.get('mode'), 
+          // ★★★ 修改這行：優先抓取 'key'，如果沒有才抓 'u' (相容舊版) ★★★
+        const userParam = urlParams.get('key') || urlParams.get('u');
         
         // 1. 員工個人連結模式
         if (mode === 'personal' && userParam) {
@@ -663,9 +665,19 @@
         const statsDiv = document.getElementById('indivStats');
         document.getElementById('qrCodeContainer').style.display = 'none';
         
+        // 篩選出該員工的資料
         const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
-        const isHourly = (pData.length > 0 && pData[0].salaryType && pData[0].salaryType.includes("時薪"));
+        
+        if (pData.length === 0) return;
+
+        // 判斷時薪/月薪
+        const isHourly = (pData[0].salaryType && pData[0].salaryType.includes("時薪"));
         let hrs=0, rest=0, reg=0, nat=0, totalOvertime=0;
+        
+        // ★★★ 核心修改 1：嘗試抓取該員工的金鑰 (取第一筆即可) ★★★
+        // 如果後端還沒傳 pKey (例如後端還沒部署新版)，這裡會拿到 undefined
+        let userKey = pData[0].pKey || ""; 
+
         pData.forEach(r => {
            let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h;
            if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++;
@@ -675,9 +687,23 @@
         let otDisplay = document.getElementById("totalOvertimeDisplay");
         if (otDisplay) { otDisplay.innerText = totalOvertime > 0 ? "已申請加班總時數: " + totalOvertime.toFixed(1) : ""; }
         
-        let encodedName = encodeNameHex(name);
+        // ★★★ 核心修改 2：根據有無金鑰來決定顯示什麼 ★★★
         let currentBaseUrl = window.location.href.split('?')[0]; 
-        let personalLink = `${currentBaseUrl}?mode=personal&u=${encodedName}`;
+        let btnHtml = "";
+        let personalLink = "";
+
+        // 檢查金鑰是否存在且長度合理 (至少4碼)
+        if (userKey && userKey.length > 3) {
+            // 有金鑰 -> 產生安全連結 (使用 key=...)
+            personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
+            btnHtml = `
+              <button class="btn btn-sm btn-outline-primary fw-bold me-2" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
+              <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 顯示QR碼</button>
+            `;
+        } else {
+            // 無金鑰 -> 顯示紅字警告，不給按鈕
+            btnHtml = `<span class="badge bg-danger">❌ 未產生金鑰，請至後端執行「產生連結總表」</span>`;
+        }
         
         let statText = "";
         if (isHourly) {
@@ -686,8 +712,10 @@
            statText = `<strong>應有：</strong>${hrs.toFixed(1)} (${formatDiff(hrs - monthlyTargets.hrs)}) | <strong>休：</strong>${rest} (${formatDiff(rest - monthlyTargets.rest)}) | <strong>例：</strong>${reg} (${formatDiff(reg - monthlyTargets.reg)}) | <strong>國：</strong>${nat} (${formatDiff(nat - monthlyTargets.nat)})`;
         }
         
-        statsDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap gap-2"><div style="white-space: nowrap;">${statText}</div><div><button class="btn btn-sm btn-outline-primary fw-bold me-2" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button><button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 顯示QR碼</button></div></div>`;
+        // 組合畫面
+        statsDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap gap-2"><div style="white-space: nowrap;">${statText}</div><div>${btnHtml}</div></div>`;
         
+        // 填入表格內容 (不變)
         pData.forEach(r => {
            let planTimeStr = (r.input_start && String(r.input_start).trim() !== "") ? `${r.input_start}~${r.input_end}` : "";
            tbody.innerHTML += `<tr><td>${r.date}</td><td class="fw-bold text-primary">${r.input_status}</td><td style="color: #0d6efd; font-weight: bold;">${planTimeStr}</td><td>${r.calc_hours}</td><td>${r.sys_status}</td><td>${r.sys_clockIn}</td><td>${r.sys_clockOut}</td><td>${r.sys_leave}</td><td>${r.sys_leaveType}</td><td>${r.sys_overtime}</td><td>${r.sys_overtimeHrs}</td><td>${r.sys_abnormal}</td><td>${r.log}</td></tr>`;
