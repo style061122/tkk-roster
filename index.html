@@ -306,11 +306,9 @@
             closingDeadline.setHours(9, 0, 0, 0);
 
             // 設定鎖定開始時間 (關帳基準點 - 24小時) = 前一天的 09:00 
-            // (或是您定義的"前一天"是指 00:00? 照您的描述是 "3號及4號9點前"，這代表 3號00:00就開始鎖)
-            // 修改：設定鎖定開始時間為「關帳日的前一天 00:00:00」
             let lockoutStart = new Date(closingDeadline);
-            lockoutStart.setDate(closingDeadline.getDate() - 1);
-            lockoutStart.setHours(9, 0, 0, 0);
+            // ★★★ 修改這裡：直接減去您想要的小時數 (例如 30) ★★★
+            lockoutStart.setHours(closingDeadline.getHours() - 24);
 
             // 判斷：現在時間 是否介於 [鎖定開始] ~ [關帳基準點] 之間
             // 並且要確認我們是在操作「當前月份」的資料 (防止鎖到別個月)
