@@ -170,7 +170,7 @@
         document.ontouchstart = resetTimer;
 
         const urlParams = new URLSearchParams(window.location.search);
-        const mode = urlParams.get('mode'), 
+        const mode = urlParams.get('mode');
           // ★★★ 修改這行：優先抓取 'key'，如果沒有才抓 'u' (相容舊版) ★★★
         const userParam = urlParams.get('key') || urlParams.get('u');
         
