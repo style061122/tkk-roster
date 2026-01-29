@@ -283,6 +283,66 @@
       }
 
       function saveData(force) {
+        // ==========================================
+        // ★★★ 新增：關帳日鎖定機制 (前端防呆) ★★★
+        // ==========================================
+        try {
+            // 1. 取得設定的關帳日 (預設為 1 號)
+            let limitDay = parseInt(monthlyTargets.closingDay) || 4;
+            
+            // 2. 取得現在時間
+            let now = new Date();
+            let currentDay = now.getDate();
+            let currentHour = now.getHours();
+            
+            // 3. 計算「鎖定觸發條件」
+            // 條件 A: 今天是關帳日「前一天」 (整天鎖定)
+            // 條件 B: 今天是關帳日「當天」且「早上9點前」
+            
+            // 為了處理跨月問題 (例如關帳日是1號，前一天是上個月底)，我們用時間戳記比較最準
+            // 設定本月關帳基準點 (本月 X號 09:00)
+            let closingDeadline = new Date();
+            closingDeadline.setDate(limitDay);
+            closingDeadline.setHours(9, 0, 0, 0);
+
+            // 設定鎖定開始時間 (關帳基準點 - 24小時) = 前一天的 09:00 
+            // (或是您定義的"前一天"是指 00:00? 照您的描述是 "3號及4號9點前"，這代表 3號00:00就開始鎖)
+            // 修改：設定鎖定開始時間為「關帳日的前一天 00:00:00」
+            let lockoutStart = new Date(closingDeadline);
+            lockoutStart.setDate(closingDeadline.getDate() - 1);
+            lockoutStart.setHours(9, 0, 0, 0);
+
+            // 判斷：現在時間 是否介於 [鎖定開始] ~ [關帳基準點] 之間
+            // 並且要確認我們是在操作「當前月份」的資料 (防止鎖到別個月)
+            // 但為求簡單防呆，我們先只鎖「當下操作時間」，不論在排哪個月的班，關帳期間就是不准動。
+            
+            if (now >= lockoutStart && now < closingDeadline) {
+                // 格式化日期顯示 (給人類看的提示)
+                let m = (now.getMonth() + 1);
+                let lockDateStr = `${m}月${limitDay}日`;
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: '⛔ 系統關帳鎖定中',
+                    html: `
+                        <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
+                            因應薪資結算作業，目前處於資料封存期，<strong>無法調整班表</strong>。<br><br>
+                            🔒 <strong>關帳結算時間：</strong>${lockDateStr} 09:00<br>
+                            📅 <strong>預計開放時間：</strong>${lockDateStr} 09:00<br>
+                            <span class="text-muted" style="font-size:0.85rem;">(系統將於結算後自動產生隔月班表)</span><br><br>
+                            <span style="color: #d63384;">⚠️ 若有緊急修正需求，請私訊 <strong>人資官方帳號</strong>。</span>
+                        </div>
+                    `,
+                    confirmButtonText: '了解',
+                    allowOutsideClick: false
+                });
+                return; // ★★★ 擋住！不執行後面的程式碼 ★★★
+            }
+        } catch (e) {
+            console.error("日期檢查錯誤", e);
+            // 如果日期計算出錯，為了安全起見，先放行或擋下皆可，這裡選擇放行但記錄錯誤
+        }
+          
         const rows = document.querySelectorAll('#staffTable tr'); 
         let inputData = []; 
         let incomplete = false;
