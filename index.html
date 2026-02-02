@@ -53,70 +53,75 @@
 
     <div id="appSection" class="main-container" style="display:none;">
       <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 flex-wrap gap-3">
-        <div><h2 class="fw-bold text-primary mb-1"><span id="displayStoreName"></span> 排班表</h2><span class="badge bg-secondary fs-6" id="monthTargetInfo">載入中...</span></div>
+        <div>
+            <h2 class="fw-bold text-primary mb-1"><span id="displayStoreName"></span> 排班表</h2>
+            <span class="badge bg-secondary fs-6" id="monthTargetInfo">載入中...</span>
+        </div>
+        
         <div class="d-flex gap-2 align-items-center flex-wrap">
-           <div class="d-flex align-items-center border rounded px-2 py-1 bg-light"><span id="displayYear" class="fw-bold fs-5 text-primary">2026</span><span class="mx-1">年</span><span id="displayMonth" class="fw-bold fs-5 text-primary">1</span><span class="mx-1">月</span></div>
-           <div class="btn-group"><button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 依日期排班</button><button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 依人名排班</button></div>
-           <div id="filterContainer" class="d-flex"><div id="filterDateGroup" class="filter-group"><label class="fw-bold mx-2">日：</label><select id="selectDay" class="form-select fw-bold border-primary custom-select-day" onchange="renderTable()"></select></div><div id="filterNameGroup" class="filter-group" style="display:none;"><label class="fw-bold mx-2">人員：</label><select id="selectName" class="form-select fw-bold border-primary custom-select-name" onchange="renderTable()"></select></div></div>
            
-           <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
-           <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
-           <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
-           <button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button>
-           <button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
+           <div id="storeToolbarItems" class="d-flex gap-2 align-items-center flex-wrap">
+               <div class="d-flex align-items-center border rounded px-2 py-1 bg-light">
+                   <span id="displayYear" class="fw-bold fs-5 text-primary"></span><span class="mx-1">年</span>
+                   <span id="displayMonth" class="fw-bold fs-5 text-primary"></span><span class="mx-1">月</span>
+               </div>
+               <div class="btn-group">
+                   <button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 依日期</button>
+                   <button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 依人名</button>
+               </div>
+               <div id="filterContainer" class="d-flex">
+                   <div id="filterDateGroup" class="filter-group">
+                       <label class="fw-bold mx-2">日：</label>
+                       <select id="selectDay" class="form-select fw-bold border-primary custom-select-day" onchange="renderTable()"></select>
+                   </div>
+                   <div id="filterNameGroup" class="filter-group" style="display:none;">
+                       <label class="fw-bold mx-2">人員：</label>
+                       <select id="selectName" class="form-select fw-bold border-primary custom-select-name" onchange="renderTable()"></select>
+                   </div>
+               </div>
+               <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
+               <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
+           </div>
+
+           <div class="d-flex gap-2">
+               <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼</button>
+               <button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重整</button>
+               <button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
+           </div>
         </div>
       </div>
-      <form id="scheduleForm">
-        <div class="table-responsive"><table class="table table-bordered table-hover align-middle"><thead><tr id="tableHeaderRow"><th style="width:12%">姓名/日期</th><th style="width:15%">狀態 (D)</th><th style="width:13%">上班 (E)</th><th style="width:13%">下班 (F)</th><th style="width:10%">休息 (G)</th><th style="width:8%">時數 (H)</th><th style="width:29%">檢核訊息</th></tr></thead><tbody id="staffTable"></tbody></table></div>
-        <div id="liveSummaryBar"></div>
-        <div class="d-grid gap-2 mt-3"><button type="button" id="btnSave" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="saveData(false)">💾 確認儲存班表</button></div>
-      </form>
-      <div id="closingNotice" class="text-center mt-2 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
-    </div>
 
-    <div id="personalSection" class="container" style="display:none; max-width: 1400px; margin-top: 20px;">
-       <h3 class="text-center fw-bold text-primary mb-2">📅 個人班表與出勤紀錄</h3>
-       <h5 class="text-center text-secondary mb-4" id="personalNameDisplay">載入中...</h5>
-       <div id="personalStats"></div>
-       <div class="table-responsive">
-           <table class="table table-bordered table-hover table-striped">
-               <thead><tr><th style="width: 8%">日期</th><th style="width: 8%">班表狀態</th><th style="width: 10%">排班時間</th><th style="width: 6%">應有時數<br>(H)</th><th style="width: 8%">系統狀態<br>(I)</th><th style="width: 10%">實際打卡<br>(上班/下班)</th><th style="width: 10%">請假時間<br>(L)</th><th style="width: 8%">假別<br>(M)</th><th style="width: 10%">加班時間<br>(N)</th><th style="width: 6%">加班時數<br>(O)</th><th style="width: 10%">異常<br>(P)</th></tr></thead>
-               <tbody id="personalTableBody"></tbody>
-           </table>
-       </div>
-       <div id="personalClosingNotice" class="text-center mt-3 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
-    </div>
+      <div id="storeMainView">
+          <form id="scheduleForm">
+            <div class="table-responsive"><table class="table table-bordered table-hover align-middle"><thead><tr id="tableHeaderRow"><th style="width:12%">姓名/日期</th><th style="width:15%">狀態 (D)</th><th style="width:13%">上班 (E)</th><th style="width:13%">下班 (F)</th><th style="width:10%">休息 (G)</th><th style="width:8%">時數 (H)</th><th style="width:29%">檢核訊息</th></tr></thead><tbody id="staffTable"></tbody></table></div>
+            <div id="liveSummaryBar"></div>
+            <div class="d-grid gap-2 mt-3"><button type="button" id="btnSave" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="saveData(false)">💾 確認儲存班表</button></div>
+          </form>
+          <div id="closingNotice" class="text-center mt-2 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
+      </div>
 
-    <div class="modal fade" id="statsModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-info text-white"><h5 class="modal-title fw-bold">📊 本月排班統計</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-light border d-flex justify-content-around fw-bold mb-3 text-dark bg-light" id="statsTarget"></div><h6 class="fw-bold text-primary border-bottom pb-2 mt-3">🔵 月薪制人員</h6><div class="table-responsive mb-4"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>應有時數(差)</th><th>休(差)</th><th>例(差)</th><th>國定(差)</th><th>空班</th></tr></thead><tbody id="statsTableMonthly"></tbody></table></div><h6 class="fw-bold text-success border-bottom pb-2">🟢 時薪制人員</h6><div class="table-responsive"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>累計應有</th></tr></thead><tbody id="statsTableHourly"></tbody></table></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div></div></div></div>
-
-    <div class="modal fade" id="indivModal" tabindex="-1">
-      <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-          <div class="modal-header bg-warning">
-            <h5 class="modal-title fw-bold text-dark">👤 目前系統狀態 (整月檢視)</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      <div id="logisticsMainView" style="display:none;">
+          <div class="mb-3 d-flex align-items-center flex-wrap gap-2 bg-light p-3 rounded border shadow-sm">
+              <label class="fw-bold fs-5 text-primary">🔍 選擇人員檢視：</label>
+              <select id="logSelect" class="form-select w-auto fs-5 border-primary fw-bold" onchange="renderLogisticsTable()"></select>
+              
+              <div id="logStats" class="stat-info ms-3 flex-grow-1 fs-5"></div>
+              
+              <span id="logOvertimeDisplay" class="text-danger fw-bold fs-5 bg-white px-2 py-1 rounded border"></span>
           </div>
-          <div class="modal-body">
-            <div class="mb-3 d-flex align-items-center flex-wrap gap-2">
-              <label class="fw-bold">選擇人員：</label>
-              <select id="indivSelect" class="form-select w-auto" onchange="renderIndividualTable()"></select>
-              <div id="indivStats" class="stat-info" style="flex-grow: 1;"></div>
-              <span id="totalOvertimeDisplay" style="margin-left: auto; color: #dc3545; font-weight: bold; font-size: 1.2em;"></span>
-            </div>
-            <div id="qrCodeContainer" class="text-center mb-3 p-3 border rounded bg-light" style="display: none;">
-                <h6 class="fw-bold text-success mb-3">📱 請員工使用手機掃描下方 QR Code</h6>
-                <div id="qrCodeCanvas" class="d-flex justify-content-center align-items-center bg-white p-2 mx-auto border shadow-sm" style="width: 200px; height: 200px;"></div>
-                <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;">
-                <thead class="table-dark"><tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr></thead>
-                <tbody id="indivTableBody"></tbody>
+
+          <div id="logQrCodeContainer" class="text-center mb-3 p-3 border rounded bg-white shadow-sm" style="display: none;">
+              <h6 class="fw-bold text-success mb-3">📱 請員工使用手機掃描下方 QR Code</h6>
+              <div id="logQrCodeCanvas" class="d-flex justify-content-center align-items-center bg-white p-2 mx-auto border" style="width: 200px; height: 200px;"></div>
+              <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('logQrCodeContainer').style.display='none'">關閉 QR碼</button>
+          </div>
+
+          <div class="table-responsive">
+              <table class="table table-striped table-bordered text-center align-middle table-hover">
+                  <thead class="table-dark"><tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr></thead>
+                  <tbody id="logTableBody"></tbody>
               </table>
-            </div>
           </div>
-          <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div>
-        </div>
       </div>
     </div>
 
@@ -440,36 +445,52 @@
                  monthlyTargets = res.targets || {}; 
                  currentParams = res.params || {};
                  
-                 // ★★★ 新增：接收後端傳來的權限 ★★★
+                 // 接收權限
                  isStoreMode = res.isStore; 
 
                  const year = monthlyTargets.year || new Date().getFullYear();
                  const month = monthlyTargets.month || (new Date().getMonth()+1);
                  
-                 document.getElementById('displayYear').innerText = year;
-                 document.getElementById('displayMonth').innerText = month;
-                 
-                 // ★★★ 新增：根據權限控制 UI 顯示 ★★★
+                 // 如果是後勤，標題只要顯示年份月份，不需要顯示 Badge
                  if (isStoreMode) {
-                     // 門市模式：顯示統計、顯示儲存鈕
-                     document.getElementById('monthTargetInfo').style.display = 'inline-block';
+                     document.getElementById('displayYear').innerText = year;
+                     document.getElementById('displayMonth').innerText = month;
                      document.getElementById('monthTargetInfo').innerText = `目標: 應有${monthlyTargets.hrs} | 休${monthlyTargets.rest} | 例${monthlyTargets.reg} | 國${monthlyTargets.nat}`;
-                     document.getElementById('btnSave').parentElement.style.display = 'grid'; // 顯示儲存按鈕容器
+                     document.getElementById('monthTargetInfo').style.display = 'inline-block';
                  } else {
-                     // 後勤模式：隱藏統計、隱藏儲存鈕
                      document.getElementById('monthTargetInfo').style.display = 'none';
-                     document.getElementById('btnSave').parentElement.style.display = 'none';
+                 }
+
+                 // ==========================================
+                 // ★★★ 介面分流核心邏輯 ★★★
+                 // ==========================================
+                 if (isStoreMode) {
+                     // === 店長模式 ===
+                     document.getElementById('storeToolbarItems').style.display = 'flex'; // 顯示店長工具列
+                     document.getElementById('storeMainView').style.display = 'block';    // 顯示排班大表
+                     document.getElementById('logisticsMainView').style.display = 'none'; // 隱藏後勤介面
+                     
+                     // 初始化店長介面元件
+                     let nextMonth = (parseInt(month) % 12) + 1; 
+                     let closeDay = monthlyTargets.closingDay || 1; 
+                     let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
+                     document.getElementById('closingNotice').innerText = noticeText;
+
+                     if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
+                     initNameSelect(); 
+                     renderTable(); // 渲染店長表格
+
+                 } else {
+                     // === 後勤模式 ===
+                     document.getElementById('storeToolbarItems').style.display = 'none';  // ★ 隱藏店長工具列 (只剩右上角三個按鈕)
+                     document.getElementById('storeMainView').style.display = 'none';      // ★ 隱藏排班大表
+                     document.getElementById('logisticsMainView').style.display = 'block'; // ★ 顯示後勤介面
+                     
+                     // ★ 初始化後勤介面 (載入人員選單、顯示第一人的資料)
+                     initLogisticsView(); 
                  }
                  // ==========================================
 
-                 let nextMonth = (parseInt(month) % 12) + 1; 
-                 let closeDay = monthlyTargets.closingDay || 1; 
-                 
-                 let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
-                 document.getElementById('closingNotice').innerText = noticeText;
-
-                 if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
-                 initNameSelect(); renderTable();
              } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
         }).catch(err => errorHandler(err));
       }
@@ -706,6 +727,103 @@
       }
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
+      }
+        / ==========================================
+      // ★★★ 後勤專用邏輯 (B區) ★★★
+      // ==========================================
+      function initLogisticsView() {
+          const select = document.getElementById('logSelect');
+          select.innerHTML = '';
+          const names = [...new Set(currentData.map(r => r.name))];
+          names.forEach(n => select.innerHTML += `<option value="${n}">${n}</option>`);
+          
+          // 預設選第一個人並渲染
+          if (names.length > 0) renderLogisticsTable();
+      }
+
+      function renderLogisticsTable() {
+          const name = document.getElementById('logSelect').value;
+          const tbody = document.getElementById('logTableBody'); 
+          tbody.innerHTML = '';
+          const statsDiv = document.getElementById('logStats');
+          document.getElementById('logQrCodeContainer').style.display = 'none'; // 重繪時先隱藏QR
+          
+          const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
+          if (pData.length === 0) return;
+
+          // 計算統計
+          const isHourly = (pData[0].salaryType && pData[0].salaryType.includes("時薪"));
+          let hrs=0, rest=0, reg=0, nat=0, totalOvertime=0;
+          let userKey = pData[0].pKey || ""; 
+
+          pData.forEach(r => {
+             let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h;
+             if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++;
+             let otHrs = parseFloat(r.sys_overtimeHrs); if (!isNaN(otHrs)) totalOvertime += otHrs;
+          });
+          
+          // 顯示加班時數
+          let otDisplay = document.getElementById("logOvertimeDisplay");
+          if (otDisplay) otDisplay.innerText = totalOvertime > 0 ? "已申請加班總時數: " + totalOvertime.toFixed(1) : "";
+          
+          // 產生按鈕與連結
+          let currentBaseUrl = window.location.href.split('?')[0]; 
+          let btnHtml = "";
+          let personalLink = "";
+
+          if (userKey && userKey.length > 3) {
+              personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
+              btnHtml = `
+                <button class="btn btn-sm btn-outline-primary fw-bold me-2" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
+                <button class="btn btn-sm btn-success fw-bold" onclick="toggleLogQRCode('${personalLink}')">📱 顯示QR碼</button>
+              `;
+          } else {
+              btnHtml = `<span class="badge bg-danger">❌ 無金鑰</span>`;
+          }
+          
+          // 顯示統計文字
+          let statText = "";
+          if (isHourly) {
+             statText = `<strong>累計應有：</strong>${hrs.toFixed(1)} | <strong>休：</strong>${rest} | <strong>例：</strong>${reg} | <strong>國：</strong>${nat}`;
+          } else {
+             statText = `<strong>應有：</strong>${hrs.toFixed(1)} (${formatDiff(hrs - monthlyTargets.hrs)}) | <strong>休：</strong>${rest} (${formatDiff(rest - monthlyTargets.rest)}) | <strong>例：</strong>${reg} (${formatDiff(reg - monthlyTargets.reg)}) | <strong>國：</strong>${nat} (${formatDiff(nat - monthlyTargets.nat)})`;
+          }
+          
+          statsDiv.innerHTML = `<div class="d-flex align-items-center flex-wrap gap-3"><div>${statText}</div><div>${btnHtml}</div></div>`;
+          
+          // 填入表格
+          pData.forEach(r => {
+             let planTimeStr = (r.input_start && String(r.input_start).trim() !== "") ? `${r.input_start}~${r.input_end}` : "";
+             tbody.innerHTML += `<tr>
+                <td>${r.date}</td>
+                <td class="fw-bold text-primary">${r.input_status}</td>
+                <td style="color: #0d6efd; font-weight: bold;">${planTimeStr}</td>
+                <td>${r.calc_hours}</td>
+                <td>${r.sys_status}</td>
+                <td>${r.sys_clockIn}</td>
+                <td>${r.sys_clockOut}</td>
+                <td>${r.sys_leave}</td>
+                <td>${r.sys_leaveType}</td>
+                <td>${r.sys_overtime}</td>
+                <td>${r.sys_overtimeHrs}</td>
+                <td>${r.sys_abnormal}</td>
+                <td>${r.log}</td>
+             </tr>`;
+          });
+      }
+
+      // 後勤專用的 QR Toggle
+      let currentLogQRCode = null; 
+      function toggleLogQRCode(url) {
+          const container = document.getElementById('logQrCodeContainer');
+          const canvasBox = document.getElementById('logQrCodeCanvas');
+          if (container.style.display === 'block') {
+              container.style.display = 'none';
+          } else {
+              canvasBox.innerHTML = ''; 
+              currentLogQRCode = new QRCode(canvasBox, { text: url, width: 180, height: 180, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+              container.style.display = 'block';
+          }
       }
         // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
