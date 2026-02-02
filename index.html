@@ -728,7 +728,7 @@
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
-        / ==========================================
+      // ==========================================
       // ★★★ 後勤專用邏輯 (B區) ★★★
       // ==========================================
       function initLogisticsView() {
