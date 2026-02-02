@@ -127,6 +127,8 @@
       // 全域變數
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
       let currentParams = {}, currentMode = 'date', allStoreData = {}; 
+      // ★★★ 新增：儲存權限狀態 (true=門市可編輯, false=後勤唯讀) ★★★
+      let isStoreMode = false;
       
       // ★ Token 變數 (防多開關鍵)
       let currentToken = ""; 
@@ -438,12 +440,27 @@
                  monthlyTargets = res.targets || {}; 
                  currentParams = res.params || {};
                  
+                 // ★★★ 新增：接收後端傳來的權限 ★★★
+                 isStoreMode = res.isStore; 
+
                  const year = monthlyTargets.year || new Date().getFullYear();
                  const month = monthlyTargets.month || (new Date().getMonth()+1);
                  
                  document.getElementById('displayYear').innerText = year;
                  document.getElementById('displayMonth').innerText = month;
-                 document.getElementById('monthTargetInfo').innerText = `目標: 應有${monthlyTargets.hrs} | 休${monthlyTargets.rest} | 例${monthlyTargets.reg} | 國${monthlyTargets.nat}`;
+                 
+                 // ★★★ 新增：根據權限控制 UI 顯示 ★★★
+                 if (isStoreMode) {
+                     // 門市模式：顯示統計、顯示儲存鈕
+                     document.getElementById('monthTargetInfo').style.display = 'inline-block';
+                     document.getElementById('monthTargetInfo').innerText = `目標: 應有${monthlyTargets.hrs} | 休${monthlyTargets.rest} | 例${monthlyTargets.reg} | 國${monthlyTargets.nat}`;
+                     document.getElementById('btnSave').parentElement.style.display = 'grid'; // 顯示儲存按鈕容器
+                 } else {
+                     // 後勤模式：隱藏統計、隱藏儲存鈕
+                     document.getElementById('monthTargetInfo').style.display = 'none';
+                     document.getElementById('btnSave').parentElement.style.display = 'none';
+                 }
+                 // ==========================================
 
                  let nextMonth = (parseInt(month) % 12) + 1; 
                  let closeDay = monthlyTargets.closingDay || 1; 
@@ -519,43 +536,83 @@
         const summaryBar = document.getElementById('liveSummaryBar'); summaryBar.style.display = 'none'; 
         const y = document.getElementById('displayYear').innerText; const m = document.getElementById('displayMonth').innerText.padStart(2, '0');
         let targetData = [], targetName = "";
+        
         if (currentMode === 'date') {
            const d = document.getElementById('selectDay').value.padStart(2, '0'); const targetDateStr = `${y}/${m}/${d}`;
            targetData = currentData.filter(row => row.date === targetDateStr);
         } else {
            targetName = document.getElementById('selectName').value; targetData = currentData.filter(row => row.name === targetName);
-           targetData.sort((a,b) => a.date.localeCompare(b.date)); summaryBar.style.display = 'block'; 
+           targetData.sort((a,b) => a.date.localeCompare(b.date)); 
+           
+           // ★★★ 修改：只有在門市模式下，才顯示統計條 ★★★
+           if (isStoreMode) summaryBar.style.display = 'block'; 
         }
-        if (targetData.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted fw-bold">無資料</td></tr>'; if(currentMode === 'name') updateLiveSummary(targetName); return; }
+        
+        if (targetData.length === 0) { 
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted fw-bold">無資料</td></tr>'; 
+            if(currentMode === 'name' && isStoreMode) updateLiveSummary(targetName); 
+            return; 
+        }
+
         targetData.forEach((row) => {
           let originalIndex = currentData.indexOf(row);
           let tr = document.createElement('tr');
           tr.setAttribute('data-index', originalIndex); tr.setAttribute('data-salary', row.salaryType); tr.setAttribute('data-name', row.name); tr.setAttribute('data-date', row.date);
+          
+          // 1. 姓名/日期欄位 (維持不變)
           let col1Content = (currentMode === 'date') ? `<div class="fw-bold fs-5">${row.name}</div><span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill">${row.salaryType}</span>` : `<div class="fw-bold fs-5">${row.date.split('/')[2]} 日 <small class="text-muted fs-6">(${new Date(row.date).toLocaleDateString('zh-TW', {weekday: 'short'})})</small></div><span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill">${row.salaryType}</span>`;
           tr.innerHTML += `<td>${col1Content}</td>`;
-          let statusHtml = `<select class="form-select status-select fw-bold border-dark" onchange="handleRowChange(this)">`;
-          let currentDay = parseInt(row.date.split('/')[2]);
-          let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay.toString());
-          let allowed = [];
-          if (row.salaryType.includes("時薪")) {
-             let usage = getWeeklyUsage(row.name, row.date);
-             if (isHourlyHoliday) allowed = ["", "上班", "國"];
-             else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || row.input_status === '休') allowed.push("休"); if (usage.reg < 1 || row.input_status === '例') allowed.push("例"); }
+
+          // ==========================================
+          // ★★★ 核心修改：判斷是 店長(編輯) 還是 後勤(唯讀) ★★★
+          // ==========================================
+          if (isStoreMode) {
+              // --- 🅰️ 門市模式 (顯示原本的下拉選單) ---
+              let statusHtml = `<select class="form-select status-select fw-bold border-dark" onchange="handleRowChange(this)">`;
+              let currentDay = parseInt(row.date.split('/')[2]);
+              let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay.toString());
+              let allowed = [];
+              if (row.salaryType.includes("時薪")) {
+                  let usage = getWeeklyUsage(row.name, row.date);
+                  if (isHourlyHoliday) allowed = ["", "上班", "國"];
+                  else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || row.input_status === '休') allowed.push("休"); if (usage.reg < 1 || row.input_status === '例') allowed.push("例"); }
+              } else {
+                  let activeRules = (monthlyTargets.customRules || []).filter(r => currentDay >= r.start && currentDay <= r.end);
+                  if (activeRules.length > 0) {
+                      allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班");
+                      activeRules.forEach(r => { let used = getRangeUsage(row.name, r.type, r.start, r.end); if (used < r.limit || row.input_status === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } });
+                  } else { allowed = statusOpts; }
+              }
+              if (row.input_status && !allowed.includes(row.input_status)) allowed.push(row.input_status);
+              statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (row.input_status === opt) ? "selected" : ""; statusHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
+              statusHtml += `</select>`;
+              tr.innerHTML += `<td>${statusHtml}</td>`;
+              tr.innerHTML += `<td>${createTimeSelect(row.input_start, 'start-select')}</td><td>${createTimeSelect(row.input_end, 'end-select')}</td><td>${createRestSelect(row.input_rest)}</td><td><input type="text" class="form-control text-center fw-bold hours-input border-0 bg-transparent" value="${row.calc_hours}" readonly></td><td><div class="msg-box"></div></td>`;
           } else {
-             let activeRules = (monthlyTargets.customRules || []).filter(r => currentDay >= r.start && currentDay <= r.end);
-             if (activeRules.length > 0) {
-                 allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班");
-                 activeRules.forEach(r => { let used = getRangeUsage(row.name, r.type, r.start, r.end); if (used < r.limit || row.input_status === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } });
-             } else { allowed = statusOpts; }
+              // --- 🅱️ 後勤模式 (顯示純文字) ---
+              // 狀態顯示顏色
+              let colorClass = 'text-dark';
+              if (row.input_status === '上班') colorClass = 'text-primary';
+              else if (['休','例','國'].includes(row.input_status)) colorClass = 'text-success';
+
+              tr.innerHTML += `<td class="fw-bold fs-5 ${colorClass}">${row.input_status || "-"}</td>`;
+              tr.innerHTML += `<td class="fs-5">${row.input_start || "-"}</td>`;
+              tr.innerHTML += `<td class="fs-5">${row.input_end || "-"}</td>`;
+              tr.innerHTML += `<td class="fs-5">${row.input_rest || "-"}</td>`;
+              tr.innerHTML += `<td class="fw-bold fs-5">${row.calc_hours || "0"}</td>`;
+              tr.innerHTML += `<td></td>`; // 檢核訊息欄留空
           }
-          if (row.input_status && !allowed.includes(row.input_status)) allowed.push(row.input_status);
-          statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (row.input_status === opt) ? "selected" : ""; statusHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
-          statusHtml += `</select>`;
-          tr.innerHTML += `<td>${statusHtml}</td>`;
-          tr.innerHTML += `<td>${createTimeSelect(row.input_start, 'start-select')}</td><td>${createTimeSelect(row.input_end, 'end-select')}</td><td>${createRestSelect(row.input_rest)}</td><td><input type="text" class="form-control text-center fw-bold hours-input border-0 bg-transparent" value="${row.calc_hours}" readonly></td><td><div class="msg-box"></div></td>`;
-          tbody.appendChild(tr); updateRowState(tr); validateRow(tr);    
+
+          tbody.appendChild(tr); 
+          
+          // ★★★ 修改：只有在門市模式下，才執行驗證與狀態更新 ★★★
+          if (isStoreMode) {
+              updateRowState(tr); 
+              validateRow(tr);    
+          }
         });
-        if (currentMode === 'name') updateLiveSummary(targetName);
+        
+        if (currentMode === 'name' && isStoreMode) updateLiveSummary(targetName);
       }
 
       function handleRowChange(element) {
