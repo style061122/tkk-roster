@@ -539,7 +539,19 @@
           let allowed = [];
           if (row.salaryType.includes("時薪")) {
              let usage = getWeeklyUsage(row.name, row.date);
-             if (isHourlyHoliday) allowed = ["", "上班", "國"];
+             if (isHourlyHoliday) {
+                      // ==========================================
+                      // ★★★ 修改：時薪人員遇國定假日 ★★★
+                      // ==========================================
+                      
+                      // 1. 設定選項只剩「上班」與「國」(移除空字串，即移除"請選擇")
+                      allowed = ["上班", "國"];
+                      
+                      // 2. 強制預設值：如果目前狀態是空的，就自動填入「國」
+                      if (!row.input_status || row.input_status === "") {
+                          row.input_status = "國";
+                      }
+                  }
              else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || row.input_status === '休') allowed.push("休"); if (usage.reg < 1 || row.input_status === '例') allowed.push("例"); }
           } else {
              let activeRules = (monthlyTargets.customRules || []).filter(r => currentDay >= r.start && currentDay <= r.end);
