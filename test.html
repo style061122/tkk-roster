@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <title>門市排班管理系統</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+      body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; }
+      .main-container { max-width: 1400px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+      #loginSection { max-width: 400px; margin: 100px auto; text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+      .table th { vertical-align: middle; text-align: center; white-space: nowrap; font-size: 0.95rem; background-color: #343a40; color: white; }
+      .table td { vertical-align: middle; padding: 8px 5px; font-size: 1rem; text-align: center; }
+      input:read-only, select:disabled { background-color: #e9ecef; cursor: not-allowed; color: #6c757d; }
+      .row-error { background-color: #ffe6e6 !important; }
+      .row-warning { background-color: #fff3cd !important; }
+      .msg-box { font-size: 0.85em; font-weight: bold; line-height: 1.3; display: block; min-height: 18px; }
+      .text-err { color: #dc3545; } .text-warn { color: #856404; }
+      #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.85); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+      .diff-pos { color: green; font-weight: bold; } 
+      .diff-neg { color: red; font-weight: bold; }
+      .view-btn.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+      .filter-group { display: flex; align-items: center; margin-right: 15px; }
+      .custom-select-day { width: 100px !important; }
+      .custom-select-name { width: 160px !important; }
+      #liveSummaryBar { background-color: #fff3cd; border: 1px solid #ffecb5; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; display: none; font-size: 1rem; color: #664d03; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+      .swal2-container { z-index: 100000 !important; }
+      .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+      .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+      #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
+    </style>
+</head>
+  <body>
+    <div id="loadingOverlay"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div><h5 class="mt-3 text-dark fw-bold" id="loadingText">系統載入中...</h5></div>
+    
+    <div id="loginSection" style="display:none;">
+      <h3 class="mb-4 fw-bold text-primary">頂呱呱門市排班系統</h3>
+      <div class="mb-3 text-start"><label class="form-label fw-bold">所屬公司</label><select id="loginCompany" class="form-select form-select-lg" onchange="updateStoreOptions()"><option value="">載入中...</option></select></div>
+      <div class="mb-3 text-start"><label class="form-label fw-bold">選擇門市</label><select id="loginStore" class="form-select form-select-lg"><option value="">請先選擇公司</option></select></div>
+      <div class="mb-4 text-start"><label class="form-label fw-bold">登入密碼</label><input type="password" id="loginPassword" class="form-control form-select-lg" placeholder="請輸入密碼"></div>
+      <div class="d-grid"><button class="btn btn-primary btn-lg fw-bold shadow" onclick="handleLogin()">登入系統</button></div>
+    </div>
+
+    <div id="appSection" class="main-container" style="display:none;">
+      <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 flex-wrap gap-3">
+        <div><h2 class="fw-bold text-primary mb-1"><span id="displayStoreName"></span> 排班表</h2><span class="badge bg-secondary fs-6" id="monthTargetInfo">載入中...</span></div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+           <div class="d-flex align-items-center border rounded px-2 py-1 bg-light"><span id="displayYear" class="fw-bold fs-5 text-primary">2026</span><span class="mx-1">年</span><span id="displayMonth" class="fw-bold fs-5 text-primary">1</span><span class="mx-1">月</span></div>
+           <div class="btn-group"><button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 依日期排班</button><button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 依人名排班</button></div>
+           <div id="filterContainer" class="d-flex"><div id="filterDateGroup" class="filter-group"><label class="fw-bold mx-2">日：</label><select id="selectDay" class="form-select fw-bold border-primary custom-select-day" onchange="renderTable()"></select></div><div id="filterNameGroup" class="filter-group" style="display:none;"><label class="fw-bold mx-2">人員：</label><select id="selectName" class="form-select fw-bold border-primary custom-select-name" onchange="renderTable()"></select></div></div>
+           
+           <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
+           <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
+           <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
+           <button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button>
+           <button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
+        </div>
+      </div>
+      <form id="scheduleForm">
+        <div class="table-responsive"><table class="table table-bordered table-hover align-middle"><thead><tr id="tableHeaderRow"><th style="width:12%">姓名/日期</th><th style="width:15%">狀態 (D)</th><th style="width:13%">上班 (E)</th><th style="width:13%">下班 (F)</th><th style="width:10%">休息 (G)</th><th style="width:8%">時數 (H)</th><th style="width:29%">檢核訊息</th></tr></thead><tbody id="staffTable"></tbody></table></div>
+        <div id="liveSummaryBar"></div>
+        <div class="d-grid gap-2 mt-3"><button type="button" id="btnSave" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="saveData(false)">💾 確認儲存班表</button></div>
+      </form>
+      <div id="closingNotice" class="text-center mt-2 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
+    </div>
+
+    <div id="personalSection" class="container" style="display:none; max-width: 1400px; margin-top: 20px;">
+       <h3 class="text-center fw-bold text-primary mb-2">📅 個人班表與出勤紀錄</h3>
+       <h5 class="text-center text-secondary mb-4" id="personalNameDisplay">載入中...</h5>
+       <div id="personalStats"></div>
+       <div class="table-responsive">
+           <table class="table table-bordered table-hover table-striped">
+               <thead><tr><th style="width: 8%">日期</th><th style="width: 8%">班表狀態</th><th style="width: 10%">排班時間</th><th style="width: 6%">應有時數<br>(H)</th><th style="width: 8%">系統狀態<br>(I)</th><th style="width: 10%">實際打卡<br>(上班/下班)</th><th style="width: 10%">請假時間<br>(L)</th><th style="width: 8%">假別<br>(M)</th><th style="width: 10%">加班時間<br>(N)</th><th style="width: 6%">加班時數<br>(O)</th><th style="width: 10%">異常<br>(P)</th></tr></thead>
+               <tbody id="personalTableBody"></tbody>
+           </table>
+       </div>
+       <div id="personalClosingNotice" class="text-center mt-3 text-secondary fw-bold" style="font-size: 0.9rem;"></div>
+    </div>
+
+    <div class="modal fade" id="statsModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-info text-white"><h5 class="modal-title fw-bold">📊 本月排班統計</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-light border d-flex justify-content-around fw-bold mb-3 text-dark bg-light" id="statsTarget"></div><h6 class="fw-bold text-primary border-bottom pb-2 mt-3">🔵 月薪制人員</h6><div class="table-responsive mb-4"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>應有時數(差)</th><th>休(差)</th><th>例(差)</th><th>國定(差)</th><th>空班</th></tr></thead><tbody id="statsTableMonthly"></tbody></table></div><h6 class="fw-bold text-success border-bottom pb-2">🟢 時薪制人員</h6><div class="table-responsive"><table class="table table-sm table-bordered text-center align-middle table-striped"><thead class="table-light"><tr><th>姓名</th><th>累計應有</th></tr></thead><tbody id="statsTableHourly"></tbody></table></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div></div></div></div>
+
+    <div class="modal fade" id="indivModal" tabindex="-1">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header bg-warning">
+            <h5 class="modal-title fw-bold text-dark">👤 目前系統狀態 (整月檢視)</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3 d-flex align-items-center flex-wrap gap-2">
+              <label class="fw-bold">選擇人員：</label>
+              <select id="indivSelect" class="form-select w-auto" onchange="renderIndividualTable()"></select>
+              <div id="indivStats" class="stat-info" style="flex-grow: 1;"></div>
+              <span id="totalOvertimeDisplay" style="margin-left: auto; color: #dc3545; font-weight: bold; font-size: 1.2em;"></span>
+            </div>
+            <div id="qrCodeContainer" class="text-center mb-3 p-3 border rounded bg-light" style="display: none;">
+                <h6 class="fw-bold text-success mb-3">📱 請員工使用手機掃描下方 QR Code</h6>
+                <div id="qrCodeCanvas" class="d-flex justify-content-center align-items-center bg-white p-2 mx-auto border shadow-sm" style="width: 200px; height: 200px;"></div>
+                <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;">
+                <thead class="table-dark"><tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr></thead>
+                <tbody id="indivTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ★★★ 請務必確認這個網址是您最新的後端網址 ★★★
+      const API_URL = "https://script.google.com/macros/s/AKfycbxjmLHWwKM8MTYelGf60uPtEPeJzWGWWORJ51oM2DyflNPaxuBeGe0REsJAaFPKkBU/exec";
+
+      // 全域變數
+      let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
+      let currentParams = {}, currentMode = 'date', allStoreData = {}; 
+      
+      // ★ Token 變數 (防多開關鍵)
+      let currentToken = ""; 
+
+      const statusOpts = ["", "上班", "休", "例", "國", "空班"];
+      const timeOptions = generateTimeOptions(), restOptions = generateRestOptions();
+
+      // ==========================================
+      // ★★★ 閒置自動登出機制 ★★★
+      // ==========================================
+      let idleTime = 0;
+      const IDLE_LIMIT = 20; // 20 分鐘
+
+      setInterval(() => {
+          // 只有在「已登入」且「在操作畫面」才計時
+          if (currentStore && document.getElementById('appSection').style.display !== 'none') {
+              idleTime++;
+              if (idleTime >= IDLE_LIMIT) {
+                  Swal.fire({
+                      icon: 'warning',
+                      title: '閒置過久',
+                      text: '為保護資料安全，系統已自動登出。請重新登入。',
+                      confirmButtonText: '重新登入',
+                      allowOutsideClick: false
+                  }).then(() => {
+                      logout(); 
+                  });
+              }
+          }
+      }, 60000); 
+
+      function resetTimer() { idleTime = 0; }
+
+      // ==========================================
+      // window.onload (程式入口)
+      // ==========================================
+      window.onload = function() {
+        // 綁定閒置偵測
+        document.onmousemove = resetTimer;
+        document.onkeypress = resetTimer;
+        document.ontouchstart = resetTimer;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+          // ★★★ 修改這行：優先抓取 'key'，如果沒有才抓 'u' (相容舊版) ★★★
+        const userParam = urlParams.get('key') || urlParams.get('u');
+        
+        // 1. 員工個人連結模式
+        if (mode === 'personal' && userParam) {
+           document.getElementById('loadingOverlay').style.display = 'flex';
+           document.getElementById('loadingText').innerText = "讀取個人班表中...";
+           callApi('getPersonalData', { u: userParam })
+             .then(res => {
+                showLoading(false);
+                if (res.success) renderPersonalPage(res);
+                else document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
+             })
+             .catch(err => {
+                showLoading(false);
+                alert("錯誤：" + err.message); 
+             });
+        } 
+        // 2. 店長管理模式
+        else {
+           // ★★★ SessionStorage 檢查 (防F5登出) ★★★
+           const savedStore = sessionStorage.getItem('tkk_store');
+           const savedToken = sessionStorage.getItem('tkk_token');
+           
+           if (savedStore && savedToken) {
+               // 自動恢復登入
+               currentStore = savedStore;
+               currentToken = savedToken;
+               document.getElementById('displayStoreName').innerText = savedStore;
+               document.getElementById('loginSection').style.display = 'none';
+               document.getElementById('appSection').style.display = 'block';
+               
+               // 背景載入選單
+               callApi('getStoreList').then(res => { if(res.success) allStoreData = res.data; });
+               loadData(); 
+           } else {
+               showLoading(true, "連線中...");
+               callApi('getStoreList').then(res => {
+                   if (res.success) initLogin(res.data);
+                   else { showLoading(false); Swal.fire('錯誤', '無法取得門市清單', 'error'); }
+               }).catch(err => errorHandler(err));
+           }
+        }
+      };
+
+      // ==========================================
+      // 功能函式 (API / 登入 / 存檔 / UI)
+      // ==========================================
+      
+      function handleLogin() {
+        const store = document.getElementById('loginStore').value;
+        const pwd = document.getElementById('loginPassword').value;
+        if (!store || !pwd) { Swal.fire('錯誤', '請填寫完整', 'error'); return; }
+        
+        showLoading(true, "驗證中...");
+        callApi('login', { store: store, pwd: pwd }).then(res => {
+             showLoading(false);
+             if (res.success) {
+                currentStore = store;
+                currentToken = res.token; // ★ 存下 Token
+                
+                // ★ 寫入 SessionStorage
+                sessionStorage.setItem('tkk_store', store);
+                sessionStorage.setItem('tkk_token', res.token);
+
+                document.getElementById('displayStoreName').innerText = store;
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('appSection').style.display = 'block';
+                loadData();
+             } else { Swal.fire('登入失敗', res.message, 'error'); }
+        }).catch(err => errorHandler(err));
+      }
+
+      function logout() { 
+        currentStore = ""; currentData = []; currentToken = "";
+        sessionStorage.removeItem('tkk_store'); // ★ 清除 Session
+        sessionStorage.removeItem('tkk_token'); 
+        idleTime = 0; 
+        
+        document.getElementById('loginPassword').value = "";
+        document.getElementById('selectName').innerHTML = ""; 
+        document.getElementById('selectDay').innerHTML = "";
+        document.getElementById('staffTable').innerHTML = "";
+        switchMode('date'); 
+        document.getElementById('loginStore').innerHTML = '<option value="">請先選擇公司</option>';
+        document.getElementById('loginCompany').value = ""; 
+        document.getElementById('appSection').style.display = 'none';
+        document.getElementById('loginSection').style.display = 'block';
+        
+        if(Object.keys(allStoreData).length === 0) {
+            callApi('getStoreList').then(res => { if(res.success) initLogin(res.data); });
+        }
+        showLoading(false);
+      }
+
+      function refreshData() {
+          loadData();
+          const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+              toast.addEventListener('mouseenter', Swal.stopTimer)
+              toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+          });
+          Toast.fire({ icon: 'success', title: '資料已更新' });
+      }
+
+      function saveData(force) {
+        // ==========================================
+        // ★★★ 新增：關帳日鎖定機制 (前端防呆 - 區間顯示版) ★★★
+        // ==========================================
+        try {
+            let limitDay = parseInt(monthlyTargets.closingDay) || 4;
+            let now = new Date();
+            
+            // 1. 設定關帳基準點 (本月 X號 09:00)
+            let closingDeadline = new Date();
+            closingDeadline.setDate(limitDay);
+            closingDeadline.setHours(9, 0, 0, 0);
+
+            // 2. 設定鎖定開始時間 (在此修改小時數)
+            let lockoutStart = new Date(closingDeadline);
+            // ★★★ 設定區：這裡輸入 -24, -30, -48 皆可 ★★★
+            lockoutStart.setHours(closingDeadline.getHours() - 24); 
+
+            // 3. 判斷是否在鎖定區間內
+            if (now >= lockoutStart && now < closingDeadline) {
+                
+                // 4. 定義日期格式化工具 (轉成 "2月3日 09:00" 格式)
+                const fmt = (d) => {
+                    let m = d.getMonth() + 1;
+                    let dd = d.getDate();
+                    let hh = String(d.getHours()).padStart(2, '0');
+                    return `${m}月${dd}日 ${hh}:00`;
+                };
+
+                let startStr = fmt(lockoutStart);   // 自動算出起始字串
+                let endStr = fmt(closingDeadline);  // 自動算出結束字串
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: '⛔ 系統關帳鎖定中',
+                    html: `
+                        <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
+                            因應薪資結算作業，目前處於資料封存期，<strong>無法調整班表</strong>。<br><br>
+                            🔒 <strong>鎖定時間：</strong> ${startStr} 起至 ${endStr}<br>
+                            📅 <strong>預計開放時間：</strong> ${endStr}<br>
+                            <span class="text-muted" style="font-size:0.85rem;">(系統將於結算後自動產生隔月班表)</span><br><br>
+                            <span style="color: #d63384;">⚠️ 若有緊急修正需求，請私訊 <strong>人資官方帳號</strong>。</span>
+                        </div>
+                    `,
+                    confirmButtonText: '了解',
+                    allowOutsideClick: false
+                });
+                return; // 擋住！
+            }
+        } catch (e) {
+            console.error("日期檢查錯誤", e);
+        }
+        // ==========================================
+          
+        const rows = document.querySelectorAll('#staffTable tr'); 
+        let inputData = []; 
+        let incomplete = false;
+        
+        rows.forEach(tr => {
+          const idx = parseInt(tr.getAttribute('data-index')); 
+          const s = tr.querySelector('.status-select').value; 
+          const verifyName = tr.getAttribute('data-name'); 
+          const verifyDate = tr.getAttribute('data-date');
+          
+          if (s === '上班') {
+            const start = tr.querySelector('.start-select').value; 
+            const end = tr.querySelector('.end-select').value; 
+            const rest = tr.querySelector('.rest-select').value;
+            if (!start || !end || rest === "") { incomplete = true; tr.classList.add('row-error'); }
+            inputData.push({ rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, d: s, e: start, f: end, g: rest });
+          } else { 
+            inputData.push({ rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, d: s, e: "", f: "", g: "" }); 
+          }
+        });
+        
+        if (incomplete) { Swal.fire('錯誤', '上班需填寫完整時間', 'warning'); return; }
+        
+        showLoading(true, "儲存中...");
+        
+        // ★ 呼叫後端時帶上 Token
+        callApi('saveStoreData', { 
+            store: currentStore, 
+            inputData: inputData, 
+            forceSave: force,
+            token: currentToken 
+        })
+          .then(res => {
+             showLoading(false); 
+             if (res.status === 'SUCCESS') { 
+                 Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false }).then((result) => { if (result.isConfirmed) loadData(); }); 
+             } 
+             else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
+                 // ★ 搶旗失敗，被強制登出
+                 Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
+             }
+             else if (res.status === 'PARTIAL') { 
+                 Swal.fire({ icon: 'warning', title: '⚠️ 部分儲存成功', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
+             } 
+             else if (res.status === 'FAILED') { 
+                 Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
+             }
+             else { 
+                 Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); 
+             }
+          })
+          .catch(err => { 
+             showLoading(false); 
+             alert("儲存錯誤: " + err.message); 
+          });
+      }
+
+      function callApi(op, params = {}) {
+         params.op = op;
+         return fetch(API_URL, {
+             method: 'POST',
+             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+             body: JSON.stringify(params)
+         }).then(response => {
+             return response.text().then(text => {
+                 try {
+                     return JSON.parse(text);
+                 } catch (e) {
+                     console.error("API Error Raw:", text);
+                     throw new Error("後端回應非 JSON 格式");
+                 }
+             });
+         });
+      }
+
+      function initLogin(data) {
+        showLoading(false); allStoreData = data || {}; 
+        const coSelect = document.getElementById('loginCompany');
+        coSelect.innerHTML = '<option value="">請選擇公司</option>';
+        Object.keys(allStoreData).forEach(co => { coSelect.innerHTML += `<option value="${co}">${co}</option>`; });
+        document.getElementById('loginSection').style.display = 'block';
+      }
+
+      function updateStoreOptions() {
+        const company = document.getElementById('loginCompany').value;
+        const storeSelect = document.getElementById('loginStore');
+        storeSelect.innerHTML = '<option value="">請選擇門市</option>';
+        if (company && allStoreData[company]) {
+            allStoreData[company].forEach(store => { storeSelect.innerHTML += `<option value="${store}">${store}</option>`; });
+        }
+      }
+
+      function loadData() {
+        if (!currentStore) return;
+        showLoading(true, "讀取資料中...");
+        callApi('getStoreData', { store: currentStore }).then(res => {
+             showLoading(false);
+             if (res.success) {
+                 currentData = res.data || []; 
+                 monthlyTargets = res.targets || {}; 
+                 currentParams = res.params || {};
+                 
+                 const year = monthlyTargets.year || new Date().getFullYear();
+                 const month = monthlyTargets.month || (new Date().getMonth()+1);
+                 
+                 document.getElementById('displayYear').innerText = year;
+                 document.getElementById('displayMonth').innerText = month;
+                 document.getElementById('monthTargetInfo').innerText = `目標: 應有${monthlyTargets.hrs} | 休${monthlyTargets.rest} | 例${monthlyTargets.reg} | 國${monthlyTargets.nat}`;
+
+                 let nextMonth = (parseInt(month) % 12) + 1; 
+                 let closeDay = monthlyTargets.closingDay || 1; 
+                 
+                 let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
+                 document.getElementById('closingNotice').innerText = noticeText;
+
+                 if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
+                 initNameSelect(); renderTable();
+             } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
+        }).catch(err => errorHandler(err));
+      }
+
+      function initDaySelect(year, month) {
+        const select = document.getElementById('selectDay'); select.innerHTML = '';
+        const daysInMonth = new Date(year, month, 0).getDate(); const today = new Date().getDate();
+        for(let d=1; d<=daysInMonth; d++) { let selected = (d === today) ? "selected" : ""; select.innerHTML += `<option value="${d}" ${selected}>${d} 日</option>`; }
+      }
+
+      function initNameSelect() {
+        const select = document.getElementById('selectName'); select.innerHTML = '';
+        const names = [...new Set(currentData.map(r => r.name))];
+        names.forEach(n => select.innerHTML += `<option value="${n}">${n}</option>`);
+      }
+
+      function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('btnModeDate').classList.toggle('active', mode === 'date');
+        document.getElementById('btnModeName').classList.toggle('active', mode === 'name');
+        document.getElementById('filterDateGroup').style.display = (mode === 'date') ? 'flex' : 'none';
+        document.getElementById('filterNameGroup').style.display = (mode === 'name') ? 'flex' : 'none';
+        document.getElementById('tableHeaderRow').cells[0].innerText = (mode === 'date') ? "姓名" : "日期";
+        renderTable();
+      }
+
+      function getWeeklyUsage(name, dateStr) {
+         let currDate = new Date(dateStr);
+         let startDayParam = monthlyTargets.weekStart || 1; 
+         let day = currDate.getDay(); 
+         let adjDay = (day === 0 ? 7 : day) - startDayParam; if (adjDay < 0) adjDay += 7;
+         let weekStart = new Date(currDate); weekStart.setDate(currDate.getDate() - adjDay);
+         let weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+         let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
+         if (currentMode === 'name') {
+             const rows = document.querySelectorAll('#staffTable tr');
+             rows.forEach(tr => {
+                 let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
+                 let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
+             });
+         }
+         let weekData = personData.filter(r => { let d = new Date(r.date); return d >= weekStart && d <= weekEnd; });
+         let usage = { rest: 0, reg: 0 };
+         weekData.forEach(r => { if (r.input_status === '休') usage.rest++; if (r.input_status === '例') usage.reg++; });
+         return usage;
+      }
+
+      function getRangeUsage(name, type, startDay, endDay) {
+         let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
+         if (currentMode === 'name') {
+             const rows = document.querySelectorAll('#staffTable tr');
+             rows.forEach(tr => {
+                 let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
+                 let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
+             });
+         }
+         let count = 0;
+         personData.forEach(r => { let d = parseInt(r.date.split('/')[2]); if (d >= startDay && d <= endDay && r.input_status === type) count++; });
+         return count;
+      }
+
+      function renderTable() {
+        const tbody = document.getElementById('staffTable'); tbody.innerHTML = '';
+        const summaryBar = document.getElementById('liveSummaryBar'); summaryBar.style.display = 'none'; 
+        const y = document.getElementById('displayYear').innerText; const m = document.getElementById('displayMonth').innerText.padStart(2, '0');
+        let targetData = [], targetName = "";
+        if (currentMode === 'date') {
+           const d = document.getElementById('selectDay').value.padStart(2, '0'); const targetDateStr = `${y}/${m}/${d}`;
+           targetData = currentData.filter(row => row.date === targetDateStr);
+        } else {
+           targetName = document.getElementById('selectName').value; targetData = currentData.filter(row => row.name === targetName);
+           targetData.sort((a,b) => a.date.localeCompare(b.date)); summaryBar.style.display = 'block'; 
+        }
+        if (targetData.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted fw-bold">無資料</td></tr>'; if(currentMode === 'name') updateLiveSummary(targetName); return; }
+        targetData.forEach((row) => {
+          let originalIndex = currentData.indexOf(row);
+          let tr = document.createElement('tr');
+          tr.setAttribute('data-index', originalIndex); tr.setAttribute('data-salary', row.salaryType); tr.setAttribute('data-name', row.name); tr.setAttribute('data-date', row.date);
+          let col1Content = (currentMode === 'date') ? `<div class="fw-bold fs-5">${row.name}</div><span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill">${row.salaryType}</span>` : `<div class="fw-bold fs-5">${row.date.split('/')[2]} 日 <small class="text-muted fs-6">(${new Date(row.date).toLocaleDateString('zh-TW', {weekday: 'short'})})</small></div><span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill">${row.salaryType}</span>`;
+          tr.innerHTML += `<td>${col1Content}</td>`;
+          let statusHtml = `<select class="form-select status-select fw-bold border-dark" onchange="handleRowChange(this)">`;
+          let currentDay = parseInt(row.date.split('/')[2]);
+          let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay.toString());
+          let allowed = [];
+          if (row.salaryType.includes("時薪")) {
+             let usage = getWeeklyUsage(row.name, row.date);
+             if (isHourlyHoliday) {
+                      // ==========================================
+                      // ★★★ 修改：時薪人員遇國定假日 ★★★
+                      // ==========================================
+                      
+                      // 1. 設定選項只剩「上班」與「國」(移除空字串，即移除"請選擇")
+                      allowed = ["上班", "國"];
+                      
+                      // 2. 強制預設值：如果目前狀態是空的，就自動填入「國」
+                      if (!row.input_status || row.input_status === "") {
+                          row.input_status = "國";
+                      }
+                  }
+             else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || row.input_status === '休') allowed.push("休"); if (usage.reg < 1 || row.input_status === '例') allowed.push("例"); }
+          } else {
+             let activeRules = (monthlyTargets.customRules || []).filter(r => currentDay >= r.start && currentDay <= r.end);
+             if (activeRules.length > 0) {
+                 allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班");
+                 activeRules.forEach(r => { let used = getRangeUsage(row.name, r.type, r.start, r.end); if (used < r.limit || row.input_status === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } });
+             } else { allowed = statusOpts; }
+          }
+          if (row.input_status && !allowed.includes(row.input_status)) allowed.push(row.input_status);
+          statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (row.input_status === opt) ? "selected" : ""; statusHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
+          statusHtml += `</select>`;
+          tr.innerHTML += `<td>${statusHtml}</td>`;
+          tr.innerHTML += `<td>${createTimeSelect(row.input_start, 'start-select')}</td><td>${createTimeSelect(row.input_end, 'end-select')}</td><td>${createRestSelect(row.input_rest)}</td><td><input type="text" class="form-control text-center fw-bold hours-input border-0 bg-transparent" value="${row.calc_hours}" readonly></td><td><div class="msg-box"></div></td>`;
+          tbody.appendChild(tr); updateRowState(tr); validateRow(tr);    
+        });
+        if (currentMode === 'name') updateLiveSummary(targetName);
+      }
+
+      function handleRowChange(element) {
+        let tr = element.closest('tr'); let idx = parseInt(tr.getAttribute('data-index'));
+        currentData[idx].input_status = tr.querySelector('.status-select').value;
+        currentData[idx].input_start = tr.querySelector('.start-select').value;
+        currentData[idx].input_end = tr.querySelector('.end-select').value;
+        currentData[idx].input_rest = tr.querySelector('.rest-select').value;
+        updateRowState(tr); calculateRow(tr); currentData[idx].calc_hours = tr.querySelector('.hours-input').value;
+        if (currentMode === 'name') { let salary = tr.getAttribute('data-salary'); let name = tr.getAttribute('data-name'); if (salary.includes("時薪")) refreshHourlyDropdowns(name); else if (salary.includes("月薪")) refreshMonthlyDropdowns(name); updateLiveSummary(name); }
+        validateRow(tr); checkRealTimeBudget(tr); validateAll();
+      }
+
+      function refreshHourlyDropdowns(name) {
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             if (tr.getAttribute('data-name') !== name) return;
+             const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
+             let usage = getWeeklyUsage(name, dateStr); let currentDay = parseInt(dateStr.split('/')[2]).toString();
+             let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
+             let allowed = [];
+             if (isHourlyHoliday) allowed = ["", "上班", "國"]; else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || currentVal === '休') allowed.push("休"); if (usage.reg < 1 || currentVal === '例') allowed.push("例"); }
+             if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
+             let newHtml = ""; statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (currentVal === opt) ? "selected" : ""; newHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
+             if (select.innerHTML !== newHtml) { select.innerHTML = newHtml; select.value = currentVal; }
+         });
+      }
+
+      function refreshMonthlyDropdowns(name) {
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             if (tr.getAttribute('data-name') !== name) return;
+             const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
+             const currentDay = parseInt(dateStr.split('/')[2]);
+             let activeRules = (monthlyTargets.customRules || []).filter(r => currentDay >= r.start && currentDay <= r.end);
+             let allowed = [];
+             if (activeRules.length > 0) { allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班"); activeRules.forEach(r => { let used = getRangeUsage(name, r.type, r.start, r.end); if (used < r.limit || currentVal === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } }); } else { allowed = statusOpts; }
+             if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
+             let newHtml = ""; statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (currentVal === opt) ? "selected" : ""; newHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
+             if (select.innerHTML !== newHtml) { select.innerHTML = newHtml; select.value = currentVal; }
+         });
+      }
+
+      function updateLiveSummary(name) {
+         if (!name) return;
+         let pData = currentData.filter(r => r.name === name);
+         let hrs = 0, rest = 0, reg = 0, nat = 0, empty = 0;
+         pData.forEach(r => { let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h; if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++; else if (r.input_status === '空班') empty++; });
+         const bar = document.getElementById('liveSummaryBar');
+         bar.innerHTML = `<span class="me-3">目前累計 (${name})：</span> 應有 <span class="${getDiffClass(hrs, monthlyTargets.hrs)}">${hrs.toFixed(1)}</span> / 休 <span class="${getDiffClass(rest, monthlyTargets.rest)}">${rest}</span> / 例 <span class="${getDiffClass(reg, monthlyTargets.reg)}">${reg}</span> / 國 <span class="${getDiffClass(nat, monthlyTargets.nat)}">${nat}</span> / 空班 ${empty}`;
+      }
+
+      function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
+      function updateRowState(tr) {
+        const status = tr.querySelector('.status-select').value; const inputs = tr.querySelectorAll('.time-select, .rest-select'); const hInput = tr.querySelector('.hours-input');
+        if (status === '上班') { inputs.forEach(el => { el.disabled = false; el.classList.remove('bg-light'); }); } else { inputs.forEach(el => { el.disabled = true; el.classList.add('bg-light'); el.value = ""; }); hInput.value = ""; tr.querySelector('.msg-box').innerHTML = ""; tr.classList.remove('row-error', 'row-warning'); }
+      }
+      function calculateRow(tr) {
+        const status = tr.querySelector('.status-select').value; if (status !== '上班') return;
+        const s = tr.querySelector('.start-select').value; const e = tr.querySelector('.end-select').value; const r = tr.querySelector('.rest-select').value; const hInput = tr.querySelector('.hours-input');
+        if (s && e && r !== "") { let start = timeToFloat(s), end = timeToFloat(e), rest = parseFloat(r); if (end < start) end += 24; let total = end - start - rest; hInput.value = (total > 0) ? total.toFixed(1) : "0.0"; } else { hInput.value = ""; }
+      }
+      function validateRow(tr) {
+        const status = tr.querySelector('.status-select').value; const msgBox = tr.querySelector('.msg-box'); const salaryType = tr.getAttribute('data-salary'); const dateStr = tr.getAttribute('data-date'); 
+        const hVal = parseFloat(tr.querySelector('.hours-input').value) || 0; const rVal = parseFloat(tr.querySelector('.rest-select').value) || 0;
+        msgBox.innerHTML = ""; tr.classList.remove('row-error', 'row-warning'); let errors = [], warnings = [];
+        let currentDay = parseInt(dateStr.split('/')[2]).toString(); let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
+        if (salaryType.includes("時薪") && isHourlyHoliday && status === "國") warnings.push("⚠️ 時薪人員如有出勤，狀態請改為'上班'");
+        if (salaryType.includes("月薪") && status === "國") warnings.push("⚠️ 月薪人員如有出勤，請整天申請加班單");
+        if (salaryType.includes("月薪") && status === "空班") warnings.push("⚠️ 當月應有時數大於8才會產生空班");
+        if (status === '上班' && tr.querySelector('.start-select').value) { if (salaryType.includes("月薪") && hVal > 10) errors.push("❌ 月薪制不可>10小時"); else if (salaryType.includes("時薪") && hVal > 8) errors.push("❌ 時薪制不可>8小時"); if (hVal > 8 && rVal < 1) errors.push("❌ >8小時需休1小時"); else if (hVal > 4 && rVal < 0.5) errors.push("❌ >4小時需休0.5小時"); }
+        if (errors.length > 0) { msgBox.innerHTML = errors.map(e=>`<span class="text-err">${e}</span>`).join("<br>"); tr.classList.add('row-error'); } else if (warnings.length > 0) { msgBox.innerHTML = warnings.map(w=>`<span class="text-warn">${w}</span>`).join("<br>"); tr.classList.add('row-warning'); }
+      }
+      function checkRealTimeBudget(tr) {
+        if (!currentData.length) return; const name = tr.getAttribute('data-name'); let totalHours = 0, cnt = { rest:0, reg:0, nat:0 }; let pData = currentData.filter(r => r.name === name);
+        pData.forEach(r => { let h = parseFloat(r.calc_hours); if(!isNaN(h)) totalHours += h; if (r.input_status === '休') cnt.rest++; else if (r.input_status === '例') cnt.reg++; else if (r.input_status === '國') cnt.nat++; });
+        let msg = ""; if (monthlyTargets.hrs > 0 && totalHours > monthlyTargets.hrs) msg += `• 應有 ${totalHours.toFixed(1)} > ${monthlyTargets.hrs}<br>`; if (monthlyTargets.rest > 0 && cnt.rest > monthlyTargets.rest) msg += `• 休息日 ${cnt.rest} > ${monthlyTargets.rest}<br>`; if (monthlyTargets.reg > 0 && cnt.reg > monthlyTargets.reg) msg += `• 例假日 ${cnt.reg} > ${monthlyTargets.reg}<br>`; if (monthlyTargets.nat > 0 && cnt.nat > monthlyTargets.nat) msg += `• 國定假日 ${cnt.nat} > ${monthlyTargets.nat}<br>`;
+        if (msg !== "") Swal.fire({ title: '⚠️ 目標超標提醒', html: `人員：${name}<br>${msg}`, icon: 'warning', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+      }
+      function validateAll() {
+        const errors = document.querySelectorAll('.row-error'); const btn = document.getElementById('btnSave');
+        btn.disabled = (errors.length > 0); btn.classList.toggle('btn-success', errors.length === 0); btn.classList.toggle('btn-secondary', errors.length > 0);
+      }
+      function showMonthlyStats() {
+         if (!currentData.length) return;
+         document.getElementById('statsTarget').innerText = `本月目標：應有 ${monthlyTargets.hrs} 小時 | 休 ${monthlyTargets.rest} | 例 ${monthlyTargets.reg} | 國 ${monthlyTargets.nat}`;
+         let stats = {}; currentData.forEach(r => { if (!stats[r.name]) stats[r.name] = { type: r.salaryType, hrs:0, rest:0, reg:0, nat:0, empty:0 }; let s = r.input_status; if (s === '休') stats[r.name].rest++; else if (s === '例') stats[r.name].reg++; else if (s === '國') stats[r.name].nat++; else if (s === '空班') stats[r.name].empty++; let h = parseFloat(r.calc_hours); if(!isNaN(h)) stats[r.name].hrs += h; });
+         const tm = document.getElementById('statsTableMonthly'); tm.innerHTML = ''; const th = document.getElementById('statsTableHourly'); th.innerHTML = '';
+         for (let n in stats) { let d = stats[n]; if (d.type.includes("月薪")) tm.innerHTML += `<tr><td class="fw-bold">${n}</td><td>${d.hrs.toFixed(1)} (${formatDiff(d.hrs - monthlyTargets.hrs)})</td><td>${d.rest} (${formatDiff(d.rest - monthlyTargets.rest)})</td><td>${d.reg} (${formatDiff(d.reg - monthlyTargets.reg)})</td><td>${d.nat} (${formatDiff(d.nat - monthlyTargets.nat)})</td><td>${d.empty}</td></tr>`; else th.innerHTML += `<tr><td class="fw-bold">${n}</td><td>${d.hrs.toFixed(1)}</td></tr>`; }
+         new bootstrap.Modal(document.getElementById('statsModal')).show();
+      }
+      function showIndividualStatus() {
+         const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
+      }
+        // ==========================================
+      // ★★★ 補回遺失的：個人班表渲染函式 ★★★
+      // ==========================================
+      function renderPersonalPage(data) {
+          try {
+              document.getElementById('loadingOverlay').style.display = 'none';
+              document.getElementById('loginSection').style.display = 'none';
+              document.getElementById('appSection').style.display = 'none';
+              document.getElementById('personalSection').style.display = 'block';
+              
+              const meta = data.meta;
+              document.getElementById('personalNameDisplay').innerText = `${meta.year}年 ${meta.month}月 - ${data.name}`;
+              
+              // 結算提示
+              let nextMonth = (parseInt(meta.month) % 12) + 1;
+              let closeDay = meta.closingDay || 1; 
+              let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
+              document.getElementById('personalClosingNotice').innerText = noticeText;
+
+              let totalOvertime = 0;
+              if (data.data) {
+                 data.data.forEach(r => { let otVal = parseFloat(r.sys_overtimeHrs); if (!isNaN(otVal)) totalOvertime += otVal; });
+              }
+              const s = data.stats;
+              let leftContent = data.isHourly 
+                  ? `累計應有：${s.hrs.toFixed(1)} | 休：${s.rest} | 例：${s.reg} | 國：${s.nat}`
+                  : `應有：${s.hrs.toFixed(1)} (${formatDiff(s.hrs - meta.hrs)}) | 休：${s.rest} (${formatDiff(s.rest - meta.rest)}) | 例：${s.reg} (${formatDiff(s.reg - meta.reg)}) | 國：${s.nat} (${formatDiff(s.nat - meta.nat)})`;
+              let rightContent = totalOvertime > 0 ? `已申請加班總時數: ${totalOvertime.toFixed(1)}` : "";
+              const finalLeftContent = (data.isStoreStaff) ? leftContent : "";
+              document.getElementById('personalStats').innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap"><div class="text-center flex-grow-1">${finalLeftContent}</div><div class="text-danger fw-bold" style="min-width: 200px; text-align: right;">${rightContent}</div></div>`;
+              
+              const tbody = document.getElementById('personalTableBody');
+              tbody.innerHTML = "";
+              if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='11' class='text-muted'>本月無資料</td></tr>"; return; }
+              data.data.forEach(r => {
+                 let dPart = r.date.split('/')[2] + "日";
+                 let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
+                 let planTime = (r.input_status === '上班' && r.input_start) ? `${r.input_start}~${r.input_end}` : "";
+                 let clockStr = (r.sys_clockIn || r.sys_clockOut) ? `${formatTime(r.sys_clockIn)}<br>${formatTime(r.sys_clockOut)}` : "";
+                 let abnormalStr = r.sys_abnormal ? `<span class="badge badge-abnormal">${r.sys_abnormal}</span>` : "";
+                 let leaveType = r.sys_leaveType ? `<span class="badge badge-leave">${r.sys_leaveType}</span>` : "";
+                 const tr = document.createElement('tr');
+                 tr.innerHTML = `
+                   <td class="fw-bold">${dPart}<br><small class="text-muted">${wDay}</small></td>
+                   <td class="fw-bold text-primary">${r.input_status}</td>
+                   <td>${planTime}</td>
+                   <td class="fw-bold">${formatNumber(r.calc_hours)}</td>
+                   <td>${r.sys_status}</td>
+                   <td>${clockStr}</td>
+                   <td>${formatTime(r.sys_leave)}</td>
+                   <td>${leaveType}</td>
+                   <td>${formatTime(r.sys_overtime)}</td>
+                   <td>${r.sys_overtimeHrs || ""}</td>
+                   <td>${abnormalStr}</td>
+                 `;
+                 tbody.appendChild(tr);
+              });
+          } catch(e) {
+              alert("渲染錯誤: " + e.message);
+          }
+      }
+      function renderIndividualTable() {
+        const name = document.getElementById('indivSelect').value;
+        const tbody = document.getElementById('indivTableBody'); 
+        tbody.innerHTML = '';
+        const statsDiv = document.getElementById('indivStats');
+        document.getElementById('qrCodeContainer').style.display = 'none';
+        
+        // 篩選出該員工的資料
+        const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
+        
+        if (pData.length === 0) return;
+
+        // 判斷時薪/月薪
+        const isHourly = (pData[0].salaryType && pData[0].salaryType.includes("時薪"));
+        let hrs=0, rest=0, reg=0, nat=0, totalOvertime=0;
+        
+        // ★★★ 核心修改 1：嘗試抓取該員工的金鑰 (取第一筆即可) ★★★
+        // 如果後端還沒傳 pKey (例如後端還沒部署新版)，這裡會拿到 undefined
+        let userKey = pData[0].pKey || ""; 
+
+        pData.forEach(r => {
+           let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h;
+           if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++;
+           let otHrs = parseFloat(r.sys_overtimeHrs); if (!isNaN(otHrs)) totalOvertime += otHrs;
+        });
+        
+        let otDisplay = document.getElementById("totalOvertimeDisplay");
+        if (otDisplay) { otDisplay.innerText = totalOvertime > 0 ? "已申請加班總時數: " + totalOvertime.toFixed(1) : ""; }
+        
+        // ★★★ 核心修改 2：根據有無金鑰來決定顯示什麼 ★★★
+        let currentBaseUrl = window.location.href.split('?')[0]; 
+        let btnHtml = "";
+        let personalLink = "";
+
+        // 檢查金鑰是否存在且長度合理 (至少4碼)
+        if (userKey && userKey.length > 3) {
+            // 有金鑰 -> 產生安全連結 (使用 key=...)
+            personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
+            btnHtml = `
+              <button class="btn btn-sm btn-outline-primary fw-bold me-2" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
+              <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 顯示QR碼</button>
+            `;
+        } else {
+            // 無金鑰 -> 顯示紅字警告，不給按鈕
+            btnHtml = `<span class="badge bg-danger">❌ 未產生金鑰，請至後端執行「產生連結總表」</span>`;
+        }
+        
+        let statText = "";
+        if (isHourly) {
+           statText = `<strong>累計應有：</strong>${hrs.toFixed(1)} | <strong>休：</strong>${rest} | <strong>例：</strong>${reg} | <strong>國：</strong>${nat}`;
+        } else {
+           statText = `<strong>應有：</strong>${hrs.toFixed(1)} (${formatDiff(hrs - monthlyTargets.hrs)}) | <strong>休：</strong>${rest} (${formatDiff(rest - monthlyTargets.rest)}) | <strong>例：</strong>${reg} (${formatDiff(reg - monthlyTargets.reg)}) | <strong>國：</strong>${nat} (${formatDiff(nat - monthlyTargets.nat)})`;
+        }
+        
+        // 組合畫面
+        statsDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap gap-2"><div style="white-space: nowrap;">${statText}</div><div>${btnHtml}</div></div>`;
+        
+        // 填入表格內容 (不變)
+        pData.forEach(r => {
+           let planTimeStr = (r.input_start && String(r.input_start).trim() !== "") ? `${r.input_start}~${r.input_end}` : "";
+           tbody.innerHTML += `<tr><td>${r.date}</td><td class="fw-bold text-primary">${r.input_status}</td><td style="color: #0d6efd; font-weight: bold;">${planTimeStr}</td><td>${r.calc_hours}</td><td>${r.sys_status}</td><td>${r.sys_clockIn}</td><td>${r.sys_clockOut}</td><td>${r.sys_leave}</td><td>${r.sys_leaveType}</td><td>${r.sys_overtime}</td><td>${r.sys_overtimeHrs}</td><td>${r.sys_abnormal}</td><td>${r.log}</td></tr>`;
+        });
+      }
+      
+      let currentQRCode = null; 
+      function toggleQRCode(url) {
+         const container = document.getElementById('qrCodeContainer');
+         const canvasBox = document.getElementById('qrCodeCanvas');
+         if (container.style.display === 'block') {
+             container.style.display = 'none';
+         } else {
+             canvasBox.innerHTML = ''; 
+             currentQRCode = new QRCode(canvasBox, { text: url, width: 180, height: 180, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+             container.style.display = 'block';
+             container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+         }
+      }
+      
+      function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => { Swal.fire({ title: '已複製連結', text: '請傳送給該員工', icon: 'success', timer: 1500, showConfirmButton: false }); }); }
+      function encodeNameHex(str) { const encoder = new TextEncoder(); const view = encoder.encode(str); let hex = ""; for (let i = 0; i < view.length; i++) { let h = view[i].toString(16); hex += (h.length < 2 ? "0" : "") + h; } return hex.toUpperCase(); }
+      function formatNumber(v) { return v; } 
+      function showLoading(s,t) { document.getElementById('loadingOverlay').style.display = s?'flex':'none'; if(t)document.getElementById('loadingText').innerText=t;}
+      function errorHandler(e) { showLoading(false); Swal.fire('錯誤', e.message||e, 'error'); }
+      function generateTimeOptions() { let o='<option value="">請選擇</option>'; for(let h=0;h<24;h++){ let s=('0'+h).slice(-2); o+=`<option value="${s}:00">${s}:00</option><option value="${s}:30">${s}:30</option>`; } return o; }
+      function generateRestOptions() { let o='<option value="">請選擇</option>'; for(let i=0; i<=8; i++){ let v = (i * 0.5).toFixed(1); o += `<option value="${v}">${v}</option>`; } return o; }
+      function createTimeSelect(v,c) { return `<select class="form-select time-select ${c}" onchange="handleRowChange(this)">${timeOptions.replace(`value="${v}"`,`value="${v}" selected`)}</select>`; }
+      function createRestSelect(v) { return `<select class="form-select rest-select" onchange="handleRowChange(this)">${restOptions.replace(`value="${v}"`,`value="${v}" selected`)}</select>`; }
+      function timeToFloat(t) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); }
+      function formatTime(v) { if(!v) return ""; if(v instanceof Date) return ("0"+v.getHours()).slice(-2) + ":" + ("0"+v.getMinutes()).slice(-2); let s = String(v).trim(); if (s.includes("T")) return s.substr(11, 5); return s; }
+      function formatDiff(val) { let n = parseFloat(val).toFixed(1); if (Math.abs(val) < 0.1) return `<span class="text-muted">0</span>`; if (val < 0) return `<span class="diff-neg">${n}</span>`; return `<span class="diff-pos">+${n}</span>`; }
+      async function handleChangePassword() {
+        if (!currentStore) return;
+        const { value: formValues } = await Swal.fire({ title: '🔑 變更登入密碼', html: '<div class="text-start mb-2"><label class="fw-bold">目前舊密碼</label><input id="swal-input1" class="form-control" type="password"></div><div class="text-start mb-2"><label class="fw-bold text-primary">設定新密碼</label><input id="swal-input2" class="form-control" type="password"></div><div class="text-start"><label class="fw-bold text-primary">確認新密碼</label><input id="swal-input3" class="form-control" type="password"></div>', focusConfirm: false, showCancelButton: true, confirmButtonText: '確認變更', cancelButtonText: '取消', preConfirm: () => { const oldPwd = document.getElementById('swal-input1').value; const newPwd = document.getElementById('swal-input2').value; const cfmPwd = document.getElementById('swal-input3').value; if (!oldPwd || !newPwd || !cfmPwd) { Swal.showValidationMessage('請填寫所有欄位'); return false; } if (newPwd !== cfmPwd) { Swal.showValidationMessage('兩次新密碼輸入不一致'); return false; } return { oldPwd: oldPwd, newPwd: newPwd }; } });
+        if (formValues) { showLoading(true, "更新密碼中..."); callApi('changePassword', { store: currentStore, oldPwd: formValues.oldPwd, newPwd: formValues.newPwd }).then(res => { showLoading(false); if (res.success) { Swal.fire({ icon: 'success', title: '成功', text: res.message }).then(() => logout()); } else { Swal.fire('變更失敗', res.message, 'error'); } }).catch(err => errorHandler(err)); }
+      }
+    </script>
+  </body>
+</html>
