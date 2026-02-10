@@ -177,6 +177,32 @@
       .text-time-h { color: #0d6efd; font-weight: bold; } /* 應有時段藍色 */
       .text-time-z { color: #d39e00; font-weight: bold; } /* 加班時段橘色 */
       .text-time-aa { color: #dc3545; font-weight: bold; } /* 超時時段紅色 */
+      /* ========================================= */
+      /* ★★★ 修正：長文字欄位 (加班/異常/註記) 優化 ★★★ */
+      /* ========================================= */
+      
+      /* 1. 預設所有欄位不換行 (維持整齊) */
+      #indivTableBody td, #personalTableBody td {
+          vertical-align: middle;
+          white-space: nowrap; 
+          font-size: 0.9rem;
+          padding: 6px 4px;
+      }
+
+      /* 2. 針對「加班時段(12)」、「異常(14)」、「註記(15)」允許換行並限制寬度 */
+      /* 注意：personalTableBody 沒有第15欄(註記) */
+      #indivTableBody td:nth-child(12), 
+      #indivTableBody td:nth-child(14), 
+      #indivTableBody td:nth-child(15),
+      #personalTableBody td:nth-child(12), 
+      #personalTableBody td:nth-child(14) {
+          white-space: normal !important;  /* 允許換行 */
+          word-break: break-word;          /* 長字串(如時間)自動切斷 */
+          min-width: 90px;                 /* 最小寬度 */
+          max-width: 140px;                /* 最大寬度 (避免撐爆表格) */
+          font-size: 0.85rem;              /* 字體稍微縮小 */
+          line-height: 1.3;                /* 增加行距好閱讀 */
+      }
       
       /* 統計區塊樣式 */
       .stat-box-row { 
@@ -233,16 +259,21 @@
               position: relative;
           }
 
+          /* 設定儲存格排版 (左標題、右數值) */
           table.mobile-card-mode tbody td {
               display: flex;
               justify-content: space-between;
-              align-items: center;
+              align-items: center;   /* 垂直置中 */
               border: none;
-              padding: 6px 0;
+              padding: 8px 0;        /* 增加上下高度，避免換行後太擠 */
               font-size: 0.95rem;
               text-align: right;
               border-bottom: 1px dashed #eee;
-              min-height: 32px; /* 確保即使沒內容也有高度 */
+              min-height: 32px;
+              
+              /* ★★★ 修正：允許手機版右側數值換行 ★★★ */
+              white-space: normal;   
+              word-break: break-word; 
           }
           
           table.mobile-card-mode tbody td:last-child { border-bottom: none; }
