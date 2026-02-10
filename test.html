@@ -373,7 +373,7 @@
           Toast.fire({ icon: 'success', title: '資料已更新' });
       }
 
-      function saveData(force) {
+function saveData(force) {
         // ==========================================
         // ★★★ 新增：關帳日鎖定機制 (前端防呆 - 區間顯示版) ★★★
         // ==========================================
@@ -438,10 +438,6 @@
           const verifyDate = tr.getAttribute('data-date');
           
           // 無論什麼狀態，都要抓取畫面上計算好的 Z 和 AA
-          // 注意：Z 值要看是 select 還是 input 顯示中，或者直接抓 input (因為 input 會同步更新)
-          // 我們統一抓 .z-input (因為 recalculateAllRows 會更新它)
-          // 但如果是上班狀態，店長操作的是 .z-select，所以要抓 .z-select 的值
-          
           let zVal = 0;
           if (s === '上班') {
               zVal = tr.querySelector('.z-select').value;
@@ -450,6 +446,10 @@
           }
           
           let aaVal = tr.querySelector('.aa-input').value;
+
+          // ★★★ 新增：讀取連動標記 (isRipple) ★★★
+          // 從 currentData 資料模型中讀取，這個標記是在 recalculateAllRows 中設定的
+          let isRipple = currentData[idx].isRipple || false;
 
           if (s === '上班') {
             const start = tr.querySelector('.start-select').value; 
@@ -460,19 +460,20 @@
             inputData.push({ 
                 rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, 
                 d: s, e: start, f: end, g: rest, 
-                z: zVal, aa: aaVal // 傳送 Z 和 AA
+                z: zVal, aa: aaVal, // 傳送 Z 和 AA
+                ripple: isRipple    // ★★★ 傳送連動標記給後端 ★★★
             });
           } else { 
             // 非上班狀態，也要傳送自動計算出的 Z 和 AA (以及自動填入的時間)
-            // 為了讓 Google Sheet 紀錄完整，我們把自動填入的時間也傳回去
             const start = tr.querySelector('.start-select').value; 
             const end = tr.querySelector('.end-select').value; 
             const rest = tr.querySelector('.rest-select').value;
 
             inputData.push({ 
                 rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, 
-                d: s, e: start, f: end, g: rest, // 這裡改成傳送畫面上自動填的值，而不是空字串
-                z: zVal, aa: aaVal 
+                d: s, e: start, f: end, g: rest, 
+                z: zVal, aa: aaVal,
+                ripple: isRipple    // ★★★ 傳送連動標記給後端 ★★★
             }); 
           }
         });
@@ -817,10 +818,10 @@
         validateAll();
       }
 
-// ==========================================
-      // ★★★ 核心邏輯：全表計算 (含46hr上限、連動提醒、即時訊息更新) ★★★
-      // ==========================================
-      function recalculateAllRows(triggerIdx = -1) {
+function recalculateAllRows(triggerIdx = -1) {
+          // 0. 初始化：先清除所有人的連動標記
+          currentData.forEach(r => r.isRipple = false);
+
           // 1. 先依人名分組
           let grouped = {};
           currentData.forEach(row => {
@@ -828,9 +829,8 @@
               grouped[row.name].push(row);
           });
 
-          let affectedDates = []; // 用來收集被連動影響的日期
+          let affectedDates = []; 
 
-          // 2. 針對每個人進行計算
           Object.keys(grouped).forEach(name => {
               let rows = grouped[name];
               rows.sort((a,b) => a.date.localeCompare(b.date)); 
@@ -841,12 +841,11 @@
                   let currentRowIdx = currentData.indexOf(row);
                   let tr = document.querySelector(`tr[data-index='${currentRowIdx}']`);
                   
-                  // ★ 記錄舊數值 (為了比對連動影響)
                   let oldZ = parseFloat(row.input_est_overtime) || 0;
                   let oldAA = parseFloat(row.calc_excess) || 0;
 
                   let status = row.input_status;
-                  let salary = row.salaryType;
+                  let salary = row.salaryType; 
                   let sTime = row.input_start;
                   let eTime = row.input_end;
                   let rTime = parseFloat(row.input_rest) || 0;
@@ -856,7 +855,6 @@
                   let H = 0, Z = 0, AA = 0;
                   let rawWork = 0;
 
-                  // 計算原始工時
                   if (sTime && eTime) {
                       let start = timeToFloat(sTime);
                       let end = timeToFloat(eTime);
@@ -865,11 +863,19 @@
                       if (rawWork < 0) rawWork = 0;
                   }
 
-                  // --- 計算邏輯 (維持不變) ---
+                  // --- 計算邏輯 ---
                   if (status === '上班') {
                       let zSelected = parseFloat(row.input_est_overtime) || 0;
                       let realH = rawWork - zSelected;
                       if (realH < 0) realH = 0;
+
+                      let hLimit = salary.includes('時薪') ? 8 : 10;
+                      let forcedAA = 0;
+                      if (realH > hLimit) {
+                          forcedAA = realH - hLimit; 
+                          realH = hLimit;            
+                      }
+
                       let dailyTotal = realH + zSelected;
                       let excess12 = 0;
                       if (dailyTotal > 12) {
@@ -881,10 +887,11 @@
                               zSelected = (zSelected > remainder) ? (zSelected - remainder) : 0;
                           }
                       }
+                      
                       let quotaLeft = 46 - accumulatedTaxableZ;
                       if (quotaLeft < 0) quotaLeft = 0;
                       
-                      let finalZ = 0; let shiftToAA = 0;
+                      let finalZ = 0; let shiftToAA = 0; 
                       if (zSelected > quotaLeft) {
                           finalZ = quotaLeft;
                           shiftToAA = zSelected - quotaLeft;
@@ -893,11 +900,14 @@
                           finalZ = zSelected;
                           accumulatedTaxableZ += zSelected;
                       }
-                      H = realH; Z = finalZ; AA = excess12 + shiftToAA;
+
+                      H = realH; Z = finalZ; 
+                      AA = excess12 + shiftToAA + forcedAA; 
                   }
                   else if (['休', '例', '空班'].includes(status) || (status === '國' && salary.includes('月薪'))) {
                       H = 0;
                       let potentialZ = rawWork;
+                      
                       if (status === '例' || status === '空班') {
                           Z = 0; AA = potentialZ;
                       } else {
@@ -924,36 +934,29 @@
                   // 寫回 Data
                   row.calc_hours = H.toFixed(1);
                   row.calc_excess = AA.toFixed(1);
-                  // 只有非上班才寫回 input_est_overtime (因為上班是手動選的)
-                  // 但為了連動檢查，我們可以暫存 Z
                   if (status !== '上班') {
                       row.input_est_overtime = Z.toFixed(1);
                   }
 
-                  // 檢查是否發生連動變更 (不是當前編輯列，但數值變了)
+                  // ★★★ 檢查連動變更並打上標記 ★★★
                   if (currentRowIdx !== triggerIdx && triggerIdx !== -1) {
-                      // 檢查 Z 或 AA 是否有顯著變化 (忽略浮點數微小差異)
                       let newZ = parseFloat(Z.toFixed(1));
                       let newAA = parseFloat(AA.toFixed(1));
                       if (Math.abs(oldZ - newZ) > 0.1 || Math.abs(oldAA - newAA) > 0.1) {
                           affectedDates.push(`${row.date.split('/')[2]}日`);
+                          row.isRipple = true; // 標記為連動更新
                       }
                   }
 
-                  // 更新畫面 DOM
                   if (tr) {
                       tr.querySelector('.hours-input').value = H.toFixed(1);
                       tr.querySelector('.aa-input').value = AA.toFixed(1);
-                      // 無論是否上班，都把算出來的 Z 寫入隱藏的 input
                       tr.querySelector('.z-input').value = Z.toFixed(1);
-                      
-                      // ★★★ 關鍵修正：計算完數據後，立即呼叫 validateRow 更新檢核訊息 ★★★
-                      // 這樣確保訊息用的是「剛剛算出來的 H/Z/AA」
                       validateRow(tr);
                   }
               }); 
 
-              // --- 更新下拉選單邏輯 (維持不變) ---
+              // 更新下拉選單
               let totalTaxableUsed = accumulatedTaxableZ; 
               rows.forEach(row => {
                   let tr = document.querySelector(`tr[data-index='${currentData.indexOf(row)}']`);
@@ -976,9 +979,7 @@
               });
           });
 
-          // ★★★ 跳出連動提醒 (Toast) ★★★
           if (affectedDates.length > 0) {
-              // 去除重複日期
               let uniqueDates = [...new Set(affectedDates)];
               const Toast = Swal.mixin({
                   toast: true, position: 'top-end', showConfirmButton: false, timer: 4000,
