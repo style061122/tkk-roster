@@ -1610,7 +1610,7 @@ function recalculateAllRows(triggerIdx = -1) {
               
               let row2 = `
                   <span class="text-dark me-3"><strong>預計排班(Z):</strong> ${totalZ.toFixed(1)}</span>
-                  <span class="text-primary me-3"><strong>已申請(O):</strong> ${totalOvertime.toFixed(1)}</span>
+                  <span class="text-primary me-3"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
                   <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
               `;
 
@@ -1794,7 +1794,7 @@ function recalculateAllRows(triggerIdx = -1) {
         
         let row2 = `
             <span class="text-dark me-3"><strong>預計排班(Z):</strong> ${totalZ.toFixed(1)}</span>
-            <span class="text-primary me-3"><strong>已申請(O):</strong> ${totalO.toFixed(1)}</span>
+            <span class="text-primary me-3"><strong>已申請加班(O):</strong> ${totalO.toFixed(1)}</span>
             <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
         `;
 
@@ -1879,7 +1879,7 @@ function recalculateAllRows(triggerIdx = -1) {
                    <td data-label="應有時段" class="color-h">${strRangeH}</td>
                    <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
                    <td data-label="預計加班" class="color-z">${strRangeZ}</td>
-                   <td data-label="超時時段" class="color-aa">${strRangeAA}</td>
+                   <td data-label="超時時段(勿打卡)" class="color-aa">${strRangeAA}</td>
                    <td data-label="系統狀態">${r.sys_status}</td>
                    <td data-label="上班卡">${sysIn}</td>
                    <td data-label="下班卡">${sysOut}</td>
