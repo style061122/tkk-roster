@@ -128,6 +128,43 @@
       /* 預計加班 (Z) 與 超時 (AA) 的特殊樣式 */
       .bg-z-input { background-color: #fffbed; border-color: #ffecb5; } /* 淺黃色 */
       .bg-aa-input { background-color: #ffe6e6; border-color: #ffcccc; color: #dc3545; font-weight: bold; } /* 淺紅色 */
+
+      /* ========================================= */
+      /* ★★★ 月統計報表優化 (手機版/電腦版) ★★★ */
+      /* ========================================= */
+      .stats-main-row td { vertical-align: middle; }
+      .stats-sub-row { background-color: #f8f9fa; }
+      .stats-sub-row td { padding: 8px 15px !important; text-align: left !important; font-size: 0.9rem; color: #555; }
+      
+      .stat-badge { 
+          display: inline-block; 
+          margin-right: 15px; 
+          white-space: nowrap; 
+          padding: 4px 8px;
+          border-radius: 4px;
+          background-color: white;
+          border: 1px solid #dee2e6;
+          margin-bottom: 4px;
+      }
+      .stat-label { font-weight: bold; margin-right: 5px; color: #666; }
+      .stat-val-z { color: #d39e00; font-weight: bold; } /* 預計加班 */
+      .stat-val-o { color: #0d6efd; font-weight: bold; } /* 已申請 */
+      .stat-val-aa { color: #dc3545; font-weight: bold; } /* 超時 */
+
+      /* 手機版微調：讓表格標題不要換行，內容可滑動 */
+      @media (max-width: 900px) {
+          #statsModal .table-responsive {
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+          }
+          .stat-badge { 
+              display: block; /* 手機上變垂直排列，更清楚 */
+              margin-bottom: 5px; 
+              border: none;
+              padding: 0;
+              background: transparent;
+          }
+      }
     </style>
 </head>
   <body>
@@ -1310,12 +1347,92 @@ function recalculateAllRows(triggerIdx = -1) {
         btn.disabled = (errors.length > 0); btn.classList.toggle('btn-success', errors.length === 0); btn.classList.toggle('btn-secondary', errors.length > 0);
       }
       function showMonthlyStats() {
-         if (!currentData.length) return;
-         document.getElementById('statsTarget').innerText = `本月目標：應有 ${monthlyTargets.hrs} 小時 | 休 ${monthlyTargets.rest} | 例 ${monthlyTargets.reg} | 國 ${monthlyTargets.nat}`;
-         let stats = {}; currentData.forEach(r => { if (!stats[r.name]) stats[r.name] = { type: r.salaryType, hrs:0, rest:0, reg:0, nat:0, empty:0 }; let s = r.input_status; if (s === '休') stats[r.name].rest++; else if (s === '例') stats[r.name].reg++; else if (s === '國') stats[r.name].nat++; else if (s === '空班') stats[r.name].empty++; let h = parseFloat(r.calc_hours); if(!isNaN(h)) stats[r.name].hrs += h; });
-         const tm = document.getElementById('statsTableMonthly'); tm.innerHTML = ''; const th = document.getElementById('statsTableHourly'); th.innerHTML = '';
-         for (let n in stats) { let d = stats[n]; if (d.type.includes("月薪")) tm.innerHTML += `<tr><td class="fw-bold">${n}</td><td>${d.hrs.toFixed(1)} (${formatDiff(d.hrs - monthlyTargets.hrs)})</td><td>${d.rest} (${formatDiff(d.rest - monthlyTargets.rest)})</td><td>${d.reg} (${formatDiff(d.reg - monthlyTargets.reg)})</td><td>${d.nat} (${formatDiff(d.nat - monthlyTargets.nat)})</td><td>${d.empty}</td></tr>`; else th.innerHTML += `<tr><td class="fw-bold">${n}</td><td>${d.hrs.toFixed(1)}</td></tr>`; }
-         new bootstrap.Modal(document.getElementById('statsModal')).show();
+          if (!currentData.length) return;
+          
+          // 1. 設定標題目標
+          document.getElementById('statsTarget').innerText = `本月目標：應有 ${monthlyTargets.hrs} 小時 | 休 ${monthlyTargets.rest} | 例 ${monthlyTargets.reg} | 國 ${monthlyTargets.nat}`;
+          
+          // 2. 統計數據
+          let stats = {}; 
+          currentData.forEach(r => { 
+              if (!stats[r.name]) {
+                  stats[r.name] = { 
+                      type: r.salaryType, 
+                      hrs:0, rest:0, reg:0, nat:0, empty:0,
+                      z:0, o:0, aa:0 // 新增統計欄位
+                  }; 
+              }
+              
+              let d = stats[r.name];
+              let s = r.input_status;
+              
+              // 統計天數
+              if (s === '休') d.rest++; 
+              else if (s === '例') d.reg++; 
+              else if (s === '國') d.nat++; 
+              else if (s === '空班') d.empty++; 
+              
+              // 統計 H (應有)
+              let h = parseFloat(r.calc_hours); 
+              if(!isNaN(h)) d.hrs += h;
+              
+              // 統計 Z (預計加班)
+              let z = parseFloat(r.input_est_overtime); 
+              if(!isNaN(z)) d.z += z;
+              
+              // 統計 O (已申請)
+              let o = parseFloat(r.sys_overtimeHrs); 
+              if(!isNaN(o)) d.o += o;
+              
+              // 統計 AA (超時)
+              let aa = parseFloat(r.calc_excess); 
+              if(!isNaN(aa)) d.aa += aa;
+          });
+          
+          // 3. 生成表格 HTML
+          const tm = document.getElementById('statsTableMonthly'); tm.innerHTML = ''; 
+          const th = document.getElementById('statsTableHourly'); th.innerHTML = '';
+          
+          for (let n in stats) { 
+              let d = stats[n]; 
+              
+              // 產生第二列 (加班數據) HTML
+              let subRowHtml = `
+                  <tr class="stats-sub-row">
+                      <td colspan="${d.type.includes("月薪") ? 6 : 2}">
+                          <span class="stat-badge"><span class="stat-label">預計加班(Z):</span><span class="stat-val-z">${d.z.toFixed(1)}</span></span>
+                          <span class="stat-badge"><span class="stat-label">已申請(O):</span><span class="stat-val-o">${d.o.toFixed(1)}</span></span>
+                          <span class="stat-badge"><span class="stat-label">超時(AA):</span><span class="stat-val-aa">${d.aa.toFixed(1)}</span></span>
+                      </td>
+                  </tr>
+              `;
+
+              if (d.type.includes("月薪")) {
+                  // 月薪制主列
+                  tm.innerHTML += `
+                      <tr class="stats-main-row">
+                          <td class="fw-bold text-primary">${n}</td>
+                          <td>${d.hrs.toFixed(1)} (${formatDiff(d.hrs - monthlyTargets.hrs)})</td>
+                          <td>${d.rest} (${formatDiff(d.rest - monthlyTargets.rest)})</td>
+                          <td>${d.reg} (${formatDiff(d.reg - monthlyTargets.reg)})</td>
+                          <td>${d.nat} (${formatDiff(d.nat - monthlyTargets.nat)})</td>
+                          <td>${d.empty}</td>
+                      </tr>
+                      ${subRowHtml}
+                  `;
+              } else { 
+                  // 時薪制主列
+                  th.innerHTML += `
+                      <tr class="stats-main-row">
+                          <td class="fw-bold text-success">${n}</td>
+                          <td>${d.hrs.toFixed(1)}</td>
+                      </tr>
+                      ${subRowHtml}
+                  `;
+              } 
+          }
+          
+          new bootstrap.Modal(document.getElementById('statsModal')).show();
       }
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
