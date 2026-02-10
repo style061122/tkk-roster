@@ -299,6 +299,65 @@
       .color-z { color: #d39e00 !important; font-weight: bold; }   /* 橘 */
       .color-aa { color: #dc3545 !important; font-weight: bold; }  /* 紅 */
       .color-err { color: #dc3545 !important; font-weight: bold; } /* 紅(異常) */
+        /* ========================================= */
+      /* ★★★ 統計區塊優化 (手機版儀表板風格) ★★★ */
+      /* ========================================= */
+      
+      /* 預設(電腦版)維持原本的一行顯示，但移除強制 flex，讓內部元素決定 */
+      .stat-box-row {
+          background: #fff;
+          padding: 10px;
+          border-radius: 6px;
+          border: 1px solid #ddd;
+          margin-bottom: 10px;
+      }
+
+      /* 手機版專用樣式 */
+      @media (max-width: 900px) {
+          /* 將容器改為 Grid 網格佈局 */
+          .stat-grid-mobile {
+              display: grid;
+              grid-template-columns: 1fr 1fr; /* 分為兩欄，寬度平均 */
+              gap: 10px; /* 格子間距 */
+          }
+
+          /* 每一個統計小卡片 */
+          .stat-card-item {
+              display: flex;
+              flex-direction: column; /* 內容上下排列 */
+              align-items: center;    /* 水平居中 */
+              justify-content: center;
+              background: #f8f9fa;    /* 淺灰背景 */
+              padding: 12px 8px;
+              border-radius: 8px;
+              border: 1px solid #e9ecef;
+          }
+
+          /* 卡片內的小標題 (例如：應有、休) */
+          .stat-card-label {
+              font-size: 0.85rem;
+              color: #6c757d; /* 灰色 */
+              margin-bottom: 4px;
+              font-weight: normal;
+          }
+
+          /* 卡片內的主數值 */
+          .stat-card-value {
+              font-size: 1.25rem; /* 字體加大 */
+              font-weight: bold;
+              color: #212529;     /* 深黑色 */
+              line-height: 1.2;
+          }
+          
+          /* 應有時數特別用藍色強調 */
+          .val-highlight { color: #0d6efd; }
+
+          /* 差異值小字 (例如：-8.0) */
+          .stat-card-diff {
+              font-size: 0.8rem;
+              margin-left: 4px;
+          }
+      }
     </style>
 </head>
   <body>
@@ -1596,7 +1655,6 @@ function recalculateAllRows(triggerIdx = -1) {
               if (data.data) {
                  data.data.forEach(r => { 
                      let o = parseFloat(r.sys_overtimeHrs); if (!isNaN(o)) totalOvertime += o; 
-                     // 確保這裡能讀到值，若後端沒傳則為 0
                      let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) totalZ += z;
                      let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
                  });
@@ -1604,14 +1662,44 @@ function recalculateAllRows(triggerIdx = -1) {
               
               const s = data.stats;
               
-              let row1 = data.isHourly 
-                  ? `累計應有：${s.hrs.toFixed(1)} &nbsp;|&nbsp; 休：${s.rest} &nbsp;|&nbsp; 例：${s.reg} &nbsp;|&nbsp; 國：${s.nat}`
-                  : `應有：${s.hrs.toFixed(1)} (${formatDiff(s.hrs - meta.hrs)}) &nbsp;|&nbsp; 休：${s.rest} (${formatDiff(s.rest - meta.rest)}) &nbsp;|&nbsp; 例：${s.reg} (${formatDiff(s.reg - meta.reg)}) &nbsp;|&nbsp; 國：${s.nat} (${formatDiff(s.nat - meta.nat)})`;
+              // ★★★ 核心修改：產生儀表板風格的 HTML (同步店長端) ★★★
+              let statsHtmlStr = "";
+              if (data.isHourly) {
+                  statsHtmlStr = `
+                      <div class="stat-grid-mobile">
+                          <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">休</span><span class="stat-card-value">${s.rest}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">例</span><span class="stat-card-value">${s.reg}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${s.nat}</span></div>
+                      </div>`;
+              } else {
+                  statsHtmlStr = `
+                      <div class="stat-grid-mobile">
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">應有工時</span>
+                              <div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span><span class="stat-card-diff">${formatDiff(s.hrs - meta.hrs)}</span></div>
+                          </div>
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">休假</span>
+                              <div class="d-flex align-items-baseline"><span class="stat-card-value">${s.rest}</span><span class="stat-card-diff">${formatDiff(s.rest - meta.rest)}</span></div>
+                          </div>
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">例假</span>
+                              <div class="d-flex align-items-baseline"><span class="stat-card-value">${s.reg}</span><span class="stat-card-diff">${formatDiff(s.reg - meta.reg)}</span></div>
+                          </div>
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">國定假</span>
+                              <div class="d-flex align-items-baseline"><span class="stat-card-value">${s.nat}</span><span class="stat-card-diff">${formatDiff(s.nat - meta.nat)}</span></div>
+                          </div>
+                      </div>`;
+              }
               
-              let row2 = `
-                  <span class="text-dark me-3"><strong>預計排班(Z):</strong> ${totalZ.toFixed(1)}</span>
-                  <span class="text-primary me-3"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
-                  <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
+              let row2Html = `
+                  <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                      <span class="text-dark"><strong>預計排班(Z):</strong> ${totalZ.toFixed(1)}</span>
+                      <span class="text-primary"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
+                      <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
+                  </div>
               `;
 
               let btnRow = `
@@ -1622,10 +1710,8 @@ function recalculateAllRows(triggerIdx = -1) {
 
               document.getElementById('personalStats').innerHTML = `
                   <div class="d-flex flex-column w-100">
-                      <div class="stat-box-row mb-2">${row1}</div>
-                      <div class="stat-box-row bg-white p-2 border rounded">
-                          <div>${row2}</div>
-                      </div>
+                      <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
+                      <div class="stat-box-row">${row2Html}</div>
                       ${btnRow}
                   </div>
               `;
@@ -1634,7 +1720,6 @@ function recalculateAllRows(triggerIdx = -1) {
               const pTable = document.querySelector('#personalSection table');
               if(pTable) pTable.classList.add('mobile-card-mode');
               
-              // ★★★ 標題修改：獎金時段 (勿打卡) ★★★
               thead.innerHTML = `
                   <tr>
                       <th>日期</th>
@@ -1669,38 +1754,33 @@ function recalculateAllRows(triggerIdx = -1) {
                   let zVal = parseFloat(r.input_est_overtime) || 0;
                   let aaVal = parseFloat(r.calc_excess) || 0;
                   
-                  // ★★★ 關鍵：確保讀取休息時間，支援多種命名可能 ★★★
                   let restVal = parseFloat(r.input_rest || r.rest || r.g) || 0; 
                   
                   let status = r.input_status;
 
                   let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
            
-                  // --- 時段計算邏輯 (與店長端完全同步) ---
                   if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
                        let startMin = timeToFloat(startVal) * 60;
                        let restMin = restVal * 60;
 
-                       // 1. 應有時段
                        if (hVal > 0 || status === '上班') {
                            let duration = (hVal * 60);
-                           if (status === '上班') duration += restMin; // 上班含休
+                           if (status === '上班') duration += restMin;
                            let endH = startMin + duration;
                            if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
                            startMin = endH;
                        }
-                       // 2. 加班時段
                        if (zVal > 0) {
                            let duration = (zVal * 60);
-                           if (['休', '國'].includes(status)) duration += restMin; // 休/國含休
+                           if (['休', '國'].includes(status)) duration += restMin;
                            let endZ = startMin + duration;
                            strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
                            startMin = endZ;
                        }
-                       // 3. 超時(獎金)時段
                        if (aaVal > 0) {
                            let duration = (aaVal * 60);
-                           if (['例', '空班'].includes(status)) duration += restMin; // 例/空含休
+                           if (['例', '空班'].includes(status)) duration += restMin;
                            let endAA = startMin + duration;
                            strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
                        }
@@ -1713,7 +1793,6 @@ function recalculateAllRows(triggerIdx = -1) {
 
                   const tr = document.createElement('tr');
                   
-                  // 手機版 data-label 也加上 (勿打卡) 提示
                   tr.innerHTML = `
                     <td data-label="日期">${dateDisplay}</td>
                     <td data-label="狀態(D)" class="color-h">${r.input_status}</td>
@@ -1761,7 +1840,6 @@ function recalculateAllRows(triggerIdx = -1) {
            let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
         });
         
-        // 隱藏舊的加班顯示
         let otDisplay = document.getElementById("totalOvertimeDisplay");
         if (otDisplay) otDisplay.style.display = 'none'; 
         
@@ -1769,7 +1847,6 @@ function recalculateAllRows(triggerIdx = -1) {
         let btnHtml = "";
         let personalLink = "";
 
-        // ★★★ 修正按鈕排版 (Issue 3) ★★★
         if (userKey && userKey.length > 3) {
             personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
             btnHtml = `
@@ -1787,22 +1864,60 @@ function recalculateAllRows(triggerIdx = -1) {
               </div>`;
         }
         
-        // ★★★ 修正文字間距 (Issue 4) 使用 &nbsp;|&nbsp; ★★★
-        let row1 = isHourly 
-            ? `<strong>累計應有：</strong>${hrs.toFixed(1)} &nbsp;|&nbsp; <strong>休：</strong>${rest} &nbsp;|&nbsp; <strong>例：</strong>${reg} &nbsp;|&nbsp; <strong>國：</strong>${nat}`
-            : `<strong>應有：</strong>${hrs.toFixed(1)} (${formatDiff(hrs - monthlyTargets.hrs)}) &nbsp;|&nbsp; <strong>休：</strong>${rest} (${formatDiff(rest - monthlyTargets.rest)}) &nbsp;|&nbsp; <strong>例：</strong>${reg} (${formatDiff(reg - monthlyTargets.reg)}) &nbsp;|&nbsp; <strong>國：</strong>${nat} (${formatDiff(nat - monthlyTargets.nat)})`;
+        // ★★★ 核心修改：產生儀表板風格的 HTML ★★★
+        let statsHtmlStr = "";
+        if (isHourly) {
+            // 時薪制 (無差異比較)
+            statsHtmlStr = `
+                <div class="stat-grid-mobile">
+                    <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span></div>
+                    <div class="stat-card-item"><span class="stat-card-label">休</span><span class="stat-card-value">${rest}</span></div>
+                    <div class="stat-card-item"><span class="stat-card-label">例</span><span class="stat-card-value">${reg}</span></div>
+                    <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${nat}</span></div>
+                </div>`;
+        } else {
+            // 月薪制 (含差異比較 formatDiff 會產生帶顏色的 span)
+            statsHtmlStr = `
+                <div class="stat-grid-mobile">
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">應有工時</span>
+                        <div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span><span class="stat-card-diff">${formatDiff(hrs - monthlyTargets.hrs)}</span></div>
+                    </div>
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">休假</span>
+                        <div class="d-flex align-items-baseline"><span class="stat-card-value">${rest}</span><span class="stat-card-diff">${formatDiff(rest - monthlyTargets.rest)}</span></div>
+                    </div>
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">例假</span>
+                        <div class="d-flex align-items-baseline"><span class="stat-card-value">${reg}</span><span class="stat-card-diff">${formatDiff(reg - monthlyTargets.reg)}</span></div>
+                    </div>
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">國定假</span>
+                        <div class="d-flex align-items-baseline"><span class="stat-card-value">${nat}</span><span class="stat-card-diff">${formatDiff(nat - monthlyTargets.nat)}</span></div>
+                    </div>
+                </div>`;
+        }
         
-        let row2 = `
-            <span class="text-dark me-3"><strong>預計排班(Z):</strong> ${totalZ.toFixed(1)}</span>
-            <span class="text-primary me-3"><strong>已申請加班(O):</strong> ${totalO.toFixed(1)}</span>
-            <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
+        // 第二行維持原樣 (Z/O/AA)，但包在 stat-box-row 裡
+        let row2Html = `
+            <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                <span class="text-dark"><strong>預計排班(Z):</strong> ${totalZ.toFixed(1)}</span>
+                <span class="text-primary"><strong>已申請加班(O):</strong> ${totalO.toFixed(1)}</span>
+                <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
+            </div>
         `;
 
-        statsDiv.innerHTML = `<div class="d-flex flex-column w-100"><div class="stat-box-row mb-2">${row1}</div><div class="stat-box-row justify-content-between"><div>${row2}</div></div>${btnHtml}</div>`;
+        // 組合最終 HTML
+        statsDiv.innerHTML = `
+            <div class="d-flex flex-column w-100">
+                <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
+                <div class="stat-box-row">${row2Html}</div>
+                ${btnHtml}
+            </div>`;
         
         const thead = document.querySelector('#indivModal table thead');
-        // ★★★ 確保預設載入手機版 class ★★★
-        document.querySelector('#indivModal table').classList.add('mobile-card-mode');
+        const tableEl = document.querySelector('#indivModal table');
+        if(tableEl) tableEl.classList.add('mobile-card-mode');
         
         thead.innerHTML = `
             <tr>
@@ -1824,7 +1939,6 @@ function recalculateAllRows(triggerIdx = -1) {
             </tr>
         `;
 
-        // ★★★ 修正 Issue 5: 移除 mobile-hide-zero，讓標題永遠顯示 ★★★
         pData.forEach(r => {
            let startVal = r.input_start;
            let hVal = parseFloat(r.calc_hours) || 0;
@@ -1835,7 +1949,6 @@ function recalculateAllRows(triggerIdx = -1) {
 
            let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
            
-           // 時段計算
            if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
                let startMin = timeToFloat(startVal) * 60;
                let restMin = restVal * 60;
@@ -1871,7 +1984,6 @@ function recalculateAllRows(triggerIdx = -1) {
            let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
            let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${weekDay})`;
 
-           // 填入表格，移除所有 mobile-hide-zero class
            tbody.innerHTML += `
                <tr>
                    <td data-label="日期">${dateDisplay}</td>
@@ -1879,7 +1991,7 @@ function recalculateAllRows(triggerIdx = -1) {
                    <td data-label="應有時段" class="color-h">${strRangeH}</td>
                    <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
                    <td data-label="預計加班" class="color-z">${strRangeZ}</td>
-                   <td data-label="超時時段(勿打卡)" class="color-aa">${strRangeAA}</td>
+                   <td data-label="超時時段" class="color-aa">${strRangeAA}</td>
                    <td data-label="系統狀態">${r.sys_status}</td>
                    <td data-label="上班卡">${sysIn}</td>
                    <td data-label="下班卡">${sysOut}</td>
