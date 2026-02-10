@@ -1662,7 +1662,7 @@ function recalculateAllRows(triggerIdx = -1) {
               
               const s = data.stats;
               
-              // ★★★ 核心修改：產生儀表板風格的 HTML (同步店長端) ★★★
+              // ★★★ 核心修改：加入括號與間距，解決 40 問題 (同步店長端) ★★★
               let statsHtmlStr = "";
               if (data.isHourly) {
                   statsHtmlStr = `
@@ -1677,19 +1677,31 @@ function recalculateAllRows(triggerIdx = -1) {
                       <div class="stat-grid-mobile">
                           <div class="stat-card-item">
                               <span class="stat-card-label">應有工時</span>
-                              <div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span><span class="stat-card-diff">${formatDiff(s.hrs - meta.hrs)}</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span>
+                              </div>
                           </div>
                           <div class="stat-card-item">
                               <span class="stat-card-label">休假</span>
-                              <div class="d-flex align-items-baseline"><span class="stat-card-value">${s.rest}</span><span class="stat-card-diff">${formatDiff(s.rest - meta.rest)}</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.rest}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span>
+                              </div>
                           </div>
                           <div class="stat-card-item">
                               <span class="stat-card-label">例假</span>
-                              <div class="d-flex align-items-baseline"><span class="stat-card-value">${s.reg}</span><span class="stat-card-diff">${formatDiff(s.reg - meta.reg)}</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.reg}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span>
+                              </div>
                           </div>
                           <div class="stat-card-item">
                               <span class="stat-card-label">國定假</span>
-                              <div class="d-flex align-items-baseline"><span class="stat-card-value">${s.nat}</span><span class="stat-card-diff">${formatDiff(s.nat - meta.nat)}</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.nat}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span>
+                              </div>
                           </div>
                       </div>`;
               }
@@ -1799,9 +1811,7 @@ function recalculateAllRows(triggerIdx = -1) {
                     <td data-label="應有時段" class="color-h">${strRangeH}</td>
                     <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
                     <td data-label="預計加班" class="color-z">${strRangeZ}</td>
-                    
                     <td data-label="獎金時段 (勿打卡)" class="color-aa">${strRangeAA}</td>
-                    
                     <td data-label="系統狀態">${r.sys_status}</td>
                     <td data-label="上班卡">${sysIn}</td>
                     <td data-label="下班卡">${sysOut}</td>
@@ -1864,10 +1874,9 @@ function recalculateAllRows(triggerIdx = -1) {
               </div>`;
         }
         
-        // ★★★ 核心修改：產生儀表板風格的 HTML ★★★
+        // ★★★ 核心修改：加入括號與間距，解決 40 問題 ★★★
         let statsHtmlStr = "";
         if (isHourly) {
-            // 時薪制 (無差異比較)
             statsHtmlStr = `
                 <div class="stat-grid-mobile">
                     <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span></div>
@@ -1876,29 +1885,39 @@ function recalculateAllRows(triggerIdx = -1) {
                     <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${nat}</span></div>
                 </div>`;
         } else {
-            // 月薪制 (含差異比較 formatDiff 會產生帶顏色的 span)
             statsHtmlStr = `
                 <div class="stat-grid-mobile">
                     <div class="stat-card-item">
                         <span class="stat-card-label">應有工時</span>
-                        <div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span><span class="stat-card-diff">${formatDiff(hrs - monthlyTargets.hrs)}</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span>
+                            <span class="stat-card-diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span>
+                        </div>
                     </div>
                     <div class="stat-card-item">
                         <span class="stat-card-label">休假</span>
-                        <div class="d-flex align-items-baseline"><span class="stat-card-value">${rest}</span><span class="stat-card-diff">${formatDiff(rest - monthlyTargets.rest)}</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${rest}</span>
+                            <span class="stat-card-diff">(${formatDiff(rest - monthlyTargets.rest)})</span>
+                        </div>
                     </div>
                     <div class="stat-card-item">
                         <span class="stat-card-label">例假</span>
-                        <div class="d-flex align-items-baseline"><span class="stat-card-value">${reg}</span><span class="stat-card-diff">${formatDiff(reg - monthlyTargets.reg)}</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${reg}</span>
+                            <span class="stat-card-diff">(${formatDiff(reg - monthlyTargets.reg)})</span>
+                        </div>
                     </div>
                     <div class="stat-card-item">
                         <span class="stat-card-label">國定假</span>
-                        <div class="d-flex align-items-baseline"><span class="stat-card-value">${nat}</span><span class="stat-card-diff">${formatDiff(nat - monthlyTargets.nat)}</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${nat}</span>
+                            <span class="stat-card-diff">(${formatDiff(nat - monthlyTargets.nat)})</span>
+                        </div>
                     </div>
                 </div>`;
         }
         
-        // 第二行維持原樣 (Z/O/AA)，但包在 stat-box-row 裡
         let row2Html = `
             <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
                 <span class="text-dark"><strong>預計排班(Z):</strong> ${totalZ.toFixed(1)}</span>
@@ -1907,7 +1926,6 @@ function recalculateAllRows(triggerIdx = -1) {
             </div>
         `;
 
-        // 組合最終 HTML
         statsDiv.innerHTML = `
             <div class="d-flex flex-column w-100">
                 <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
@@ -1926,7 +1944,7 @@ function recalculateAllRows(triggerIdx = -1) {
                 <th style="min-width:100px;">應有時段</th>
                 <th>應有(H)</th>
                 <th style="min-width:100px;">預計加班時段</th>
-                <th style="min-width:100px;">超時時段<br><small>(不可打卡)</small></th>
+                <th style="min-width:100px;">超時時段<br><small>(勿打卡)</small></th>
                 <th>系統狀態</th>
                 <th>上班卡</th>
                 <th>下班卡</th>
