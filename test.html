@@ -776,44 +776,38 @@
         let tr = element.closest('tr'); 
         let idx = parseInt(tr.getAttribute('data-index'));
         
-        // ★★★ 新增：如果是「切換狀態」，強制重置時間欄位 ★★★
-        // 判斷觸發變更的元素是否為 status-select
+        // 1. 如果是「切換狀態」，強制重置時間欄位
         if (element.classList.contains('status-select')) {
-            // 清空 UI
             tr.querySelector('.start-select').value = "";
             tr.querySelector('.end-select').value = "";
             tr.querySelector('.rest-select').value = "";
             tr.querySelector('.z-select').value = "0";
-            // 清空資料模型
+            
             currentData[idx].input_start = "";
             currentData[idx].input_end = "";
             currentData[idx].input_rest = "";
             currentData[idx].input_est_overtime = "0";
         } else {
-            // 如果不是切換狀態，則正常更新資料模型
+            // 正常更新
             currentData[idx].input_start = tr.querySelector('.start-select').value;
             currentData[idx].input_end = tr.querySelector('.end-select').value;
             currentData[idx].input_rest = tr.querySelector('.rest-select').value;
             
-            // 更新 Z 值 (僅在上班狀態下讀取下拉選單)
             if (currentData[idx].input_status === '上班') {
                 currentData[idx].input_est_overtime = tr.querySelector('.z-select').value;
             }
         }
-        
-        // 必須重新抓取一次狀態 (因為可能剛被重置或切換)
         currentData[idx].input_status = tr.querySelector('.status-select').value;
 
-        // 2. 更新 UI 狀態 (控制欄位開關)
+        // 2. 更新 UI 狀態
         updateRowState(tr); 
         
-        // 3. 驗證完整性 (紅框檢查)
-        let isComplete = validateRow(tr);
-
-        // 4. 觸發計算
-        recalculateAllRows();
+        // 3. ★★★ 關鍵修改：先計算，再檢核 ★★★
+        // 我們將 idx 傳進去，讓函式知道現在是誰在動
+        // recalculateAllRows 裡面會自動呼叫 validateRow 更新訊息
+        recalculateAllRows(idx);
         
-        // 5. 更新 Live Summary (月統計)
+        // 4. 更新 Live Summary (月統計)
         if (currentMode === 'name') { 
             let name = tr.getAttribute('data-name');
             updateLiveSummary(name); 
@@ -824,9 +818,9 @@
       }
 
 // ==========================================
-      // ★★★ 核心邏輯：全表計算 (含46hr上限與下拉選單控制) ★★★
+      // ★★★ 核心邏輯：全表計算 (含46hr上限、連動提醒、即時訊息更新) ★★★
       // ==========================================
-      function recalculateAllRows() {
+      function recalculateAllRows(triggerIdx = -1) {
           // 1. 先依人名分組
           let grouped = {};
           currentData.forEach(row => {
@@ -834,30 +828,31 @@
               grouped[row.name].push(row);
           });
 
+          let affectedDates = []; // 用來收集被連動影響的日期
+
           // 2. 針對每個人進行計算
           Object.keys(grouped).forEach(name => {
               let rows = grouped[name];
               rows.sort((a,b) => a.date.localeCompare(b.date)); 
 
-              // --- 步驟 A: 先計算整個月的「累計計稅加班 (Taxable Z)」 ---
-              // 為了知道每個下拉選單該顯示什麼，我們必須先知道「除了自己以外，別人用了多少」
-              // 但這裡為了簡化邏輯，我們先跑一次迴圈算出 H, Z, AA 的初步結果
-              
-              let accumulatedTaxableZ = 0; // 累計計入 46hr 的時數
+              let accumulatedTaxableZ = 0; 
 
               rows.forEach(row => {
-                  let tr = document.querySelector(`tr[data-index='${currentData.indexOf(row)}']`);
+                  let currentRowIdx = currentData.indexOf(row);
+                  let tr = document.querySelector(`tr[data-index='${currentRowIdx}']`);
                   
+                  // ★ 記錄舊數值 (為了比對連動影響)
+                  let oldZ = parseFloat(row.input_est_overtime) || 0;
+                  let oldAA = parseFloat(row.calc_excess) || 0;
+
                   let status = row.input_status;
                   let salary = row.salaryType;
                   let sTime = row.input_start;
                   let eTime = row.input_end;
                   let rTime = parseFloat(row.input_rest) || 0;
                   
-                  // 取得當日是否為國定假日
                   let currentDay = parseInt(row.date.split('/')[2]);
-                  let isHoliday = (monthlyTargets.holidays || []).includes(currentDay.toString());
-
+                  
                   let H = 0, Z = 0, AA = 0;
                   let rawWork = 0;
 
@@ -870,237 +865,134 @@
                       if (rawWork < 0) rawWork = 0;
                   }
 
-                  // --- 計算邏輯 ---
+                  // --- 計算邏輯 (維持不變) ---
                   if (status === '上班') {
-                      // Z 是輸入值
                       let zSelected = parseFloat(row.input_est_overtime) || 0;
-                      
                       let realH = rawWork - zSelected;
                       if (realH < 0) realH = 0;
-                      
                       let dailyTotal = realH + zSelected;
                       let excess12 = 0;
                       if (dailyTotal > 12) {
                           excess12 = dailyTotal - 12;
-                          // 超過12小時，優先扣 H，再扣 Z
-                          if (realH >= excess12) {
-                              realH -= excess12;
-                          } else {
+                          if (realH >= excess12) { realH -= excess12; } 
+                          else {
                               let remainder = excess12 - realH;
                               realH = 0;
                               zSelected = (zSelected > remainder) ? (zSelected - remainder) : 0;
                           }
                       }
-                      
-                      // 上班日的加班，全部計入額度 (Taxable)
-                      // 檢查 46hr 上限
                       let quotaLeft = 46 - accumulatedTaxableZ;
                       if (quotaLeft < 0) quotaLeft = 0;
                       
-                      let finalZ = 0; 
-                      let shiftToAA = 0;
-
+                      let finalZ = 0; let shiftToAA = 0;
                       if (zSelected > quotaLeft) {
                           finalZ = quotaLeft;
                           shiftToAA = zSelected - quotaLeft;
-                          accumulatedTaxableZ += quotaLeft; // 額度用完
+                          accumulatedTaxableZ += quotaLeft;
                       } else {
                           finalZ = zSelected;
                           accumulatedTaxableZ += zSelected;
                       }
-
-                      H = realH;
-                      Z = finalZ;
-                      AA = excess12 + shiftToAA;
+                      H = realH; Z = finalZ; AA = excess12 + shiftToAA;
                   }
                   else if (['休', '例', '空班'].includes(status) || (status === '國' && salary.includes('月薪'))) {
                       H = 0;
                       let potentialZ = rawWork;
-                      
-                      // 例/空班 全算超時
                       if (status === '例' || status === '空班') {
-                          Z = 0; 
-                          AA = potentialZ;
+                          Z = 0; AA = potentialZ;
                       } else {
-                          // 休/國 (月薪)
                           let excess12 = 0;
-                          if (potentialZ > 12) {
-                              excess12 = potentialZ - 12;
-                              potentialZ = 12;
-                          }
-
-                          // 計算要計入 46hr 的部分 (Taxable)
+                          if (potentialZ > 12) { excess12 = potentialZ - 12; potentialZ = 12; }
                           let taxablePart = potentialZ;
-                          if (status === '國') {
-                              // 國定假日：前8小時不計入
-                              taxablePart = (potentialZ > 8) ? (potentialZ - 8) : 0;
-                          }
+                          if (status === '國') taxablePart = (potentialZ > 8) ? (potentialZ - 8) : 0;
                           
                           let quotaLeft = 46 - accumulatedTaxableZ;
                           if (quotaLeft < 0) quotaLeft = 0;
-                          
-                          let validTaxable = 0;
-                          let shiftToAA = 0;
-                          
+                          let validTaxable = 0; let shiftToAA = 0;
                           if (taxablePart > quotaLeft) {
                               validTaxable = quotaLeft;
-                              shiftToAA = taxablePart - quotaLeft; // 這些被擠去 AA
-                          } else {
-                              validTaxable = taxablePart;
-                          }
+                              shiftToAA = taxablePart - quotaLeft;
+                          } else { validTaxable = taxablePart; }
                           accumulatedTaxableZ += validTaxable;
                           
-                          // 回推 Final Z
                           let baseNonTaxable = (status === '國') ? Math.min(potentialZ, 8) : 0;
                           Z = baseNonTaxable + validTaxable;
                           AA = excess12 + shiftToAA;
                       }
                   }
 
-                  // 寫回 Data 與 DOM
+                  // 寫回 Data
                   row.calc_hours = H.toFixed(1);
                   row.calc_excess = AA.toFixed(1);
-                  
-                  // 非上班狀態，Z 是算出來的，寫回 input_est_overtime
+                  // 只有非上班才寫回 input_est_overtime (因為上班是手動選的)
+                  // 但為了連動檢查，我們可以暫存 Z
                   if (status !== '上班') {
                       row.input_est_overtime = Z.toFixed(1);
                   }
 
+                  // 檢查是否發生連動變更 (不是當前編輯列，但數值變了)
+                  if (currentRowIdx !== triggerIdx && triggerIdx !== -1) {
+                      // 檢查 Z 或 AA 是否有顯著變化 (忽略浮點數微小差異)
+                      let newZ = parseFloat(Z.toFixed(1));
+                      let newAA = parseFloat(AA.toFixed(1));
+                      if (Math.abs(oldZ - newZ) > 0.1 || Math.abs(oldAA - newAA) > 0.1) {
+                          affectedDates.push(`${row.date.split('/')[2]}日`);
+                      }
+                  }
+
+                  // 更新畫面 DOM
                   if (tr) {
                       tr.querySelector('.hours-input').value = H.toFixed(1);
                       tr.querySelector('.aa-input').value = AA.toFixed(1);
-                      // 無論是否上班，都把算出來的 Z 寫入隱藏的 input，方便計算額度
+                      // 無論是否上班，都把算出來的 Z 寫入隱藏的 input
                       tr.querySelector('.z-input').value = Z.toFixed(1);
+                      
+                      // ★★★ 關鍵修正：計算完數據後，立即呼叫 validateRow 更新檢核訊息 ★★★
+                      // 這樣確保訊息用的是「剛剛算出來的 H/Z/AA」
+                      validateRow(tr);
                   }
-              }); // End of Calculation Loop
+              }); 
 
-              // --- 步驟 B: 更新下拉選單 (Dynamic Dropdown) ---
-              // 再次遍歷，這次是為了更新「上班」狀態的 Z 下拉選單
-              // 我們需要算出：若「不含當前這行的 Z」，該員還剩多少額度？
-              
-              let totalTaxableUsed = accumulatedTaxableZ; // 整個月已使用的總額度
-
+              // --- 更新下拉選單邏輯 (維持不變) ---
+              let totalTaxableUsed = accumulatedTaxableZ; 
               rows.forEach(row => {
                   let tr = document.querySelector(`tr[data-index='${currentData.indexOf(row)}']`);
                   if (!tr || row.input_status !== '上班') return;
-
                   let select = tr.querySelector('.z-select');
-                  let currentVal = parseFloat(row.input_est_overtime) || 0; // 目前選的值
-
-                  // 回推：這個人「除了今天」以外，用了多少額度？
-                  // 公式：剩餘可用 = 46 - (總使用 - 本次使用)
-                  // 注意：上班日的 Z 全部都是 Taxable 的，所以直接減 currentVal 即可
-                  // (但如果 currentVal 已經被切到 AA 去了，這裡回推會有點複雜。
-                  //  簡單做法：我們開放「最大理論值」。)
-                  
-                  // 為了避免邏輯死鎖，我們直接計算：
-                  // MaxAllowed = 46 - (totalTaxableUsed - (本次實際計入額度的Z))
-                  // 這裡簡化：假設本次 currentVal 全都是計入的 (因為是上班日)
-                  // 如果 currentVal 曾經被切分 (部分Z 部分AA)，totalTaxableUsed 已經是切分後的結果。
-                  
-                  // 最直觀的邏輯：
-                  // 剩餘額度 = 46 - (totalTaxableUsed - Math.min(currentVal, 實際計入量))
-                  // 這邊為了讓店長好選，我們直接給他： 46 - (totalTaxableUsed - row.最終Z)
-                  
-                  let myContribution = parseFloat(row.input_est_overtime) || 0; 
-                  // 注意：上面的迴圈已經把 input_est_overtime 更新為 "Final Z" (受限後的)
-                  // 但如果是上班，input_est_overtime 應該要是 "User Input" 還是 "Calculated"?
-                  // 在上面的邏輯裡： if (status === '上班') H=..., Z=finalZ ... 
-                  // 但沒有寫回 row.input_est_overtime (因為那是使用者的輸入)
-                  // 等等！上面的邏輯裡沒有寫回 row.input_est_overtime，這對嗎？
-                  // 對，因為 row.input_est_overtime 是 store "User Selection".
-                  // 所以 myContribution 應該是 FinalZ (變數 Z)
-                  
-                  // 讓我們重新抓一次 Final Z (有點沒效率，但安全)
-                  // ... 或者我們直接依賴 accumulatedTaxableZ
-                  
-                  // 簡單暴力法：
-                  // 剩餘額度 = 46 - (totalTaxableUsed - 目前這格實際佔用的額度)
-                  // 目前這格佔用額度 = 最終計算出的 Z (因為上班日 Z 全額計稅)
-                  
-                  // 我們需要上面的迴圈把 Z 暫存起來，這裡直接用。
-                  // 為了不改動太大，我們這裡假設：
-                  // 店長可以選的值 = 目前的值 + (46 - totalTaxableUsed)
-                  
-                  // 例如：總共用了 45，目前這格是 2。
-                  // 剩餘空間 = 46 - 45 = 1。
-                  // 店長還能加 1？不對。
-                  // 店長原本佔了 2 (其中 1 是合法的，1 被移去 AA 了？不，Z 是合法的)
-                  // 修正：accumulatedTaxableZ 是「合法 Z」的總和。
-                  // 所以如果目前這格是 2，且都在 accumulatedTaxableZ 裡。
-                  // 那扣除自己後，別人用了 43。
-                  // 那我最大可以選 46-43 = 3。
-                  
-                  // 實作：
-                  // 1. 取得目前這格「實際被計入 Taxable」的量 (就是上面算出的 Z)
-                  //    這需要從 DOM 讀取，因為 row.input_est_overtime 還是原始輸入
-                  //    但我們沒把算出來的 Z 存回 row (針對上班狀態)
-                  //    修正：在上面的迴圈，我們把算出來的 Z 寫到 row.calc_z_final (暫存屬性)
-                  
-                  // 為了修正這個，請回到上面的迴圈，找到 if (status === '上班') 裡的 Z = finalZ;
-                  // 加入一行： row.temp_final_z = finalZ;
-                  
-                  // 但為了不讓您改兩次，我們用個簡單數學：
-                  // 剩餘配額 = (46 - totalTaxableUsed)
-                  // 如果剩餘配額 > 0，代表還沒滿，選單上限 = currentVal + 剩餘配額
-                  // 如果剩餘配額 = 0，代表滿了。選單上限 = currentVal (因為currentVal已經佔了坑)
-                  
-                  // 不對，如果 totalTaxableUsed 已經滿了 46。
-                  // 其中包含了我貢獻的 3。
-                  // 那我應該可以看到 0~3 的選項。
-                  
-                  // 所以：
-                  // 我的最大上限 = (46 - totalTaxableUsed) + (我目前貢獻的Z)
-                  
-                  // 重新計算「我目前貢獻的Z」：
-                  // 既然是上班日，input_est_overtime (使用者選的) 可能大於 最終Z (因為被切去AA)
-                  // 但 totalTaxableUsed 只包含 最終Z。
-                  // 我們需要知道「最終Z」是多少。
-                  
-                  // ★★★ 為了準確，我們依賴 input_est_overtime 的值與 totalTaxableUsed 的關係
-                  // 假設：所有上班日的 Z 都是計入的 (除非超過 46)。
-                  // 所以：MaxOption = CurrentSelection + (46 - TotalUsed)
-                  // 如果 TotalUsed 已經 46，且 CurrentSelection=3，那代表這3都在46裡面。Max=3。
-                  // 如果 TotalUsed 46，CurrentSelection=5 (其中3在46裡，2在AA)。
-                  // 那 TotalUsed=46。Max = 5 + 0 = 5? 不對，Z最大只能顯示到 46限制。
-                  
-                  // 正確邏輯：
-                  // 1. 取得「不包含我」的其他人用量 = TotalUsed - Math.min(CurrentSelection, (TotalUsed裡的份額?))
-                  // 這太複雜了。
-                  
-                  // ★★★ 採用「動態生成選項」最穩健的做法 ★★★
-                  // 1. 算出「除了我這格之外，其他人用了多少 (OtherUsed)」
-                  // 2. MyMax = 46 - OtherUsed
-                  // 3. Dropdown Limit = Math.min(4, MyMax)
-                  
-                  // 如何算 OtherUsed?
-                  // OtherUsed = TotalTaxableUsed - MyContribution
-                  // MyContribution 基本上就是上面的 finalZ。
-                  // 我們在 DOM 裡讀取一下剛算好的 Z 吧 (上面有寫入 .z-input，雖然上班狀態它是隱藏的，但值是正確的嗎？不，上班狀態我們沒更新 .z-input)
-                  
-                  // 修正：上面的迴圈，請加上這行：
-                  // if (status === '上班') { tr.querySelector('.z-input').value = Z.toFixed(1); }
-                  // 這樣我們這裡就可以讀到了！
-                  
+                  let currentVal = parseFloat(row.input_est_overtime) || 0; 
                   let myFinalZ = parseFloat(tr.querySelector('.z-input').value) || 0;
                   let otherUsed = totalTaxableUsed - myFinalZ;
                   let myLimit = 46 - otherUsed;
-                  if (myLimit < 0) myLimit = 0; // 防呆
+                  if (myLimit < 0) myLimit = 0; 
                   
-                  // 產生選項 (0 ~ 4, 但不超過 myLimit)
                   let html = '<option value="0">0</option>';
                   for(let i=0.5; i<=4; i+=0.5){
-                      // 如果選項 i 超過 myLimit，就不產生 (或者設為 disabled)
-                      // 依照需求：僅顯示剩餘時數
-                      if (i <= myLimit + 0.01) { // +0.01 避免浮點數誤差
+                      if (i <= myLimit + 0.01) { 
                           let selected = (Math.abs(currentVal - i) < 0.1) ? "selected" : "";
                           html += `<option value="${i}" ${selected}>${i}</option>`;
                       }
                   }
                   select.innerHTML = html;
               });
-
           });
+
+          // ★★★ 跳出連動提醒 (Toast) ★★★
+          if (affectedDates.length > 0) {
+              // 去除重複日期
+              let uniqueDates = [...new Set(affectedDates)];
+              const Toast = Swal.mixin({
+                  toast: true, position: 'top-end', showConfirmButton: false, timer: 4000,
+                  timerProgressBar: true, icon: 'info',
+                  didOpen: (toast) => {
+                      toast.addEventListener('mouseenter', Swal.stopTimer)
+                      toast.addEventListener('mouseleave', Swal.resumeTimer)
+                  }
+              });
+              Toast.fire({
+                  title: '連動更新通知',
+                  text: `已自動調整以下日期的加班分配：${uniqueDates.join(', ')}`
+              });
+          }
       }
         
         function updateMsgBox(tr, H, Z, AA, sTime, status) {
