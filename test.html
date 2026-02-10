@@ -1596,6 +1596,7 @@ function recalculateAllRows(triggerIdx = -1) {
               if (data.data) {
                  data.data.forEach(r => { 
                      let o = parseFloat(r.sys_overtimeHrs); if (!isNaN(o)) totalOvertime += o; 
+                     // 確保這裡能讀到值，若後端沒傳則為 0
                      let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) totalZ += z;
                      let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
                  });
@@ -1633,6 +1634,7 @@ function recalculateAllRows(triggerIdx = -1) {
               const pTable = document.querySelector('#personalSection table');
               if(pTable) pTable.classList.add('mobile-card-mode');
               
+              // ★★★ 標題修改：獎金時段 (勿打卡) ★★★
               thead.innerHTML = `
                   <tr>
                       <th>日期</th>
@@ -1640,7 +1642,7 @@ function recalculateAllRows(triggerIdx = -1) {
                       <th style="min-width:100px;">應有時段</th>
                       <th>應有(H)</th>
                       <th style="min-width:100px;">預計加班時段</th>
-                      <th style="min-width:100px;">獎金時段<br><small>(不可打卡)</small></th>
+                      <th style="min-width:100px;">獎金時段<br><small>(勿打卡)</small></th>
                       <th>系統狀態</th>
                       <th>上班卡</th>
                       <th>下班卡</th>
@@ -1667,34 +1669,38 @@ function recalculateAllRows(triggerIdx = -1) {
                   let zVal = parseFloat(r.input_est_overtime) || 0;
                   let aaVal = parseFloat(r.calc_excess) || 0;
                   
-                  // ★★★ 修正點 1: 嘗試多種欄位名稱讀取休息時間 ★★★
+                  // ★★★ 關鍵：確保讀取休息時間，支援多種命名可能 ★★★
                   let restVal = parseFloat(r.input_rest || r.rest || r.g) || 0; 
                   
                   let status = r.input_status;
 
                   let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
            
+                  // --- 時段計算邏輯 (與店長端完全同步) ---
                   if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
                        let startMin = timeToFloat(startVal) * 60;
                        let restMin = restVal * 60;
 
+                       // 1. 應有時段
                        if (hVal > 0 || status === '上班') {
                            let duration = (hVal * 60);
-                           if (status === '上班') duration += restMin;
+                           if (status === '上班') duration += restMin; // 上班含休
                            let endH = startMin + duration;
                            if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
                            startMin = endH;
                        }
+                       // 2. 加班時段
                        if (zVal > 0) {
                            let duration = (zVal * 60);
-                           if (['休', '國'].includes(status)) duration += restMin;
+                           if (['休', '國'].includes(status)) duration += restMin; // 休/國含休
                            let endZ = startMin + duration;
                            strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
                            startMin = endZ;
                        }
+                       // 3. 超時(獎金)時段
                        if (aaVal > 0) {
                            let duration = (aaVal * 60);
-                           if (['例', '空班'].includes(status)) duration += restMin;
+                           if (['例', '空班'].includes(status)) duration += restMin; // 例/空含休
                            let endAA = startMin + duration;
                            strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
                        }
@@ -1707,6 +1713,7 @@ function recalculateAllRows(triggerIdx = -1) {
 
                   const tr = document.createElement('tr');
                   
+                  // 手機版 data-label 也加上 (勿打卡) 提示
                   tr.innerHTML = `
                     <td data-label="日期">${dateDisplay}</td>
                     <td data-label="狀態(D)" class="color-h">${r.input_status}</td>
