@@ -189,14 +189,12 @@
           border-radius: 6px; 
           border: 1px solid #ddd; 
       }
-        /* ========================================= */
+      /* ========================================= */
       /* ★★★ 系統狀態表 - 手機版卡片式優化 ★★★ */
       /* ========================================= */
       @media (max-width: 900px) {
-          /* 1. 隱藏原本的表頭 */
           #indivModal thead { display: none; }
 
-          /* 2. 將每一列 (tr) 變成一張卡片 */
           #indivTableBody tr {
               display: block;
               background: #fff;
@@ -208,68 +206,80 @@
               position: relative;
           }
 
-          /* 3. 設定每個儲存格 (td) 的顯示方式 */
           #indivTableBody td {
               display: flex;
-              justify-content: space-between;
-              align-items: center;
+              justify-content: space-between; /* 左標題，右數值 */
+              align-items: center;            /* 垂直置中 */
               border: none;
-              padding: 4px 0;
+              padding: 6px 0;
               font-size: 0.95rem;
               text-align: right;
-              border-bottom: 1px dashed #eee; /* 分隔線 */
+              border-bottom: 1px dashed #eee;
           }
           
           #indivTableBody td:last-child { border-bottom: none; }
 
-          /* 4. 利用 data-label 屬性顯示標題 (左側) */
+          /* 左側標題樣式 */
           #indivTableBody td::before {
               content: attr(data-label);
               font-weight: bold;
               color: #666;
               text-align: left;
-              margin-right: 10px;
-              min-width: 80px; /* 標題對齊 */
+              margin-right: 15px;
+              min-width: 90px; /* 固定寬度，讓數值對齊 */
+              flex-shrink: 0;
           }
 
-          /* --- 特殊欄位排版優化 --- */
+          /* --- 特殊欄位排版 --- */
           
-          /* 日期與狀態 (置頂加粗) */
-          #indivTableBody td:nth-child(1) { /* 日期 */
+          /* 日期 (置頂區塊) */
+          #indivTableBody td:nth-child(1) {
               background-color: #f8f9fa;
               margin: -10px -10px 10px -10px;
-              padding: 8px 15px;
+              padding: 10px 15px;
               border-bottom: 2px solid #e9ecef;
               font-weight: bold;
               font-size: 1.1rem;
               justify-content: center;
               color: #333;
           }
-          #indivTableBody td:nth-child(1)::before { display: none; } /* 隱藏日期標籤 */
+          #indivTableBody td:nth-child(1)::before { display: none; }
 
-          /* 狀態與H時數並排顯示 */
-          #indivTableBody td:nth-child(2) { font-size: 1.1em; } /* 狀態 */
-          
-          /* 時段顯示區 (應有/加班/超時) */
+          /* ★★★ 修正：讓時段欄位也變成「左標題、右數值」 ★★★ */
           #indivTableBody td[data-label="應有時段"],
           #indivTableBody td[data-label="預計加班"],
           #indivTableBody td[data-label="超時時段"] {
-              flex-direction: column;
-              align-items: flex-start;
-              text-align: left;
+              flex-direction: row; /* 強制橫向 */
+              align-items: center;
           }
+          /* 移除原本的 text-decoration underline */
           #indivTableBody td[data-label="應有時段"]::before,
           #indivTableBody td[data-label="預計加班"]::before,
           #indivTableBody td[data-label="超時時段"]::before {
-              margin-bottom: 2px;
-              color: #333;
-              text-decoration: underline;
+              margin-bottom: 0;
+              text-decoration: none;
           }
 
-          /* 隱藏無資料的欄位 (視覺降噪) */
+          /* 隱藏無資料欄位 */
           .mobile-hide-empty:empty { display: none; }
-          .mobile-hide-zero { display: none; } /* 透過 JS 控制數值為 0 就加這個 class */
+          .mobile-hide-zero { display: none; }
       }
+
+      /* ========================================= */
+      /* ★★★ 統一顏色樣式 (手機/電腦共用) ★★★ */
+      /* ========================================= */
+      
+      /* 狀態、應有時段、應有時數 (藍色) */
+      .color-h { color: #0d6efd !important; font-weight: bold; }
+      
+      /* 預計加班 (橘色) */
+      .color-z { color: #d39e00 !important; font-weight: bold; }
+      
+      /* 超時時段、超時數值 (紅色) */
+      .color-aa { color: #dc3545 !important; font-weight: bold; }
+      
+      /* 異常 (紅色) */
+      .color-err { color: #dc3545 !important; font-weight: bold; }
     </style>
 </head>
   <body>
@@ -1680,7 +1690,7 @@ function recalculateAllRows(triggerIdx = -1) {
             </tr>
         `;
 
-        // 6. 填入表格內容 (加入 data-label)
+        // 6. 填入表格內容 (加入 data-label 與 color class)
         pData.forEach(r => {
            let startVal = r.input_start;
            let hVal = parseFloat(r.calc_hours) || 0;
@@ -1722,24 +1732,24 @@ function recalculateAllRows(triggerIdx = -1) {
            let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : "";
            let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
            
-           // 手機版隱藏邏輯 (值為空或0時，加上 mobile-hide-zero class)
-           // 這樣手機卡片就不會顯示一堆 "0" 或 空白
-           
-           // 日期顯示格式： MM/DD (週X)
            let dateObj = new Date(r.date);
            let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
            let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${weekDay})`;
 
+           // ★★★ 關鍵修改：加入顏色 Class (color-h, color-z, color-aa) ★★★
            tbody.innerHTML += `
                <tr>
                    <td data-label="日期">${dateDisplay}</td>
-                   <td data-label="狀態(D)" class="fw-bold text-primary">${r.input_status}</td>
                    
-                   <td data-label="應有時段" class="text-time-h ${strRangeH===""?"mobile-hide-zero":""}">${strRangeH}</td>
-                   <td data-label="應有(H)" class="fw-bold">${r.calc_hours}</td>
+                   <td data-label="狀態(D)" class="color-h">${r.input_status}</td>
                    
-                   <td data-label="預計加班" class="text-time-z ${strRangeZ===""?"mobile-hide-zero":""}">${strRangeZ}</td>
-                   <td data-label="超時時段" class="text-time-aa ${strRangeAA===""?"mobile-hide-zero":""}">${strRangeAA}</td>
+                   <td data-label="應有時段" class="color-h ${strRangeH===""?"mobile-hide-zero":""}">${strRangeH}</td>
+                   
+                   <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
+                   
+                   <td data-label="預計加班" class="color-z ${strRangeZ===""?"mobile-hide-zero":""}">${strRangeZ}</td>
+                   
+                   <td data-label="超時時段" class="color-aa ${strRangeAA===""?"mobile-hide-zero":""}">${strRangeAA}</td>
                    
                    <td data-label="系統狀態" class="${!r.sys_status || r.sys_status==="未排"?"mobile-hide-zero":""}">${r.sys_status}</td>
                    <td data-label="上班卡" class="${!sysIn?"mobile-hide-zero":""}">${sysIn}</td>
@@ -1751,7 +1761,8 @@ function recalculateAllRows(triggerIdx = -1) {
                    <td data-label="加班" class="${!sysOtRange?"mobile-hide-zero":""}">${sysOtRange}</td>
                    <td data-label="加班時數" class="${!r.sys_overtimeHrs || r.sys_overtimeHrs=="0"?"mobile-hide-zero":""}">${r.sys_overtimeHrs || ""}</td>
                    
-                   <td data-label="異常" class="text-danger fw-bold ${!r.sys_abnormal?"mobile-hide-zero":""}">${r.sys_abnormal || ""}</td>
+                   <td data-label="異常" class="color-err ${!r.sys_abnormal?"mobile-hide-zero":""}">${r.sys_abnormal || ""}</td>
+                   
                    <td data-label="註記(Q)" class="text-muted small ${!r.log?"mobile-hide-zero":""}">${r.log}</td>
                </tr>
            `;
