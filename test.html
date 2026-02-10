@@ -190,16 +190,14 @@
           border: 1px solid #ddd; 
       }
       /* ========================================= */
-      /* ★★★ 系統狀態表 & 個人班表 - 手機版卡片式優化 ★★★ */
+      /* ★★★ 系統狀態表 & 個人班表 - 手機版卡片式優化 (可切換) ★★★ */
       /* ========================================= */
       @media (max-width: 900px) {
-          /* 隱藏表頭 (店長檢視 & 個人檢視) */
-          #indivModal thead, 
-          #personalSection thead { display: none; }
+          /* 只有當表格擁有 mobile-card-mode 類別時，才隱藏表頭 */
+          table.mobile-card-mode thead { display: none; }
 
           /* 將每一列變成卡片 */
-          #indivTableBody tr, 
-          #personalTableBody tr {
+          table.mobile-card-mode tbody tr {
               display: block;
               background: #fff;
               border: 1px solid #ddd;
@@ -211,8 +209,7 @@
           }
 
           /* 設定儲存格排版 (左標題、右數值) */
-          #indivTableBody td, 
-          #personalTableBody td {
+          table.mobile-card-mode tbody td {
               display: flex;
               justify-content: space-between;
               align-items: center;
@@ -223,12 +220,10 @@
               border-bottom: 1px dashed #eee;
           }
           
-          #indivTableBody td:last-child, 
-          #personalTableBody td:last-child { border-bottom: none; }
+          table.mobile-card-mode tbody td:last-child { border-bottom: none; }
 
-          /* 左側標題樣式 (透過 data-label) */
-          #indivTableBody td::before, 
-          #personalTableBody td::before {
+          /* 左側標題樣式 */
+          table.mobile-card-mode tbody td::before {
               content: attr(data-label);
               font-weight: bold;
               color: #666;
@@ -241,8 +236,7 @@
           /* --- 特殊欄位排版 --- */
           
           /* 日期 (置頂區塊) */
-          #indivTableBody td:nth-child(1), 
-          #personalTableBody td:nth-child(1) {
+          table.mobile-card-mode tbody td:nth-child(1) {
               background-color: #f8f9fa;
               margin: -10px -10px 10px -10px;
               padding: 10px 15px;
@@ -252,25 +246,32 @@
               justify-content: center;
               color: #333;
           }
-          #indivTableBody td:nth-child(1)::before, 
-          #personalTableBody td:nth-child(1)::before { display: none; }
+          table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
 
           /* 強制橫向排列的時段欄位 */
-          #indivTableBody td[data-label="應有時段"], #personalTableBody td[data-label="應有時段"],
-          #indivTableBody td[data-label="預計加班"], #personalTableBody td[data-label="預計加班"],
-          #indivTableBody td[data-label="超時時段"], #personalTableBody td[data-label="獎金時段"] { /* 注意這裡用 獎金時段 */
+          table.mobile-card-mode tbody td[data-label="應有時段"], 
+          table.mobile-card-mode tbody td[data-label="預計加班"], 
+          table.mobile-card-mode tbody td[data-label="超時時段"],
+          table.mobile-card-mode tbody td[data-label="獎金時段"] {
               flex-direction: row;
               align-items: center;
           }
           
-          #indivTableBody td::before, #personalTableBody td::before {
+          table.mobile-card-mode tbody td::before {
               text-decoration: none;
               margin-bottom: 0;
           }
 
           /* 隱藏無資料 */
-          .mobile-hide-empty:empty { display: none; }
-          .mobile-hide-zero { display: none; }
+          table.mobile-card-mode .mobile-hide-empty:empty { display: none; }
+          table.mobile-card-mode .mobile-hide-zero { display: none; }
+          
+          /* ★★★ 強制電腦版檢視時的修正 (當 mobile-card-mode 被移除時) ★★★ */
+          /* 確保表格可以橫向捲動，不會被切掉 */
+          .table-responsive {
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+          }
       }
 
       /* ========================================= */
@@ -280,6 +281,26 @@
       .color-z { color: #d39e00 !important; font-weight: bold; }   /* 橘 */
       .color-aa { color: #dc3545 !important; font-weight: bold; }  /* 紅 */
       .color-err { color: #dc3545 !important; font-weight: bold; } /* 紅(異常) */
+
+      // ==========================================
+      // ★★★ 手機/電腦版檢視切換功能 ★★★
+      // ==========================================
+      function toggleViewMode(tableId, btn) {
+          const table = document.querySelector(tableId);
+          if (!table) return;
+          
+          // 切換 class
+          table.classList.toggle('mobile-card-mode');
+          
+          // 判斷目前狀態並更新按鈕文字
+          if (table.classList.contains('mobile-card-mode')) {
+              btn.innerHTML = '🖥️ 電腦版檢視';
+              btn.classList.replace('btn-secondary', 'btn-outline-dark');
+          } else {
+              btn.innerHTML = '📱 手機版檢視';
+              btn.classList.replace('btn-outline-dark', 'btn-secondary');
+          }
+      }
     </style>
 </head>
   <body>
@@ -1599,7 +1620,12 @@ function recalculateAllRows(triggerIdx = -1) {
                   <span class="text-primary me-3"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
                   <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
               `;
-
+              // ★★★ 新增按鈕列 ★★★
+              let btnRow = `
+                  <div class="mt-2 text-end border-top pt-2">
+                      <button class="btn btn-sm btn-outline-dark fw-bold" onclick="toggleViewMode('#personalSection table', this)">🖥️ 使用電腦版檢視</button>
+                  </div>
+              `;
               document.getElementById('personalStats').innerHTML = `
                   <div class="d-flex flex-column w-100">
                       <div class="stat-box-row mb-1">${row1}</div>
@@ -1609,6 +1635,8 @@ function recalculateAllRows(triggerIdx = -1) {
               
               // 更新表格標頭 (符合您的新需求：超時改獎金，移除註記)
               const thead = document.querySelector('#personalSection table thead');
+              // 確保表格預設為手機卡片模式
+              document.querySelector('#personalSection table').classList.add('mobile-card-mode');
               thead.innerHTML = `
                   <tr>
                       <th>日期</th>
@@ -1747,13 +1775,19 @@ function recalculateAllRows(triggerIdx = -1) {
         if (userKey && userKey.length > 3) {
             personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
             btnHtml = `
-              <div class="mt-2 mt-md-0">
-                  <button class="btn btn-sm btn-outline-primary fw-bold me-1" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
-                  <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
+              <div class="mt-2 mt-md-0 d-flex flex-wrap gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+                  <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製</button>
+                  <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 QR</button>
               </div>
             `;
         } else {
-            btnHtml = `<span class="badge bg-danger ms-2">❌ 無金鑰</span>`;
+            // 即使沒金鑰，也要能切換檢視
+            btnHtml = `
+              <div class="mt-2 mt-md-0 d-flex gap-1 justify-content-end align-items-center">
+                  <span class="badge bg-danger me-2">❌ 無金鑰</span>
+                  <button class="btn btn-sm btn-outline-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+              </div>`;
         }
         
         let statText = "";
@@ -1771,6 +1805,8 @@ function recalculateAllRows(triggerIdx = -1) {
         
         // 5. 更新表格標頭 (電腦版看)
         const thead = document.querySelector('#indivModal table thead');
+        // 確保表格預設為手機卡片模式
+        document.querySelector('#indivModal table').classList.add('mobile-card-mode');
         thead.innerHTML = `
             <tr>
                 <th>日期</th>
