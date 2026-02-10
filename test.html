@@ -1603,7 +1603,6 @@ function recalculateAllRows(triggerIdx = -1) {
               
               const s = data.stats;
               
-              // ★★★ 修正文字間距 (Issue 4) ★★★
               let row1 = data.isHourly 
                   ? `累計應有：${s.hrs.toFixed(1)} &nbsp;|&nbsp; 休：${s.rest} &nbsp;|&nbsp; 例：${s.reg} &nbsp;|&nbsp; 國：${s.nat}`
                   : `應有：${s.hrs.toFixed(1)} (${formatDiff(s.hrs - meta.hrs)}) &nbsp;|&nbsp; 休：${s.rest} (${formatDiff(s.rest - meta.rest)}) &nbsp;|&nbsp; 例：${s.reg} (${formatDiff(s.reg - meta.reg)}) &nbsp;|&nbsp; 國：${s.nat} (${formatDiff(s.nat - meta.nat)})`;
@@ -1614,7 +1613,6 @@ function recalculateAllRows(triggerIdx = -1) {
                   <span class="text-danger"><strong>超時(AA):</strong> ${totalAA.toFixed(1)}</span>
               `;
 
-              // ★★★ 修正 Issue 1: 補上按鈕，並放在正確容器中 ★★★
               let btnRow = `
                   <div class="mobile-btn-container">
                       <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#personalSection table', this)">🖥️ 電腦版檢視</button>
@@ -1632,8 +1630,8 @@ function recalculateAllRows(triggerIdx = -1) {
               `;
               
               const thead = document.querySelector('#personalSection table thead');
-              // 確保預設載入手機版 class
-              document.querySelector('#personalSection table').classList.add('mobile-card-mode');
+              const pTable = document.querySelector('#personalSection table');
+              if(pTable) pTable.classList.add('mobile-card-mode');
               
               thead.innerHTML = `
                   <tr>
@@ -1659,7 +1657,6 @@ function recalculateAllRows(triggerIdx = -1) {
               
               if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='14' class='text-muted'>本月無資料</td></tr>"; return; }
               
-              // ★★★ 修正 Issue 5: 移除 mobile-hide-zero ★★★
               data.data.forEach(r => {
                   let dPart = r.date.split('/')[2] + "日";
                   let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
@@ -1669,7 +1666,10 @@ function recalculateAllRows(triggerIdx = -1) {
                   let hVal = parseFloat(r.calc_hours) || 0;
                   let zVal = parseFloat(r.input_est_overtime) || 0;
                   let aaVal = parseFloat(r.calc_excess) || 0;
-                  let restVal = parseFloat(r.input_rest) || 0;
+                  
+                  // ★★★ 修正點 1: 嘗試多種欄位名稱讀取休息時間 ★★★
+                  let restVal = parseFloat(r.input_rest || r.rest || r.g) || 0; 
+                  
                   let status = r.input_status;
 
                   let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
@@ -1713,7 +1713,9 @@ function recalculateAllRows(triggerIdx = -1) {
                     <td data-label="應有時段" class="color-h">${strRangeH}</td>
                     <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
                     <td data-label="預計加班" class="color-z">${strRangeZ}</td>
-                    <td data-label="獎金時段" class="color-aa">${strRangeAA}</td>
+                    
+                    <td data-label="獎金時段 (勿打卡)" class="color-aa">${strRangeAA}</td>
+                    
                     <td data-label="系統狀態">${r.sys_status}</td>
                     <td data-label="上班卡">${sysIn}</td>
                     <td data-label="下班卡">${sysOut}</td>
