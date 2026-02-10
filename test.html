@@ -299,26 +299,6 @@
       .color-z { color: #d39e00 !important; font-weight: bold; }   /* 橘 */
       .color-aa { color: #dc3545 !important; font-weight: bold; }  /* 紅 */
       .color-err { color: #dc3545 !important; font-weight: bold; } /* 紅(異常) */
-
-      // ==========================================
-      // ★★★ 手機/電腦版檢視切換功能 ★★★
-      // ==========================================
-      function toggleViewMode(tableId, btn) {
-          const table = document.querySelector(tableId);
-          if (!table) return;
-          
-          // 切換 class
-          table.classList.toggle('mobile-card-mode');
-          
-          // 判斷目前狀態並更新按鈕文字
-          if (table.classList.contains('mobile-card-mode')) {
-              btn.innerHTML = '🖥️ 電腦版檢視';
-              btn.classList.replace('btn-secondary', 'btn-outline-dark');
-          } else {
-              btn.innerHTML = '📱 手機版檢視';
-              btn.classList.replace('btn-outline-dark', 'btn-secondary');
-          }
-      }
     </style>
 </head>
   <body>
@@ -1944,6 +1924,27 @@ function recalculateAllRows(triggerIdx = -1) {
         if (!currentStore) return;
         const { value: formValues } = await Swal.fire({ title: '🔑 變更登入密碼', html: '<div class="text-start mb-2"><label class="fw-bold">目前舊密碼</label><input id="swal-input1" class="form-control" type="password"></div><div class="text-start mb-2"><label class="fw-bold text-primary">設定新密碼</label><input id="swal-input2" class="form-control" type="password"></div><div class="text-start"><label class="fw-bold text-primary">確認新密碼</label><input id="swal-input3" class="form-control" type="password"></div>', focusConfirm: false, showCancelButton: true, confirmButtonText: '確認變更', cancelButtonText: '取消', preConfirm: () => { const oldPwd = document.getElementById('swal-input1').value; const newPwd = document.getElementById('swal-input2').value; const cfmPwd = document.getElementById('swal-input3').value; if (!oldPwd || !newPwd || !cfmPwd) { Swal.showValidationMessage('請填寫所有欄位'); return false; } if (newPwd !== cfmPwd) { Swal.showValidationMessage('兩次新密碼輸入不一致'); return false; } return { oldPwd: oldPwd, newPwd: newPwd }; } });
         if (formValues) { showLoading(true, "更新密碼中..."); callApi('changePassword', { store: currentStore, oldPwd: formValues.oldPwd, newPwd: formValues.newPwd }).then(res => { showLoading(false); if (res.success) { Swal.fire({ icon: 'success', title: '成功', text: res.message }).then(() => logout()); } else { Swal.fire('變更失敗', res.message, 'error'); } }).catch(err => errorHandler(err)); }
+      }
+      // ==========================================
+      // ★★★ 手機/電腦版檢視切換功能 ★★★
+      // ==========================================
+      function toggleViewMode(tableSelector, btn) {
+          const table = document.querySelector(tableSelector);
+          if (!table) return;
+          
+          // 切換 class
+          table.classList.toggle('mobile-card-mode');
+          
+          // 判斷目前狀態並更新按鈕文字
+          if (table.classList.contains('mobile-card-mode')) {
+              btn.innerHTML = '🖥️ 電腦版檢視';
+              btn.classList.remove('btn-secondary');
+              btn.classList.add('btn-dark');
+          } else {
+              btn.innerHTML = '📱 手機版檢視';
+              btn.classList.remove('btn-dark');
+              btn.classList.add('btn-secondary');
+          }
       }
     </script>
   </body>
