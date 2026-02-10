@@ -776,29 +776,34 @@
         let tr = element.closest('tr'); 
         let idx = parseInt(tr.getAttribute('data-index'));
         
-        // 更新資料模型 (Model)
+        // 1. 更新資料模型 (Model)
         currentData[idx].input_status = tr.querySelector('.status-select').value;
         currentData[idx].input_start = tr.querySelector('.start-select').value;
         currentData[idx].input_end = tr.querySelector('.end-select').value;
         currentData[idx].input_rest = tr.querySelector('.rest-select').value;
         
-        // 如果是上班狀態，Z 是手動選的；否則 Z 是自動算的 (暫存值)
+        // 更新 Z 值
         if (currentData[idx].input_status === '上班') {
             currentData[idx].input_est_overtime = tr.querySelector('.z-select').value;
         }
 
+        // 2. 更新 UI 狀態 (控制欄位開關)
         updateRowState(tr); 
         
-        // ★★★ 關鍵改變：執行全表重算 (為了 46 小時累計) ★★★
+        // 3. 驗證完整性 (紅框檢查)
+        let isComplete = validateRow(tr);
+
+        // 4. 觸發計算
+        // 無論是否完整，都執行全表重算 (為了 46hr 累計)
+        // 但只有當資料完整時，recalculateAllRows 裡面才會算出正確的 H/Z/AA 並顯示訊息
         recalculateAllRows();
         
-        // 更新 UI 顯示 (月統計)
+        // 5. 更新 Live Summary (月統計)
         if (currentMode === 'name') { 
             let name = tr.getAttribute('data-name');
             updateLiveSummary(name); 
         }
         
-        validateRow(tr); 
         checkRealTimeBudget(tr); 
         validateAll();
       }
@@ -1141,15 +1146,92 @@
         if (s && e && r !== "") { let start = timeToFloat(s), end = timeToFloat(e), rest = parseFloat(r); if (end < start) end += 24; let total = end - start - rest; hInput.value = (total > 0) ? total.toFixed(1) : "0.0"; } else { hInput.value = ""; }
       }
       function validateRow(tr) {
-        const status = tr.querySelector('.status-select').value; const msgBox = tr.querySelector('.msg-box'); const salaryType = tr.getAttribute('data-salary'); const dateStr = tr.getAttribute('data-date'); 
-        const hVal = parseFloat(tr.querySelector('.hours-input').value) || 0; const rVal = parseFloat(tr.querySelector('.rest-select').value) || 0;
-        msgBox.innerHTML = ""; tr.classList.remove('row-error', 'row-warning'); let errors = [], warnings = [];
-        let currentDay = parseInt(dateStr.split('/')[2]).toString(); let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
-        if (salaryType.includes("時薪") && isHourlyHoliday && status === "國") warnings.push("⚠️ 時薪人員如有出勤，狀態請改為'上班'");
-        if (salaryType.includes("月薪") && status === "國") warnings.push("⚠️ 月薪人員如有出勤，請整天申請加班單");
-        if (salaryType.includes("月薪") && status === "空班") warnings.push("⚠️ 當月應有時數大於8才會產生空班");
-        if (status === '上班' && tr.querySelector('.start-select').value) { if (salaryType.includes("月薪") && hVal > 10) errors.push("❌ 月薪制不可>10小時"); else if (salaryType.includes("時薪") && hVal > 8) errors.push("❌ 時薪制不可>8小時"); if (hVal > 8 && rVal < 1) errors.push("❌ >8小時需休1小時"); else if (hVal > 4 && rVal < 0.5) errors.push("❌ >4小時需休0.5小時"); }
-        if (errors.length > 0) { msgBox.innerHTML = errors.map(e=>`<span class="text-err">${e}</span>`).join("<br>"); tr.classList.add('row-error'); } else if (warnings.length > 0) { msgBox.innerHTML = warnings.map(w=>`<span class="text-warn">${w}</span>`).join("<br>"); tr.classList.add('row-warning'); }
+        const status = tr.querySelector('.status-select').value; 
+        const msgBox = tr.querySelector('.msg-box'); 
+        const salaryType = tr.getAttribute('data-salary'); 
+        
+        // 取得輸入值
+        const sVal = tr.querySelector('.start-select').value;
+        const eVal = tr.querySelector('.end-select').value;
+        const rVal = tr.querySelector('.rest-select').value;
+        const hVal = parseFloat(tr.querySelector('.hours-input').value) || 0;
+        
+        // 清除舊狀態
+        msgBox.innerHTML = ""; 
+        tr.classList.remove('row-error', 'row-warning'); 
+        
+        let errors = [], warnings = [];
+        let isComplete = false; // 標記是否資料完整，可用於計算
+
+        // ==========================================
+        // ★★★ 必填欄位檢查邏輯 (紅框控制) ★★★
+        // ==========================================
+        if (status === '上班') {
+            // 邏輯 1: 狀態=上班 -> 全部必填
+            // 預計加班 (Z) 也要檢查，但因為它有預設值 0，通常不會空，除非程式邏輯錯誤
+            if (!sVal || !eVal || rVal === "") {
+                tr.classList.add('row-error'); // 亮紅框
+                // 這裡不顯示文字錯誤，只亮紅框，等待使用者填完
+                isComplete = false;
+            } else {
+                isComplete = true;
+            }
+        } 
+        else if (['休', '例', '國', '空班'].includes(status)) {
+            // 邏輯 2: 狀態=非上班 -> 原則上非必填
+            if (!sVal && !eVal) {
+                // 都沒填 -> 合法 (視為沒出勤)
+                isComplete = true; 
+            } else {
+                // 有填其中一個 -> 檢查完整性
+                // 邏輯: 若填了上下班，休息必填
+                if (sVal && eVal && rVal !== "") {
+                    isComplete = true;
+                } else {
+                    // 填了一半 -> 視為不完整
+                    if ((sVal || eVal) && rVal === "") {
+                        warnings.push("⚠️ 請填寫休息時間");
+                        tr.classList.add('row-error');
+                    }
+                    isComplete = false;
+                }
+            }
+        }
+
+        // ==========================================
+        // ★★★ 規則與邏輯檢查 (文字提示) ★★★
+        // ==========================================
+        // 只有當資料完整 (isComplete) 時，才進行數值合理性檢查
+        if (isComplete) {
+            let currentDay = parseInt(tr.getAttribute('data-date').split('/')[2]).toString(); 
+            let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
+
+            if (salaryType.includes("時薪") && isHourlyHoliday && status === "國") 
+                warnings.push("⚠️ 時薪人員如有出勤，狀態請改為'上班'");
+            
+            if (salaryType.includes("月薪") && status === "國" && hVal > 0) 
+                warnings.push("⚠️ 月薪人員國定假日出勤，請確認是否申請加班");
+
+            // 上班狀態的工時檢查
+            if (status === '上班') { 
+                if (salaryType.includes("月薪") && hVal > 10) errors.push("❌ 月薪制應有不可>10小時"); 
+                else if (salaryType.includes("時薪") && hVal > 8) errors.push("❌ 時薪制應有不可>8小時"); 
+                
+                if (hVal > 8 && parseFloat(rVal) < 1) errors.push("❌ >8小時需休1小時"); 
+                else if (hVal > 4 && parseFloat(rVal) < 0.5) errors.push("❌ >4小時需休0.5小時"); 
+            }
+        }
+
+        // 顯示錯誤訊息
+        if (errors.length > 0) { 
+            msgBox.innerHTML = errors.map(e=>`<span class="text-err">${e}</span>`).join("<br>"); 
+            tr.classList.add('row-error'); 
+        } else if (warnings.length > 0) { 
+            msgBox.innerHTML = warnings.map(w=>`<span class="text-warn">${w}</span>`).join("<br>"); 
+            tr.classList.add('row-warning'); 
+        }
+        
+        return isComplete; // 回傳是否完整，給 handleRowChange 參考
       }
       function checkRealTimeBudget(tr) {
         if (!currentData.length) return; const name = tr.getAttribute('data-name'); let totalHours = 0, cnt = { rest:0, reg:0, nat:0 }; let pData = currentData.filter(r => r.name === name);
