@@ -696,14 +696,259 @@
       }
 
       function handleRowChange(element) {
-        let tr = element.closest('tr'); let idx = parseInt(tr.getAttribute('data-index'));
+        let tr = element.closest('tr'); 
+        let idx = parseInt(tr.getAttribute('data-index'));
+        
+        // 更新資料模型 (Model)
         currentData[idx].input_status = tr.querySelector('.status-select').value;
         currentData[idx].input_start = tr.querySelector('.start-select').value;
         currentData[idx].input_end = tr.querySelector('.end-select').value;
         currentData[idx].input_rest = tr.querySelector('.rest-select').value;
-        updateRowState(tr); calculateRow(tr); currentData[idx].calc_hours = tr.querySelector('.hours-input').value;
-        if (currentMode === 'name') { let salary = tr.getAttribute('data-salary'); let name = tr.getAttribute('data-name'); if (salary.includes("時薪")) refreshHourlyDropdowns(name); else if (salary.includes("月薪")) refreshMonthlyDropdowns(name); updateLiveSummary(name); }
-        validateRow(tr); checkRealTimeBudget(tr); validateAll();
+        
+        // 如果是上班狀態，Z 是手動選的；否則 Z 是自動算的 (暫存值)
+        if (currentData[idx].input_status === '上班') {
+            currentData[idx].input_est_overtime = tr.querySelector('.z-select').value;
+        }
+
+        updateRowState(tr); 
+        
+        // ★★★ 關鍵改變：執行全表重算 (為了 46 小時累計) ★★★
+        recalculateAllRows();
+        
+        // 更新 UI 顯示 (月統計)
+        if (currentMode === 'name') { 
+            let name = tr.getAttribute('data-name');
+            updateLiveSummary(name); 
+        }
+        
+        validateRow(tr); 
+        checkRealTimeBudget(tr); 
+        validateAll();
+      }
+
+    // ==========================================
+      // ★★★ 核心邏輯：全表計算 (含46hr上限邏輯) ★★★
+      // ==========================================
+      function recalculateAllRows() {
+          // 1. 先依人名分組，再依日期排序 (確保累計順序正確)
+          let grouped = {};
+          currentData.forEach(row => {
+              if (!grouped[row.name]) grouped[row.name] = [];
+              grouped[row.name].push(row);
+          });
+
+          // 2. 針對每個人，依序計算每一天
+          Object.keys(grouped).forEach(name => {
+              let rows = grouped[name];
+              rows.sort((a,b) => a.date.localeCompare(b.date)); // 確保日期由小到大
+
+              let accumulatedZ = 0; // 該員本月累計加班 (Z)
+
+              rows.forEach(row => {
+                  // 找到該列對應的 DOM (為了更新畫面)
+                  // 注意：如果現在是「日期模式」，可能有些 DOM 不在畫面上，這裡直接更新 currentData 資料，畫面靠 renderTable 或手動更新
+                  // 為了即時性，我們嘗試抓取畫面上的 tr
+                  let tr = document.querySelector(`tr[data-index='${currentData.indexOf(row)}']`);
+                  
+                  let status = row.input_status;
+                  let salary = row.salaryType;
+                  let sTime = row.input_start;
+                  let eTime = row.input_end;
+                  let rTime = parseFloat(row.input_rest) || 0;
+                  
+                  // 取得當日是否為國定假日 (判斷前8小時不計入46hr用)
+                  let currentDay = parseInt(row.date.split('/')[2]);
+                  let isHoliday = (monthlyTargets.holidays || []).includes(currentDay.toString());
+
+                  let H = 0, Z = 0, AA = 0;
+                  let rawWork = 0;
+
+                  // 計算原始工時 (下 - 上 - 休)
+                  if (sTime && eTime) {
+                      let start = timeToFloat(sTime);
+                      let end = timeToFloat(eTime);
+                      if (end < start) end += 24; // 跨日
+                      rawWork = end - start - rTime;
+                      if (rawWork < 0) rawWork = 0;
+                  }
+
+                  // --- 開始依照狀態計算 ---
+
+                  if (status === '上班') {
+                      // Z 是店長手選的 (0~4)
+                      let zSelected = parseFloat(row.input_est_overtime) || 0;
+                      
+                      // 檢查 46hr 額度
+                      // 國定假日的前8小時不計入額度 (但狀態是上班，通常不是國定假日，除非是補假? 這裡暫且依一般邏輯)
+                      // 邏輯：Z 先扣 H，剩下的算 AA
+                      // 公式：H = Raw - Z
+                      // 限制：H + Z > 12 -> 溢出到 AA
+                      
+                      let realH = rawWork - zSelected;
+                      if (realH < 0) { realH = 0; } // 防呆
+                      
+                      let dailyTotal = realH + zSelected;
+                      let excess12 = 0;
+                      if (dailyTotal > 12) {
+                          excess12 = dailyTotal - 12; // 超過12小時的部分
+                          // 優先扣除 H (依勞基法概念，正常工時+加班不可破12，這裡簡化處理)
+                          // 您的需求：超過的部分放在超時AA
+                          realH = realH - excess12;
+                          if (realH < 0) {
+                             // 如果 H 被扣光了還不夠，那就要扣 Z (理論上 Z 是手選 max 4，不太可能發生 Z需被扣的情況，除非 RawWork 很大)
+                             zSelected += realH; // realH是負的，所以是減
+                             realH = 0;
+                          }
+                      }
+                      
+                      // 處理 46hr 上限
+                      // 假設「上班」日的加班都計入 46hr
+                      let quotaLeft = 46 - accumulatedZ;
+                      if (quotaLeft < 0) quotaLeft = 0;
+                      
+                      let finalZ = 0;
+                      let shiftToAA = 0;
+
+                      if (zSelected > quotaLeft) {
+                          finalZ = quotaLeft;
+                          shiftToAA = zSelected - quotaLeft;
+                      } else {
+                          finalZ = zSelected;
+                      }
+                      
+                      accumulatedZ += finalZ; // 累計
+                      
+                      H = realH;
+                      Z = finalZ;
+                      AA = excess12 + shiftToAA;
+                  }
+                  else if (status === '休' || (status === '國' && salary.includes('月薪'))) {
+                      H = 0;
+                      let potentialZ = rawWork;
+                      
+                      // 單日上限 12
+                      let excess12 = 0;
+                      if (potentialZ > 12) {
+                          excess12 = potentialZ - 12;
+                          potentialZ = 12;
+                      }
+                      
+                      // 國定假日特殊邏輯：前8小時不計入 46hr
+                      // 也就是：如果 potentialZ = 10，其中 8 小時免計，只有 2 小時要算入 accumulatedZ
+                      let taxableZ = potentialZ; // 要計入額度的 Z
+                      
+                      if (status === '國') {
+                          // 扣除前8小時免稅額
+                          taxableZ = (potentialZ > 8) ? (potentialZ - 8) : 0;
+                      }
+                      
+                      // 檢查 46hr 額度
+                      let quotaLeft = 46 - accumulatedZ;
+                      if (quotaLeft < 0) quotaLeft = 0;
+                      
+                      let finalZ = potentialZ; // 暫定全給 Z
+                      let shiftToAA = 0;
+
+                      if (taxableZ > quotaLeft) {
+                          // 額度不夠了
+                          let validTaxable = quotaLeft; // 只能再計入這麼多
+                          let invalidTaxable = taxableZ - quotaLeft; // 這些要變 AA
+                          
+                          // 回推 FinalZ
+                          // 國定：FinalZ = (8小時免計) + (validTaxable)
+                          // 平日：FinalZ = (validTaxable)
+                          
+                          let baseNonTaxable = (status === '國') ? Math.min(potentialZ, 8) : 0;
+                          finalZ = baseNonTaxable + validTaxable;
+                          shiftToAA = invalidTaxable;
+                          
+                          accumulatedZ += validTaxable;
+                      } else {
+                          // 額度夠，全給 Z
+                          accumulatedZ += taxableZ;
+                      }
+
+                      Z = finalZ;
+                      AA = excess12 + shiftToAA;
+                  }
+                  else if (status === '例' || status === '空班') {
+                      H = 0;
+                      Z = 0;
+                      AA = rawWork; // 全部算超時/獎金
+                  }
+
+                  // 3. 更新數據回 currentData
+                  row.calc_hours = H.toFixed(1);
+                  row.input_est_overtime = Z.toFixed(1); // 這裡存的是最終計算結果
+                  row.calc_excess = AA.toFixed(1);
+
+                  // 4. 更新畫面 (如果該行存在)
+                  if (tr) {
+                      tr.querySelector('.hours-input').value = H.toFixed(1);
+                      tr.querySelector('.aa-input').value = AA.toFixed(1);
+                      
+                      // 更新 Z 欄位顯示
+                      // 如果是上班，更新下拉選單的值 (如果被砍了，要顯示被砍後的嗎？不，上班狀態 Z 是輸入值)
+                      // 依照您的需求：上班狀態 Z 是店長選的，AA 顯示超時。
+                      // 但如果 Z 因為 46hr 被砍並移到 AA，那畫面上的 Z Select 要變嗎？
+                      // 您的需求：「如果預計加班Z整月已超過46...則僅顯示剩餘時數」。
+                      // 這邊為了使用者體驗，我們更新 Select 的值
+                      if (status === '上班') {
+                          // 如果計算後的 Z 比選單選的少 (被移去AA了)，是否要強制改選單？
+                          // 建議：保持選單顯示「店長選的」，但在檢核訊息提示。
+                          // 或者：這裡我們更新 input (雖然它是 hidden)，但 select 保持原樣
+                      } else {
+                          // 非上班狀態，更新唯讀 Input
+                          tr.querySelector('.z-input').value = Z.toFixed(1);
+                      }
+                      
+                      // 更新檢核訊息
+                      updateMsgBox(tr, H, Z, AA, sTime);
+                  }
+              });
+          });
+      }
+        
+        function updateMsgBox(tr, H, Z, AA, sTime) {
+          let msgBox = tr.querySelector('.msg-box');
+          if (!sTime || (H==0 && Z==0 && AA==0)) {
+              msgBox.innerHTML = "";
+              return;
+          }
+          
+          let msgs = [];
+          let startMin = timeToFloat(sTime) * 60; // 轉成分鐘
+          
+          // 1. 應有時段 (H)
+          if (H > 0) {
+              let endMin = startMin + (H * 60);
+              msgs.push(`<span class="text-primary">應有 ${formatMinToTime(startMin)}~${formatMinToTime(endMin)}</span>`);
+              startMin = endMin; // 推進時間軸
+          } else {
+              msgs.push(`<span class="text-muted">應有 0</span>`);
+          }
+          
+          // 2. 加班時段 (Z)
+          if (Z > 0) {
+              let endMin = startMin + (Z * 60);
+              msgs.push(`<span class="text-warning" style="color:#d39e00!important">加班 ${formatMinToTime(startMin)}~${formatMinToTime(endMin)}</span>`);
+              startMin = endMin;
+          }
+          
+          // 3. 超時時段 (AA)
+          if (AA > 0) {
+              let endMin = startMin + (AA * 60);
+              msgs.push(`<span class="text-danger fw-bold">超時 ${formatMinToTime(startMin)}~${formatMinToTime(endMin)}</span>`);
+          }
+          
+          msgBox.innerHTML = msgs.join("<br>");
+      }
+
+      function formatMinToTime(mins) {
+          while (mins >= 1440) mins -= 1440; // 處理跨日
+          let h = Math.floor(mins / 60);
+          let m = Math.round(mins % 60);
+          return ("0" + h).slice(-2) + ":" + ("0" + m).slice(-2);
       }
 
       function refreshHourlyDropdowns(name) {
@@ -746,9 +991,63 @@
       }
 
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
+      // ==========================================
+      // ★★★ 核心邏輯：控制欄位 啟用/停用/顯示 ★★★
+      // ==========================================
       function updateRowState(tr) {
-        const status = tr.querySelector('.status-select').value; const inputs = tr.querySelectorAll('.time-select, .rest-select'); const hInput = tr.querySelector('.hours-input');
-        if (status === '上班') { inputs.forEach(el => { el.disabled = false; el.classList.remove('bg-light'); }); } else { inputs.forEach(el => { el.disabled = true; el.classList.add('bg-light'); el.value = ""; }); hInput.value = ""; tr.querySelector('.msg-box').innerHTML = ""; tr.classList.remove('row-error', 'row-warning'); }
+        const status = tr.querySelector('.status-select').value; 
+        const salaryType = tr.getAttribute('data-salary'); 
+        
+        // 取得所有欄位元件
+        const timeInputs = tr.querySelectorAll('.time-select, .rest-select'); 
+        const zSelect = tr.querySelector('.z-select');
+        const zInput = tr.querySelector('.z-input');
+        const hInput = tr.querySelector('.hours-input');
+        const aaInput = tr.querySelector('.aa-input');
+        const msgBox = tr.querySelector('.msg-box');
+
+        // 預設先全部重置
+        tr.classList.remove('row-error', 'row-warning');
+        msgBox.innerHTML = "";
+
+        // 情境 A: 狀態 = "上班"
+        if (status === '上班') {
+            // 時間欄位：開啟
+            timeInputs.forEach(el => { el.disabled = false; el.classList.remove('bg-light'); });
+            
+            // Z欄位：顯示下拉選單 (讓店長選 0~4)
+            zSelect.style.display = 'block';
+            zInput.style.display = 'none';
+        }
+        // 情境 B: 狀態 = "休"、"例"、"空班"、"國" (且為月薪)
+        else if (['休', '例', '空班'].includes(status) || (status === '國' && salaryType.includes('月薪'))) {
+            // 時間欄位：開啟 (因為要算加班費)
+            timeInputs.forEach(el => { el.disabled = false; el.classList.remove('bg-light'); });
+            
+            // Z欄位：顯示唯讀輸入框 (自動計算)
+            zSelect.style.display = 'none';
+            zInput.style.display = 'block';
+            zInput.value = (status === '例' || status === '空班') ? "0" : zInput.value; // 例/空班 Z預設0
+        }
+        // 情境 C: 狀態 = "國" (且為時薪) -> 依照需求禁止輸入
+        else if (status === '國' && salaryType.includes('時薪')) {
+            // 時間欄位：鎖定並清空
+            timeInputs.forEach(el => { el.disabled = true; el.classList.add('bg-light'); el.value = ""; });
+            
+            // Z, H, AA 全部清空
+            zSelect.style.display = 'none';
+            zInput.style.display = 'block'; zInput.value = "";
+            hInput.value = "";
+            aaInput.value = "";
+        }
+        // 情境 D: 其他 (如請選擇) -> 全部鎖定
+        else {
+            timeInputs.forEach(el => { el.disabled = true; el.classList.add('bg-light'); el.value = ""; });
+            zSelect.style.display = 'none';
+            zInput.style.display = 'block'; zInput.value = "";
+            hInput.value = "";
+            aaInput.value = "";
+        }
       }
       function calculateRow(tr) {
         const status = tr.querySelector('.status-select').value; if (status !== '上班') return;
