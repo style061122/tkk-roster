@@ -148,7 +148,7 @@
       }
       .stat-label { font-weight: bold; margin-right: 5px; color: #666; }
       .stat-val-z { color: #d39e00; font-weight: bold; } /* 預計加班 */
-      .stat-val-o { color: #0d6efd; font-weight: bold; } /* 已申請 */
+      .stat-val-o { color: #0d6efd; font-weight: bold; } /* 已申請加班 */
       .stat-val-aa { color: #dc3545; font-weight: bold; } /* 超時 */
 
       /* 手機版微調：讓表格標題不要換行，內容可滑動 */
@@ -1179,7 +1179,7 @@ function recalculateAllRows(triggerIdx = -1) {
 
                     <div class="d-flex flex-wrap align-items-center">
                         <span style="${labelStyle}">預計加班(Z)</span><span class="fw-bold text-dark me-3">${estOvertime.toFixed(1)}</span>
-                        <span style="${labelStyle}">已申請(O)</span><span class="fw-bold text-dark me-3">${appliedOvertime.toFixed(1)}</span>
+                        <span style="${labelStyle}">已申請加班(O)</span><span class="fw-bold text-dark me-3">${appliedOvertime.toFixed(1)}</span>
                         <span style="${labelStyle}">超時(AA)</span><span class="fw-bold text-danger">${excessTime.toFixed(1)}</span>
                     </div>
                 </div>
@@ -1380,7 +1380,7 @@ function recalculateAllRows(triggerIdx = -1) {
               let z = parseFloat(r.input_est_overtime); 
               if(!isNaN(z)) d.z += z;
               
-              // 統計 O (已申請)
+              // 統計 O (已申請加班)
               let o = parseFloat(r.sys_overtimeHrs); 
               if(!isNaN(o)) d.o += o;
               
@@ -1401,7 +1401,7 @@ function recalculateAllRows(triggerIdx = -1) {
                   <tr class="stats-sub-row">
                       <td colspan="${d.type.includes("月薪") ? 6 : 2}">
                           <span class="stat-badge"><span class="stat-label">預計加班(Z):</span><span class="stat-val-z">${d.z.toFixed(1)}</span></span>
-                          <span class="stat-badge"><span class="stat-label">已申請(O):</span><span class="stat-val-o">${d.o.toFixed(1)}</span></span>
+                          <span class="stat-badge"><span class="stat-label">已申請加班(O):</span><span class="stat-val-o">${d.o.toFixed(1)}</span></span>
                           <span class="stat-badge"><span class="stat-label">超時(AA):</span><span class="stat-val-aa">${d.aa.toFixed(1)}</span></span>
                       </td>
                   </tr>
