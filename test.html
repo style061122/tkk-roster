@@ -776,16 +776,33 @@
         let tr = element.closest('tr'); 
         let idx = parseInt(tr.getAttribute('data-index'));
         
-        // 1. 更新資料模型 (Model)
-        currentData[idx].input_status = tr.querySelector('.status-select').value;
-        currentData[idx].input_start = tr.querySelector('.start-select').value;
-        currentData[idx].input_end = tr.querySelector('.end-select').value;
-        currentData[idx].input_rest = tr.querySelector('.rest-select').value;
-        
-        // 更新 Z 值
-        if (currentData[idx].input_status === '上班') {
-            currentData[idx].input_est_overtime = tr.querySelector('.z-select').value;
+        // ★★★ 新增：如果是「切換狀態」，強制重置時間欄位 ★★★
+        // 判斷觸發變更的元素是否為 status-select
+        if (element.classList.contains('status-select')) {
+            // 清空 UI
+            tr.querySelector('.start-select').value = "";
+            tr.querySelector('.end-select').value = "";
+            tr.querySelector('.rest-select').value = "";
+            tr.querySelector('.z-select').value = "0";
+            // 清空資料模型
+            currentData[idx].input_start = "";
+            currentData[idx].input_end = "";
+            currentData[idx].input_rest = "";
+            currentData[idx].input_est_overtime = "0";
+        } else {
+            // 如果不是切換狀態，則正常更新資料模型
+            currentData[idx].input_start = tr.querySelector('.start-select').value;
+            currentData[idx].input_end = tr.querySelector('.end-select').value;
+            currentData[idx].input_rest = tr.querySelector('.rest-select').value;
+            
+            // 更新 Z 值 (僅在上班狀態下讀取下拉選單)
+            if (currentData[idx].input_status === '上班') {
+                currentData[idx].input_est_overtime = tr.querySelector('.z-select').value;
+            }
         }
+        
+        // 必須重新抓取一次狀態 (因為可能剛被重置或切換)
+        currentData[idx].input_status = tr.querySelector('.status-select').value;
 
         // 2. 更新 UI 狀態 (控制欄位開關)
         updateRowState(tr); 
@@ -794,8 +811,6 @@
         let isComplete = validateRow(tr);
 
         // 4. 觸發計算
-        // 無論是否完整，都執行全表重算 (為了 46hr 累計)
-        // 但只有當資料完整時，recalculateAllRows 裡面才會算出正確的 H/Z/AA 並顯示訊息
         recalculateAllRows();
         
         // 5. 更新 Live Summary (月統計)
@@ -1088,45 +1103,61 @@
           });
       }
         
-        function updateMsgBox(tr, H, Z, AA, sTime) {
+        function updateMsgBox(tr, H, Z, AA, sTime, status) {
           let msgBox = tr.querySelector('.msg-box');
-          // 如果沒有上班時間，或全都是0，清空訊息
           if (!sTime || (H==0 && Z==0 && AA==0)) {
               msgBox.innerHTML = "";
               return;
           }
           
           let msgs = [];
-          
-          // 轉換起始時間 (分鐘)
           let startMin = timeToFloat(sTime) * 60;
-          
-          // 取得休息時間 (分鐘)
           let rVal = parseFloat(tr.querySelector('.rest-select').value) || 0;
           let restMin = rVal * 60;
 
-          // 邏輯：
-          // 1. 應有時段 = 上班 ~ (上班 + H + 休息) 
-          //    (假設休息包含在正常工時內)
-          if (H > 0) {
-              let endH_Min = startMin + (H * 60) + restMin;
-              msgs.push(`<span class="text-primary">應有 ${formatMinToTime(startMin)}~${formatMinToTime(endH_Min)} (含休${rVal})</span>`);
-              startMin = endH_Min; // 推進時間軸
-          } else {
-              msgs.push(`<span class="text-muted">應有 0</span>`);
-          }
+          // 定義各個區段的結束時間
+          // 邏輯：時間軸是連續的，但休息時間(restMin)要插入在正確的區段
           
-          // 2. 加班時段 (Z) = 接在應有之後
+          // 1. 應有時段 (H)
+          if (H > 0 || status === '上班') {
+              // 如果是上班，休息含在 H 裡
+              let duration = (H * 60);
+              if (status === '上班') duration += restMin; 
+              
+              let endH = startMin + duration;
+              
+              if (H > 0) {
+                  let restText = (status === '上班' && rVal > 0) ? ` (含休${rVal})` : "";
+                  msgs.push(`<span class="text-primary fw-bold">應有 ${formatMinToTime(startMin)}~${formatMinToTime(endH)}${restText}</span>`);
+              } else {
+                  msgs.push(`<span class="text-muted">應有 0</span>`);
+              }
+              startMin = endH;
+          }
+
+          // 2. 加班時段 (Z)
           if (Z > 0) {
-              let endZ_Min = startMin + (Z * 60);
-              msgs.push(`<span class="text-warning" style="color:#d39e00!important">加班 ${formatMinToTime(startMin)}~${formatMinToTime(endZ_Min)}</span>`);
-              startMin = endZ_Min;
+              let duration = (Z * 60);
+              // 如果是 休/國，休息含在 Z 裡
+              if (['休', '國'].includes(status)) duration += restMin;
+              
+              let endZ = startMin + duration;
+              let restText = (['休', '國'].includes(status) && rVal > 0) ? ` (含休${rVal})` : "";
+              
+              msgs.push(`<span class="text-warning fw-bold" style="color:#d39e00!important">加班 ${formatMinToTime(startMin)}~${formatMinToTime(endZ)}${restText} (請打下班卡)</span>`);
+              startMin = endZ;
           }
-          
-          // 3. 超時時段 (AA) = 接在加班之後
+
+          // 3. 超時時段 (AA)
           if (AA > 0) {
-              let endAA_Min = startMin + (AA * 60);
-              msgs.push(`<span class="text-danger fw-bold">超時 ${formatMinToTime(startMin)}~${formatMinToTime(endAA_Min)}</span>`);
+              let duration = (AA * 60);
+              // 如果是 例/空班，休息含在 AA 裡 (或上班/休/國溢出的部分.. 但通常例空班才是全AA)
+              if (['例', '空班'].includes(status)) duration += restMin;
+              
+              let endAA = startMin + duration;
+              let restText = (['例', '空班'].includes(status) && rVal > 0) ? ` (含休${rVal})` : "";
+
+              msgs.push(`<span class="text-danger fw-bold">超時 ${formatMinToTime(startMin)}~${formatMinToTime(endAA)}${restText} (不可打卡)</span>`);
           }
           
           msgBox.innerHTML = msgs.join("<br>");
@@ -1174,41 +1205,56 @@
           let pData = currentData.filter(r => r.name === name);
           
           let hrs = 0, rest = 0, reg = 0, nat = 0, empty = 0;
-          let estOvertime = 0;   // Z (預計加班)
-          let appliedOvertime = 0; // O (已申請加班)
-          let excessTime = 0;    // AA (超時)
+          let estOvertime = 0;   // Z
+          let appliedOvertime = 0; // O
+          let excessTime = 0;    // AA
 
           pData.forEach(r => { 
               let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h; 
-              
               if (r.input_status === '休') rest++; 
               else if (r.input_status === '例') reg++; 
               else if (r.input_status === '國') nat++; 
               else if (r.input_status === '空班') empty++; 
-              
-              // 累計 Z
               let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) estOvertime += z;
-              // 累計 O (sys_overtimeHrs)
               let o = parseFloat(r.sys_overtimeHrs); if(!isNaN(o)) appliedOvertime += o;
-              // 累計 AA
               let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) excessTime += aa;
           });
           
           const bar = document.getElementById('liveSummaryBar');
           
-          let html = `<span class="me-3 fs-5 text-dark">目前累計 (${name})：</span>`;
-          html += `應有 <span class="${getDiffClass(hrs, monthlyTargets.hrs)}">${hrs.toFixed(1)}</span> / `;
-          html += `休 <span class="${getDiffClass(rest, monthlyTargets.rest)}">${rest}</span> / `;
-          html += `例 <span class="${getDiffClass(reg, monthlyTargets.reg)}">${reg}</span> / `;
-          html += `國 <span class="${getDiffClass(nat, monthlyTargets.nat)}">${nat}</span> / `;
-          html += `空班 ${empty}`;
+          // ★★★ 新增：使用 Grid System 排版，確保上下對齊 ★★★
+          // 手機版 (d-block) 垂直堆疊，電腦版 (d-md-flex) 水平排列但保持欄寬
           
-          // 新增第二行統計
-          html += `<div class="mt-1" style="border-top: 1px dashed #ccc; padding-top:4px; font-size: 0.95em; color:#555;">`;
-          html += `預計加班(Z): <span class="fw-bold text-dark">${estOvertime.toFixed(1)}</span> &nbsp;|&nbsp; `;
-          html += `已申請(O): <span class="fw-bold text-dark">${appliedOvertime.toFixed(1)}</span> &nbsp;|&nbsp; `;
-          html += `超時(AA): <span class="fw-bold text-danger">${excessTime.toFixed(1)}</span>`;
-          html += `</div>`;
+          // 定義樣式
+          const labelStyle = "display:inline-block; min-width: 40px; color:#555;";
+          const valStyle = "font-weight:bold; margin-right:15px;";
+          
+          // 電腦版排版結構
+          let html = `
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                <div class="mb-2 mb-md-0">
+                    <span class="fs-5 fw-bold text-dark me-3">目前累計 (${name})</span>
+                </div>
+                
+                <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap align-items-center mb-1">
+                        <span style="${labelStyle}">應有</span><span class="${getDiffClass(hrs, monthlyTargets.hrs)} fw-bold me-3">${hrs.toFixed(1)}</span>
+                        <span style="${labelStyle}">休</span><span class="${getDiffClass(rest, monthlyTargets.rest)} fw-bold me-3">${rest}</span>
+                        <span style="${labelStyle}">例</span><span class="${getDiffClass(reg, monthlyTargets.reg)} fw-bold me-3">${reg}</span>
+                        <span style="${labelStyle}">國</span><span class="${getDiffClass(nat, monthlyTargets.nat)} fw-bold me-3">${nat}</span>
+                        <span style="${labelStyle}">空班</span><span class="fw-bold text-secondary">${empty}</span>
+                    </div>
+                    
+                    <div class="d-md-none border-top my-1"></div>
+
+                    <div class="d-flex flex-wrap align-items-center">
+                        <span style="${labelStyle}">預計加班(Z)</span><span class="fw-bold text-dark me-3">${estOvertime.toFixed(1)}</span>
+                        <span style="${labelStyle}">已申請(O)</span><span class="fw-bold text-dark me-3">${appliedOvertime.toFixed(1)}</span>
+                        <span style="${labelStyle}">超時(AA)</span><span class="fw-bold text-danger">${excessTime.toFixed(1)}</span>
+                    </div>
+                </div>
+            </div>
+          `;
           
           bar.innerHTML = html;
       }
@@ -1290,8 +1336,8 @@
         const rVal = tr.querySelector('.rest-select').value;
         const hVal = parseFloat(tr.querySelector('.hours-input').value) || 0;
         
-        // 讀取剛剛算出來的 Z 與 AA (從 DOM 讀取)
-        const zVal = parseFloat(tr.querySelector('.z-input').value) || 0; // 讀取隱藏的 input (含上班/非上班)
+        // 讀取 Z 與 AA
+        const zVal = parseFloat(tr.querySelector('.z-input').value) || 0; 
         const aaVal = parseFloat(tr.querySelector('.aa-input').value) || 0;
 
         msgBox.innerHTML = ""; 
@@ -1321,37 +1367,10 @@
             }
         }
 
-        // 2. 產生檢核訊息 (時段) - 只有資料完整且有時間才顯示
+        // 2. 產生檢核訊息 (時段)
+        // ★★★ 呼叫新的 updateMsgBox (邏輯移到那邊統一處理) ★★★
         if (isComplete && sVal && eVal) {
-             let msgs = [];
-             let startMin = timeToFloat(sVal) * 60;
-             let restMin = (parseFloat(rVal) || 0) * 60;
-
-             // A. 應有時段
-             if (hVal > 0) {
-                 let endH = startMin + (hVal * 60) + restMin;
-                 msgs.push(`<span class="text-primary fw-bold">應有 ${formatMinToTime(startMin)}~${formatMinToTime(endH)} (含休${rVal})</span>`);
-                 startMin = endH;
-             } else {
-                 if (status === '上班') msgs.push(`<span class="text-muted">應有 0</span>`);
-             }
-
-             // B. 加班時段
-             if (zVal > 0) {
-                 let endZ = startMin + (zVal * 60);
-                 msgs.push(`<span class="text-warning fw-bold" style="color:#d39e00!important">加班 ${formatMinToTime(startMin)}~${formatMinToTime(endZ)} (請打下班卡)</span>`);
-                 startMin = endZ;
-             }
-
-             // C. 超時時段
-             if (aaVal > 0) {
-                 let endAA = startMin + (aaVal * 60);
-                 msgs.push(`<span class="text-danger fw-bold">超時 ${formatMinToTime(startMin)}~${formatMinToTime(endAA)} (不可打卡)</span>`);
-             }
-             
-             if (msgs.length > 0) {
-                 msgBox.innerHTML = msgs.join("<br>");
-             }
+             updateMsgBox(tr, hVal, zVal, aaVal, sVal, status);
         }
 
         // 3. 規則檢查 (錯誤訊息)
@@ -1366,9 +1385,9 @@
                 warnings.push("⚠️ 月薪人員國定假日出勤，請確認是否申請加班");
 
             if (status === '上班') { 
-                if (salaryType.includes("月薪") && hVal > 10) errors.push("❌ 月薪制不可>10小時"); 
-                else if (salaryType.includes("時薪") && hVal > 8) errors.push("❌ 時薪制不可>8小時"); 
+                // ★★★ 已移除工時上限錯誤檢查 (因為會自動算入超時) ★★★
                 
+                // 僅保留休息時間檢查
                 if (hVal > 8 && parseFloat(rVal) < 1) errors.push("❌ >8小時需休1小時"); 
                 else if (hVal > 4 && parseFloat(rVal) < 0.5) errors.push("❌ >4小時需休0.5小時"); 
             }
@@ -1377,11 +1396,11 @@
         // 4. 將錯誤訊息「附加」在時段訊息後面
         if (errors.length > 0) { 
             let errHtml = errors.map(e=>`<div class="text-err fw-bold mt-1">${e}</div>`).join("");
-            msgBox.innerHTML += errHtml; // Append
+            msgBox.innerHTML += errHtml; 
             tr.classList.add('row-error'); 
         } else if (warnings.length > 0) { 
             let warnHtml = warnings.map(w=>`<div class="text-warn fw-bold mt-1">${w}</div>`).join("");
-            msgBox.innerHTML += warnHtml; // Append
+            msgBox.innerHTML += warnHtml; 
             tr.classList.add('row-warning'); 
         }
         
