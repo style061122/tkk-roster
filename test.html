@@ -1188,6 +1188,13 @@
         const { value: formValues } = await Swal.fire({ title: '🔑 變更登入密碼', html: '<div class="text-start mb-2"><label class="fw-bold">目前舊密碼</label><input id="swal-input1" class="form-control" type="password"></div><div class="text-start mb-2"><label class="fw-bold text-primary">設定新密碼</label><input id="swal-input2" class="form-control" type="password"></div><div class="text-start"><label class="fw-bold text-primary">確認新密碼</label><input id="swal-input3" class="form-control" type="password"></div>', focusConfirm: false, showCancelButton: true, confirmButtonText: '確認變更', cancelButtonText: '取消', preConfirm: () => { const oldPwd = document.getElementById('swal-input1').value; const newPwd = document.getElementById('swal-input2').value; const cfmPwd = document.getElementById('swal-input3').value; if (!oldPwd || !newPwd || !cfmPwd) { Swal.showValidationMessage('請填寫所有欄位'); return false; } if (newPwd !== cfmPwd) { Swal.showValidationMessage('兩次新密碼輸入不一致'); return false; } return { oldPwd: oldPwd, newPwd: newPwd }; } });
         if (formValues) { showLoading(true, "更新密碼中..."); callApi('changePassword', { store: currentStore, oldPwd: formValues.oldPwd, newPwd: formValues.newPwd }).then(res => { showLoading(false); if (res.success) { Swal.fire({ icon: 'success', title: '成功', text: res.message }).then(() => logout()); } else { Swal.fire('變更失敗', res.message, 'error'); } }).catch(err => errorHandler(err)); }
       }
+        function formatMinToTime(mins) {
+        if (isNaN(mins)) return "-";
+        while (mins >= 1440) mins -= 1440;
+        let h = Math.floor(mins / 60);
+        let m = Math.round(mins % 60);
+        return ("0" + h).slice(-2) + ":" + ("0" + m).slice(-2);
+        }
       // ==========================================
       // ★★★ 手機/電腦版檢視切換功能 ★★★
       // ==========================================
