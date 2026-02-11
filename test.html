@@ -39,28 +39,28 @@
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
 
-      /* ========================================= */
-      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
-      /* ========================================= */
-      @media (min-width: 901px) {
-          #indivTableBody td, #personalTableBody td {
-              vertical-align: middle;
-              white-space: nowrap; 
-              font-size: 0.9rem;
-              padding: 6px 4px;
-          }
+      /* ========================================= */
+      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
+      /* ========================================= */
+      @media (min-width: 901px) {
+          #indivTableBody td, #personalTableBody td {
+              vertical-align: middle;
+              white-space: nowrap; 
+              font-size: 0.9rem;
+              padding: 6px 4px;
+          }
 
-          #indivTableBody td:nth-child(12), 
-          #indivTableBody td:nth-child(13),
-          #personalTableBody td:nth-child(12) {
-              white-space: normal !important;
-              word-break: break-word;
-              min-width: 100px;
-              max-width: 160px;
-              line-height: 1.4;
-              font-size: 0.85rem;
-          }
-      }
+          #indivTableBody td:nth-child(14), 
+          #indivTableBody td:nth-child(15),
+          #personalTableBody td:nth-child(14) {
+              white-space: normal !important;
+              word-break: break-word;
+              min-width: 100px;
+              max-width: 160px;
+              line-height: 1.4;
+              font-size: 0.85rem;
+          }
+      } /* 修正：補上原本缺少的結束大括號 */
 
       /* ========================================= */
       /* 2. 手機模式 (螢幕 <= 900px) */
@@ -853,7 +853,7 @@
               
               let row2Html = `
                   <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
-                      <span class="text-danger"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
+                      <span class="text-primary"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
                   </div>
               `;
 
@@ -1059,7 +1059,7 @@
         
         let row2Html = `
             <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
-                <span class="text-danger"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
+                <span class="text-primary"><strong>已申請加班(O):</strong> ${totalO.toFixed(1)}</span>
             </div>
         `;
 
