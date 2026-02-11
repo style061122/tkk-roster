@@ -87,90 +87,117 @@
         #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
         #staffTable td:nth-child(7) { width: 100% !important; }
 
-        /* ========================================= */
-        /* ★★★ 修正：店長與員工端卡片模式 (微調優化版) ★★★ */
+       /* ========================================= */
+        /* ★★★ 正式版：手機卡片模式 (基於穩定測試版邏輯) ★★★ */
         /* ========================================= */
         
-        .mobile-card-mode thead { display: none !important; }
+        /* 隱藏原本表頭 */
+        table.mobile-card-mode thead { display: none !important; }
 
-        /* 卡片容器：加入 overflow 隱藏，讓內部 Header 能貼齊圓角 */
-        .mobile-card-mode tbody tr { 
-            display: block !important; 
-            background: #fff; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; 
-            margin-bottom: 12px; 
-            padding: 10px; 
-            position: relative;
-            overflow: hidden !important; /* 確保內層 Header 背景能填滿到邊緣 */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        /* 欄位佈局優化 */
-        .mobile-card-mode tbody td { 
-            display: flex !important; 
-            align-items: flex-start !important; /* 長文字時對齊頂部 */
-            border: none !important; 
-            padding: 8px 0 !important; 
-            border-bottom: 1px dashed #eee !important; 
-            width: 100% !important;
-            box-sizing: border-box;
-        }
-
-        /* 標籤：設定固定寬度，防止被擠壓或覆蓋 (解決問題 1, 2) */
-        .mobile-card-mode tbody td::before { 
-            content: attr(data-label); 
-            font-weight: bold; 
-            color: #666; 
-            text-align: left; 
-            flex: 0 0 100px !important; /* 標籤佔據固定 100px */
-            margin-right: 10px;
-        }
-
-        /* 內容：強制撐開剩餘所有空間，並靠右對齊 (徹底解決右側留白) */
-        .mobile-card-mode tbody td {
-            justify-content: flex-end !important;
-            text-align: right !important;
-            color: #212529;
-            word-break: break-all !important;
-        }
-        
-        /* 針對內容中的連結或文字加強撐開 */
-        .mobile-card-mode tbody td > * {
-            flex: 1 !important;
-            text-align: right !important;
-        }
-
-        .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
-
-        /* --- 修正：日期 Header 填滿與置中 (解決問題 3) --- */
-        #personalTableBody td:nth-child(1),
-        #indivTableBody td:nth-child(1) {
-            background-color: #f1f3f5 !important; /* 灰底色 */
-            /* 關鍵：利用負邊距與計算寬度抵銷外層 tr 的 10px padding */
-            margin: -10px -10px 10px -10px !important; 
-            width: calc(100% + 20px) !important; 
-            padding: 12px 10px !important;
-            justify-content: center !important; 
-            text-align: center !important;
-            font-size: 1.15rem !important;
-            font-weight: bold !important;
-            border-bottom: 2px solid #dee2e6 !important;
+        /* 卡片容器：不使用 tr padding，避免一圈白邊 */
+        table.mobile-card-mode tbody tr {
             display: flex !important;
+            flex-wrap: wrap !important;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            overflow: hidden !important; /* 確保內部背景貼齊圓角 */
         }
-        #personalTableBody td:nth-child(1)::before,
-        #indivTableBody td:nth-child(1)::before { display: none !important; }
 
-        /* --- 視覺優化：取消背景特效，改用顏色字體 --- */
-        .badge-abnormal, .badge-leave { 
-            background-color: transparent !important; 
-            padding: 0 !important; 
-            font-size: 1rem !important; 
-            font-weight: bold !important;
+        /* 儲存格通用設定：左右撐開，兩側對齊 */
+        table.mobile-card-mode tbody td {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            border: none !important;
+            padding: 10px 15px !important;
+            font-size: 0.95rem;
+            border-bottom: 1px dashed #eee !important;
+            box-sizing: border-box;
+            min-height: 44px;
         }
-        .badge-leave { color: #fd7e14 !important; }   /* 假別：橘色 */
+
+        /* 標籤樣式：左側固定 */
+        table.mobile-card-mode tbody td::before {
+            content: attr(data-label);
+            font-weight: bold;
+            color: #666;
+            text-align: left;
+            flex: 0 0 90px !important; /* 固定標題寬度，解決覆蓋問題 */
+        }
+
+        /* 數值樣式：一律靠右對齊 */
+        table.mobile-card-mode tbody td > * {
+            text-align: right !important;
+            margin-left: auto !important;
+        }
+
+        /* 空值補足，消滅右側空白感 */
+        table.mobile-card-mode tbody td:empty::after {
+            content: "—";
+            color: #ccc;
+            margin-left: auto;
+        }
+
+        /* --- 13 個欄位的硬性百分比分配 --- */
+
+        /* 1. 日期：100% 置中 Header */
+        table.mobile-card-mode tbody td:nth-child(1) {
+            width: 100% !important;
+            background-color: #f1f3f5 !important;
+            justify-content: center !important;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #333;
+            border-bottom: 2px solid #dee2e6 !important;
+        }
+        table.mobile-card-mode tbody td:nth-child(1)::before { display: none !important; }
+
+        /* 2-3. 班表狀態(D) 與 排班時間：各 50% */
+        table.mobile-card-mode tbody td:nth-child(2),
+        table.mobile-card-mode tbody td:nth-child(3) { width: 50% !important; }
+
+        /* 4-5. 應有時數(H) 與 系統狀態(I)：各 50% */
+        table.mobile-card-mode tbody td:nth-child(4),
+        table.mobile-card-mode tbody td:nth-child(5) { width: 50% !important; }
+
+        /* 6-7. 上班/下班打卡：各 50% */
+        table.mobile-card-mode tbody td:nth-child(6),
+        table.mobile-card-mode tbody td:nth-child(7) { width: 50% !important; }
+
+        /* 8-9. 請假 與 假別：各 50% */
+        table.mobile-card-mode tbody td:nth-child(8),
+        table.mobile-card-mode tbody td:nth-child(9) { width: 50% !important; }
+
+        /* 10-11. 加班 與 加班時數：各 50% */
+        table.mobile-card-mode tbody td:nth-child(10),
+        table.mobile-card-mode tbody td:nth-child(11) { width: 50% !important; }
+
+        /* 12. 異常：100% 獨立一行 */
+        table.mobile-card-mode tbody td:nth-child(12) { width: 100% !important; }
+
+        /* 13. 註記：100% 獨立一行 (解決覆蓋問題) */
+        table.mobile-card-mode tbody td:nth-child(13) { 
+            width: 100% !important; 
+            border-bottom: none !important; 
+            white-space: normal !important;
+            word-break: break-all !important;
+            align-items: flex-start !important; /* 長文字從頂部排 */
+        }
+
+        /* 異常與假別文字顏色 */
+        .badge-abnormal, .badge-leave { background: transparent !important; padding: 0 !important; font-weight: bold; }
+        .badge-leave { color: #fd7e14 !important; } /* 假別：橘色 */
         .badge-abnormal { color: #dc3545 !important; } /* 異常：紅色 */
-        
+
+        /* 確保表格容器正常捲動 */
+        .table-responsive { 
+            border: none !important; 
+            padding: 0 !important; 
+            overflow-x: auto !important; 
+        }
         /* 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
         #statsModal table thead { display: none !important; }
