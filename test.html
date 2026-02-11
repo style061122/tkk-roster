@@ -39,7 +39,7 @@
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
       /* ========================================= */
-      /* ★★★ 第一步：排班介面 手機版優化 (四層卡片 - 微調版) ★★★ */
+      /* ★★★ 第一步：排班介面 手機版優化 (2x2 排列) ★★★ */
       /* ========================================= */
       @media (max-width: 900px) {
           
@@ -55,17 +55,19 @@
               border-radius: 8px;
               box-shadow: 0 4px 6px rgba(0,0,0,0.05);
               padding: 10px;
+              align-items: flex-end; /* 讓同一行的元素底部對齊 */
           }
 
           #staffTable td {
               border: none;
-              padding: 4px; /* 縮小內距 */
+              padding: 4px;
               position: relative;
+              box-sizing: border-box;
           }
 
-          /* --- 第一行：姓名/日期 + 狀態 --- */
+          /* --- 第一行：姓名/日期 (60%) + 狀態 (40%) --- */
           #staffTable td:nth-child(1) { 
-              width: 60%; /* 姓名寬一點 */
+              width: 60%; 
               font-size: 1.1rem; 
               border-bottom: 1px solid #eee;
               padding-bottom: 8px;
@@ -79,70 +81,74 @@
               text-align: right;
           }
 
-          /* --- 第二行：上班 | 下班 | 休息 --- */
+          /* --- 第二行：上班 (50%) | 下班 (50%) --- */
+          /* 調整寬度為 50%，讓時間選單完整顯示 */
           #staffTable td:nth-child(3), 
-          #staffTable td:nth-child(4), 
-          #staffTable td:nth-child(5) {
-              padding-top: 20px; /* 預留標籤空間 */
+          #staffTable td:nth-child(4) {
+              width: 50%;
+              padding-top: 24px; /* 預留上方標籤空間 */
           }
 
-          #staffTable td:nth-child(3) { width: 34%; } /* 上班 */
           #staffTable td:nth-child(3)::before {
-              content: '上班'; position: absolute; top: 0; left: 4px;
-              font-size: 0.75rem; color: #888; font-weight: bold;
+              content: '上班'; position: absolute; top: 2px; left: 4px;
+              font-size: 0.8rem; color: #666; font-weight: bold;
           }
 
-          #staffTable td:nth-child(4) { width: 34%; } /* 下班 */
           #staffTable td:nth-child(4)::before {
-              content: '下班'; position: absolute; top: 0; left: 4px;
-              font-size: 0.75rem; color: #888; font-weight: bold;
+              content: '下班'; position: absolute; top: 2px; left: 4px;
+              font-size: 0.8rem; color: #666; font-weight: bold;
           }
 
-          #staffTable td:nth-child(5) { width: 32%; } /* 休息 */
+          /* --- 第三行：休息 (50%) | 應有時數 (50%) --- */
+          
+          /* 休息 */
+          #staffTable td:nth-child(5) { 
+              width: 50%; 
+              padding-top: 24px;
+          }
           #staffTable td:nth-child(5)::before {
-              content: '休息'; position: absolute; top: 0; left: 4px;
-              font-size: 0.75rem; color: #888; font-weight: bold;
+              content: '休息'; position: absolute; top: 2px; left: 4px;
+              font-size: 0.8rem; color: #666; font-weight: bold;
           }
 
-          /* --- 第三行：應有時數 H (調整高度) --- */
+          /* 應有時數 (H) - 藍色小方塊 */
           #staffTable td:nth-child(6) {
-              width: 100%;
+              width: 50%;
               background-color: #f0f8ff; 
               border-radius: 6px;
-              margin-top: 8px;
               display: flex;
-              align-items: center; /* 垂直置中 */
-              justify-content: space-between; /* 左右撐開 */
-              padding: 6px 12px; /* 高度縮小 */
-              height: 42px; /* 固定高度，跟上面下拉選單差不多 */
+              align-items: center; 
+              justify-content: space-between; 
+              padding: 6px 10px; 
+              height: 38px; /* 設定高度，讓它跟左邊的選單差不多高 */
+              margin-bottom: 2px; /* 微調對齊 */
           }
           
           #staffTable td:nth-child(6)::before {
-              content: '應有時數 (H) :';
+              content: '應有(H):'; 
               font-weight: bold; color: #0d6efd;
-              font-size: 0.95rem;
-              margin-right: 10px; /* 文字往旁邊一點 */
+              font-size: 0.9rem;
           }
           
           #staffTable td:nth-child(6) input {
               text-align: right !important;
-              width: 80px; /* 寬度固定 */
+              width: 60px; 
               font-size: 1.1rem;
               height: 100%;
               padding: 0;
               margin: 0;
+              background: transparent;
           }
 
-          /* --- 第四行：檢核訊息 (往上貼緊) --- */
+          /* --- 第四行：檢核訊息 (100%) --- */
           #staffTable td:nth-child(7) {
               width: 100%;
               padding: 0;
-              margin-top: 2px; /* 縮小間距 */
+              margin-top: 5px;
           }
           
-          /* 讓 msg-box 裡面的文字不要太大 */
           .msg-box {
-              font-size: 0.8rem;
+              font-size: 0.85rem;
               line-height: 1.4;
               padding-top: 4px;
           }
