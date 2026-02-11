@@ -124,11 +124,11 @@
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
       /* ========================================= */
-      /* ★ 最終穩定版：系統狀態表非卡片模式優化 ★ */
-      /* 僅針對長文字進行斷行與字數保底，不影響表格寬度 */
+      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
+      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
       /* ========================================= */
       
-      /* 1. 確保電腦版檢視時，基礎對齊正確 */
+      /* 1. 基礎表格格線與對齊 */
       table:not(.mobile-card-mode) #indivTableBody td, 
       table:not(.mobile-card-mode) #personalTableBody td {
           vertical-align: middle !important;
@@ -137,31 +137,22 @@
           padding: 6px 4px;
       }
 
-      /* 2. 針對長文字欄位進行優化 */
-      /* 店長端：9(假別), 12(異常), 13(註記) / 員工端：8(假別), 11(加班時數), 12(異常) */
-      table:not(.mobile-card-mode) #indivTableBody td:nth-child(9),
+      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
+      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
       table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
       table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
-      table:not(.mobile-card-mode) #personalTableBody td:nth-child(8),
       table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
       table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
           white-space: normal !important;
-          word-break: break-all !important; /* 確保中文斷行 */
+          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
           
-          /* 關鍵：使用 min-width 撐開至少 3~4 個字的空間，但不設 width: auto 以免產生空白 */
-          min-width: 80px !important;  
+          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
+          min-width: 100px !important;  
           max-width: 180px !important;
           
           line-height: 1.4;
           font-size: 0.85rem;
           vertical-align: top !important;
-      }
-
-      /* 3. 解決店長端 Modal 內一個字斷行的最後防線 */
-      /* 僅對店長端的異常與註記增加一點點權重，防止被 Bootstrap 壓扁 */
-      #indivModal table:not(.mobile-card-mode) td:nth-child(12),
-      #indivModal table:not(.mobile-card-mode) td:nth-child(13) {
-          min-width: 90px !important; 
       }
     </style>
 </head>
