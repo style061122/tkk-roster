@@ -72,7 +72,7 @@
     /* ★ 核心修正：將手機模式放在最下方並強制權重 ★ */
     /* ========================================= */
     @media (max-width: 900px) {
-        /* 手機排班介面 (維持原樣，確保店長排班正常) */
+        /* 1. 手機排班介面 (維持原樣) */
         #scheduleForm thead { display: none !important; }
         #staffTable tr { display: flex !important; flex-wrap: wrap !important; background: #fff; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 10px; }
         #staffTable td { border: none !important; padding: 4px !important; position: relative !important; display: block !important; }
@@ -87,67 +87,80 @@
         #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
         #staffTable td:nth-child(7) { width: 100% !important; }
 
-        /* --- 修正：手機卡片模式核心優化 --- */
+        /* 2. 手機卡片模式核心優化 (解決圖1, 2 右側空白與覆蓋問題) */
         .mobile-card-mode thead { display: none !important; }
         
-        /* 移除外圈白邊：強制撐滿容器 */
-        .table-responsive { border: none !important; padding: 0 !important; margin: 0 !important; overflow-x: visible !important; }
-        .mobile-card-mode { width: 100% !important; margin: 0 !important; border: none !important; }
+        /* 移除外圈白邊：強制移除 Bootstrap 容器影響 */
+        .table-responsive { border: none !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+        .mobile-card-mode { width: 100% !important; margin: 0 !important; border: none !important; table-layout: fixed; }
 
         .mobile-card-mode tbody tr { 
             display: block !important; 
             background: #fff; 
             border: 1px solid #ddd; 
             border-radius: 8px; 
-            margin: 0 0 15px 0 !important; /* 卡片間距 */
+            margin: 0 0 15px 0 !important; 
             padding: 10px !important; 
             width: 100% !important;
             box-sizing: border-box;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
         .mobile-card-mode tbody td { 
             display: flex !important; 
-            align-items: center !important; 
-            justify-content: flex-end !important; /* 內容推到最右邊 */
+            align-items: flex-start !important; /* 文字多時從上方開始 */
+            justify-content: flex-end !important; 
             border: none !important; 
-            padding: 10px 0 !important; /* 稍微增加高度 */
+            padding: 10px 0 !important; 
             border-bottom: 1px dashed #eee !important; 
             width: 100% !important; 
             box-sizing: border-box;
             min-height: 44px;
-            text-align: right !important;
         }
 
-        /* 標籤樣式：靠左 */
+        /* 標籤：固定寬度，確保內容有足夠空間撐開 */
         .mobile-card-mode tbody td::before { 
             content: attr(data-label); 
             font-weight: bold; 
             color: #666; 
             text-align: left; 
-            margin-right: auto !important; /* 把標籤彈到最左邊 */
-            padding-right: 15px;
+            flex-shrink: 0;         /* 標籤不准縮小 */
+            width: 100px;           /* 給標籤固定寬度 */
+            margin-right: 10px;
             white-space: nowrap;
         }
+
+        /* 內容：自動撐滿剩餘空間，解決右側空白 */
+        .mobile-card-mode tbody td > span, 
+        .mobile-card-mode tbody td > div,
+        .mobile-card-mode tbody td {
+            text-align: right !important;
+            flex-grow: 1;           /* 內容撐滿剩餘空間 */
+            word-break: break-all;  /* 長文字自動斷行 */
+            color: #212529;
+        }
+
         .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
 
-        /* --- 修正：日期標題置中與背景撐滿 --- */
+        /* 3. 日期標題置中與背景撐滿 (解決圖2日期白邊問題) */
         #personalTableBody td:nth-child(1), 
         #indivTableBody td:nth-child(1) {
-            background-color: #f1f3f5 !important; /* 淺灰色底 */
-            margin: -10px -10px 10px -10px !important; /* 抵銷 tr 的 padding 撐滿邊緣 */
+            background-color: #e9ecef !important; /* 稍微深一點的灰色 */
+            margin: -10px -10px 10px -10px !important; 
             padding: 12px !important;
-            justify-content: center !important; /* 橫向置中 */
+            justify-content: center !important; 
             text-align: center !important;
-            font-size: 1.2rem !important;
+            font-size: 1.1rem !important;
             font-weight: bold !important;
             border-bottom: 2px solid #dee2e6 !important;
-            width: calc(100% + 20px) !important; /* 撐滿 tr 寬度 (10px*2) */
-            color: #333 !important;
+            width: calc(100% + 20px) !important; 
+            color: #495057 !important;
+            display: flex !important;
         }
         #personalTableBody td:nth-child(1)::before, 
         #indivTableBody td:nth-child(1)::before { display: none !important; }
         
-        /* 補回月統計卡片式樣式 (Step 2) */
+        /* 4. 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
         #statsModal table thead { display: none !important; }
         #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
