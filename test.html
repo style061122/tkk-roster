@@ -154,54 +154,6 @@
           font-size: 0.85rem;
           vertical-align: top !important;
       }
-        /* --- 電腦版統計方塊樣式 --- */
-      .stat-card-container {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 15px;
-          margin-bottom: 20px;
-          justify-content: flex-start;
-      }
-      .stat-card-box {
-          background: #fff;
-          border: 1px solid #dee2e6;
-          border-radius: 10px;
-          padding: 15px;
-          min-width: 120px;
-          text-align: center;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      }
-      .stat-card-box .label {
-          display: block;
-          font-size: 0.9rem;
-          color: #6c757d;
-          margin-bottom: 8px;
-          font-weight: bold;
-      }
-      .stat-card-box .value {
-          font-size: 1.5rem;
-          font-weight: bold;
-          color: #212529;
-          display: inline-block;
-      }
-      .stat-card-box .diff {
-          font-size: 0.9rem;
-          margin-left: 5px;
-          display: inline-block;
-      }
-      /* 已申請加班區塊獨立樣式 */
-      .ot-summary-box {
-          width: 100%;
-          background: #fff;
-          border: 1px solid #dee2e6;
-          border-radius: 8px;
-          padding: 10px;
-          text-align: center;
-          margin-top: 10px;
-          color: #dc3545;
-          font-weight: bold;
-          font-size: 1.1rem;
-      }
     </style>
 </head>
   <body>
@@ -886,35 +838,55 @@
               
               const s = data.stats;
               
-              // ★★★ 修改：改為電腦版方塊結構 ★★★
-              let statsHtmlStr = '<div class="stat-card-container">';
+              // ★★★ 核心修改：加入括號與間距，解決 40 問題 (同步店長端) ★★★
+              let statsHtmlStr = "";
               if (data.isHourly) {
-                  // 時薪制方塊
-                  statsHtmlStr += `
-                      <div class="stat-card-box"><span class="label">累計應有</span><span class="value text-primary">${s.hrs.toFixed(1)}</span></div>
-                      <div class="stat-card-box"><span class="label">休</span><span class="value">${s.rest}</span></div>
-                      <div class="stat-card-box"><span class="label">例</span><span class="value">${s.reg}</span></div>
-                      <div class="stat-card-box"><span class="label">國</span><span class="value">${s.nat}</span></div>`;
+                  statsHtmlStr = `
+                      <div class="stat-grid-mobile">
+                          <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">休</span><span class="stat-card-value">${s.rest}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">例</span><span class="stat-card-value">${s.reg}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${s.nat}</span></div>
+                      </div>`;
               } else {
-                  // 月薪制方塊 (含括號差異)
-                  statsHtmlStr += `
-                      <div class="stat-card-box"><span class="label">應有工時</span><span class="value text-primary">${s.hrs.toFixed(1)}</span><span class="diff">(${formatDiff(s.hrs - meta.hrs)})</span></div>
-                      <div class="stat-card-box"><span class="label">休假</span><span class="value">${s.rest}</span><span class="diff">(${formatDiff(s.rest - meta.rest)})</span></div>
-                      <div class="stat-card-box"><span class="label">例假</span><span class="value">${s.reg}</span><span class="diff">(${formatDiff(s.reg - meta.reg)})</span></div>
-                      <div class="stat-card-box"><span class="label">國定假</span><span class="value">${s.nat}</span><span class="diff">(${formatDiff(s.nat - meta.nat)})</span></div>`;
+                  statsHtmlStr = `
+                      <div class="stat-grid-mobile">
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">應有工時</span>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span>
+                              </div>
+                          </div>
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">休假</span>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.rest}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span>
+                              </div>
+                          </div>
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">例假</span>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.reg}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span>
+                              </div>
+                          </div>
+                          <div class="stat-card-item">
+                              <span class="stat-card-label">國定假</span>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.nat}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span>
+                              </div>
+                          </div>
+                      </div>`;
               }
-              statsHtmlStr += '</div>';
               
-              // 加班資訊獨立一條長方塊
-              let otSummaryHtml = `<div class="ot-summary-box">已申請加班(O): ${totalOvertime.toFixed(1)}</div>`;
-
-              // 重新組合個人統計區塊
-              document.getElementById('personalStats').innerHTML = `
-                  <div class="d-flex flex-column w-100" style="background:transparent; padding:0;">
-                      ${statsHtmlStr}
-                      ${otSummaryHtml}
-                      ${btnRow}
-                  </div>`;
+              let row2Html = `
+                  <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                      <span class="text-danger"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
+                  </div>
+              `;
 
               let btnRow = `
                   <div class="mobile-btn-container">
@@ -1072,29 +1044,60 @@
               </div>`;
         }
         
-        // ★★★ 修改：店長端同樣改為電腦版方塊結構 ★★★
-        let statsHtmlStr = '<div class="stat-card-container">';
+        // ★★★ 核心修改：加入括號與間距，解決 40 問題 ★★★
+        let statsHtmlStr = "";
         if (isHourly) {
-            statsHtmlStr += `
-                <div class="stat-card-box"><span class="label">累計應有</span><span class="value text-primary">${hrs.toFixed(1)}</span></div>
-                <div class="stat-card-box"><span class="label">休</span><span class="value">${rest}</span></div>
-                <div class="stat-card-box"><span class="label">例</span><span class="value">${reg}</span></div>
-                <div class="stat-card-box"><span class="label">國</span><span class="value">${nat}</span></div>`;
+            statsHtmlStr = `
+                <div class="stat-grid-mobile">
+                    <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span></div>
+                    <div class="stat-card-item"><span class="stat-card-label">休</span><span class="stat-card-value">${rest}</span></div>
+                    <div class="stat-card-item"><span class="stat-card-label">例</span><span class="stat-card-value">${reg}</span></div>
+                    <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${nat}</span></div>
+                </div>`;
         } else {
-            statsHtmlStr += `
-                <div class="stat-card-box"><span class="label">應有工時</span><span class="value text-primary">${hrs.toFixed(1)}</span><span class="diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span></div>
-                <div class="stat-card-box"><span class="label">休假</span><span class="value">${rest}</span><span class="diff">(${formatDiff(rest - monthlyTargets.rest)})</span></div>
-                <div class="stat-card-box"><span class="label">例假</span><span class="value">${reg}</span><span class="diff">(${formatDiff(reg - monthlyTargets.reg)})</span></div>
-                <div class="stat-card-box"><span class="label">國定假</span><span class="value">${nat}</span><span class="diff">(${formatDiff(nat - monthlyTargets.nat)})</span></div>`;
+            statsHtmlStr = `
+                <div class="stat-grid-mobile">
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">應有工時</span>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span>
+                            <span class="stat-card-diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span>
+                        </div>
+                    </div>
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">休假</span>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${rest}</span>
+                            <span class="stat-card-diff">(${formatDiff(rest - monthlyTargets.rest)})</span>
+                        </div>
+                    </div>
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">例假</span>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${reg}</span>
+                            <span class="stat-card-diff">(${formatDiff(reg - monthlyTargets.reg)})</span>
+                        </div>
+                    </div>
+                    <div class="stat-card-item">
+                        <span class="stat-card-label">國定假</span>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${nat}</span>
+                            <span class="stat-card-diff">(${formatDiff(nat - monthlyTargets.nat)})</span>
+                        </div>
+                    </div>
+                </div>`;
         }
-        statsHtmlStr += '</div>';
         
-        let otSummaryHtml = `<div class="ot-summary-box">已申請加班(O): ${totalO.toFixed(1)}</div>`;
+        let row2Html = `
+            <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                <span class="text-danger"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
+            </div>
+        `;
 
         statsDiv.innerHTML = `
-            <div class="d-flex flex-column w-100" style="background:transparent; padding:0;">
-                ${statsHtmlStr}
-                ${otSummaryHtml}
+            <div class="d-flex flex-column w-100">
+                <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
+                <div class="stat-box-row">${row2Html}</div>
                 ${btnHtml}
             </div>`;
         
