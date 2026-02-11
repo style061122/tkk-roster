@@ -125,35 +125,27 @@
       .color-err { color: #dc3545 !important; font-weight: bold; }
         
       /* ========================================= */
-      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
-      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
+      /* ★ 系統狀態表：純淨電腦版模式 (徹底解決穩定性) ★ */
       /* ========================================= */
       
-      /* 1. 基礎表格格線與對齊 */
-      table:not(.mobile-card-mode) #indivTableBody td, 
-      table:not(.mobile-card-mode) #personalTableBody td {
+      /* 當表格「沒有」mobile-card-mode 類別時，強制執行純電腦版樣式 */
+      table:not(.mobile-card-mode) tbody td {
           vertical-align: middle !important;
-          white-space: nowrap; 
-          font-size: 0.9rem;
-          padding: 6px 4px;
+          white-space: nowrap !important; /* 強制不換行，橫向延伸 */
+          font-size: 0.9rem !important;
+          padding: 6px 8px !important;
+          word-break: normal !important;  /* 回歸正常斷行邏輯 */
+          min-width: auto !important;     /* 移除所有保底寬度限制 */
+          max-width: none !important;     /* 移除所有寬度上限 */
       }
 
-      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
-      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
-      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
-      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
-      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
-      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
-          white-space: normal !important;
-          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
-          
-          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
-          min-width: 100px !important;  
-          max-width: 180px !important;
-          
-          line-height: 1.4;
-          font-size: 0.85rem;
-          vertical-align: top !important;
+      /* 特別針對店長端彈窗與員工端容器的表格優化：確保出現橫向捲軸而不擠壓內容 */
+      #indivModal .table-responsive, 
+      #personalSection .table-responsive {
+          display: block !important;
+          width: 100% !important;
+          overflow-x: auto !important; 
+          -webkit-overflow-scrolling: touch;
       }
 /* --- 優化：電腦版隱視切換按鈕 --- */
 @media (min-width: 901px) {
