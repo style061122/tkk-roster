@@ -123,43 +123,85 @@
       .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
-/* ========================================= */
-/* ★ 系統狀態表：電腦版檢視優化 (精簡版) ★ */
-/* ========================================= */
+      /* ========================================= */
+      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
+      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
+      /* ========================================= */
+      
+      /* 1. 基礎表格格線與對齊 */
+      table:not(.mobile-card-mode) #indivTableBody td, 
+      table:not(.mobile-card-mode) #personalTableBody td {
+          vertical-align: middle !important;
+          white-space: nowrap; 
+          font-size: 0.9rem;
+          padding: 6px 4px;
+      }
 
-/* 1. 基礎對齊：直接鎖定特定的 tbody ID，避免權重混亂 */
-#indivTableBody td, 
-#personalTableBody td {
-    vertical-align: middle !important;
-    font-size: 0.9rem;
-    padding: 6px 4px;
-    /* 預設不換行，維持 Excel 質感 */
-    white-space: nowrap; 
-}
-
-/* 2. 針對長文字欄位（異常、註記）強制換行與寬度保底 */
-/* 店長端 child(12)=異常, child(13)=註記 */
-/* 員工端 child(11)=加班時數, child(12)=異常 */
-#indivTableBody td:nth-child(12), 
-#indivTableBody td:nth-child(13),
-#personalTableBody td:nth-child(11),
-#personalTableBody td:nth-child(12) {
-    white-space: normal !important;   /* 允許換行 */
-    word-break: break-all !important;  /* 強制中文斷行 */
-    
-    /* 關鍵保底：確保不會被擠扁成一個字 */
-    min-width: 100px !important;  
-    max-width: 180px !important;
-    
-    line-height: 1.4;
-    font-size: 0.85rem;
-    vertical-align: top !important;
-}
-
-/* 3. 當處於手機卡片模式時，重置掉上面的 nowrap，避免衝突 */
-.mobile-card-mode tbody td {
-    white-space: normal !important;
-}
+      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
+      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
+          white-space: normal !important;
+          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
+          
+          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
+          min-width: 100px !important;  
+          max-width: 180px !important;
+          
+          line-height: 1.4;
+          font-size: 0.85rem;
+          vertical-align: top !important;
+      }
+        /* --- 電腦版統計方塊樣式 --- */
+      .stat-card-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 15px;
+          margin-bottom: 20px;
+          justify-content: flex-start;
+      }
+      .stat-card-box {
+          background: #fff;
+          border: 1px solid #dee2e6;
+          border-radius: 10px;
+          padding: 15px;
+          min-width: 120px;
+          text-align: center;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      }
+      .stat-card-box .label {
+          display: block;
+          font-size: 0.9rem;
+          color: #6c757d;
+          margin-bottom: 8px;
+          font-weight: bold;
+      }
+      .stat-card-box .value {
+          font-size: 1.5rem;
+          font-weight: bold;
+          color: #212529;
+          display: inline-block;
+      }
+      .stat-card-box .diff {
+          font-size: 0.9rem;
+          margin-left: 5px;
+          display: inline-block;
+      }
+      /* 已申請加班區塊獨立樣式 */
+      .ot-summary-box {
+          width: 100%;
+          background: #fff;
+          border: 1px solid #dee2e6;
+          border-radius: 8px;
+          padding: 10px;
+          text-align: center;
+          margin-top: 10px;
+          color: #dc3545;
+          font-weight: bold;
+          font-size: 1.1rem;
+      }
     </style>
 </head>
   <body>
@@ -844,55 +886,35 @@
               
               const s = data.stats;
               
-              // ★★★ 核心修改：加入括號與間距，解決 40 問題 (同步店長端) ★★★
-              let statsHtmlStr = "";
+              // ★★★ 修改：改為電腦版方塊結構 ★★★
+              let statsHtmlStr = '<div class="stat-card-container">';
               if (data.isHourly) {
-                  statsHtmlStr = `
-                      <div class="stat-grid-mobile">
-                          <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span></div>
-                          <div class="stat-card-item"><span class="stat-card-label">休</span><span class="stat-card-value">${s.rest}</span></div>
-                          <div class="stat-card-item"><span class="stat-card-label">例</span><span class="stat-card-value">${s.reg}</span></div>
-                          <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${s.nat}</span></div>
-                      </div>`;
+                  // 時薪制方塊
+                  statsHtmlStr += `
+                      <div class="stat-card-box"><span class="label">累計應有</span><span class="value text-primary">${s.hrs.toFixed(1)}</span></div>
+                      <div class="stat-card-box"><span class="label">休</span><span class="value">${s.rest}</span></div>
+                      <div class="stat-card-box"><span class="label">例</span><span class="value">${s.reg}</span></div>
+                      <div class="stat-card-box"><span class="label">國</span><span class="value">${s.nat}</span></div>`;
               } else {
-                  statsHtmlStr = `
-                      <div class="stat-grid-mobile">
-                          <div class="stat-card-item">
-                              <span class="stat-card-label">應有工時</span>
-                              <div class="d-flex align-items-baseline gap-1">
-                                  <span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span>
-                                  <span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span>
-                              </div>
-                          </div>
-                          <div class="stat-card-item">
-                              <span class="stat-card-label">休假</span>
-                              <div class="d-flex align-items-baseline gap-1">
-                                  <span class="stat-card-value">${s.rest}</span>
-                                  <span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span>
-                              </div>
-                          </div>
-                          <div class="stat-card-item">
-                              <span class="stat-card-label">例假</span>
-                              <div class="d-flex align-items-baseline gap-1">
-                                  <span class="stat-card-value">${s.reg}</span>
-                                  <span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span>
-                              </div>
-                          </div>
-                          <div class="stat-card-item">
-                              <span class="stat-card-label">國定假</span>
-                              <div class="d-flex align-items-baseline gap-1">
-                                  <span class="stat-card-value">${s.nat}</span>
-                                  <span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span>
-                              </div>
-                          </div>
-                      </div>`;
+                  // 月薪制方塊 (含括號差異)
+                  statsHtmlStr += `
+                      <div class="stat-card-box"><span class="label">應有工時</span><span class="value text-primary">${s.hrs.toFixed(1)}</span><span class="diff">(${formatDiff(s.hrs - meta.hrs)})</span></div>
+                      <div class="stat-card-box"><span class="label">休假</span><span class="value">${s.rest}</span><span class="diff">(${formatDiff(s.rest - meta.rest)})</span></div>
+                      <div class="stat-card-box"><span class="label">例假</span><span class="value">${s.reg}</span><span class="diff">(${formatDiff(s.reg - meta.reg)})</span></div>
+                      <div class="stat-card-box"><span class="label">國定假</span><span class="value">${s.nat}</span><span class="diff">(${formatDiff(s.nat - meta.nat)})</span></div>`;
               }
+              statsHtmlStr += '</div>';
               
-              let row2Html = `
-                  <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
-                      <span class="text-danger"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
-                  </div>
-              `;
+              // 加班資訊獨立一條長方塊
+              let otSummaryHtml = `<div class="ot-summary-box">已申請加班(O): ${totalOvertime.toFixed(1)}</div>`;
+
+              // 重新組合個人統計區塊
+              document.getElementById('personalStats').innerHTML = `
+                  <div class="d-flex flex-column w-100" style="background:transparent; padding:0;">
+                      ${statsHtmlStr}
+                      ${otSummaryHtml}
+                      ${btnRow}
+                  </div>`;
 
               let btnRow = `
                   <div class="mobile-btn-container">
@@ -1050,60 +1072,29 @@
               </div>`;
         }
         
-        // ★★★ 核心修改：加入括號與間距，解決 40 問題 ★★★
-        let statsHtmlStr = "";
+        // ★★★ 修改：店長端同樣改為電腦版方塊結構 ★★★
+        let statsHtmlStr = '<div class="stat-card-container">';
         if (isHourly) {
-            statsHtmlStr = `
-                <div class="stat-grid-mobile">
-                    <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span></div>
-                    <div class="stat-card-item"><span class="stat-card-label">休</span><span class="stat-card-value">${rest}</span></div>
-                    <div class="stat-card-item"><span class="stat-card-label">例</span><span class="stat-card-value">${reg}</span></div>
-                    <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${nat}</span></div>
-                </div>`;
+            statsHtmlStr += `
+                <div class="stat-card-box"><span class="label">累計應有</span><span class="value text-primary">${hrs.toFixed(1)}</span></div>
+                <div class="stat-card-box"><span class="label">休</span><span class="value">${rest}</span></div>
+                <div class="stat-card-box"><span class="label">例</span><span class="value">${reg}</span></div>
+                <div class="stat-card-box"><span class="label">國</span><span class="value">${nat}</span></div>`;
         } else {
-            statsHtmlStr = `
-                <div class="stat-grid-mobile">
-                    <div class="stat-card-item">
-                        <span class="stat-card-label">應有工時</span>
-                        <div class="d-flex align-items-baseline gap-1">
-                            <span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span>
-                            <span class="stat-card-diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span>
-                        </div>
-                    </div>
-                    <div class="stat-card-item">
-                        <span class="stat-card-label">休假</span>
-                        <div class="d-flex align-items-baseline gap-1">
-                            <span class="stat-card-value">${rest}</span>
-                            <span class="stat-card-diff">(${formatDiff(rest - monthlyTargets.rest)})</span>
-                        </div>
-                    </div>
-                    <div class="stat-card-item">
-                        <span class="stat-card-label">例假</span>
-                        <div class="d-flex align-items-baseline gap-1">
-                            <span class="stat-card-value">${reg}</span>
-                            <span class="stat-card-diff">(${formatDiff(reg - monthlyTargets.reg)})</span>
-                        </div>
-                    </div>
-                    <div class="stat-card-item">
-                        <span class="stat-card-label">國定假</span>
-                        <div class="d-flex align-items-baseline gap-1">
-                            <span class="stat-card-value">${nat}</span>
-                            <span class="stat-card-diff">(${formatDiff(nat - monthlyTargets.nat)})</span>
-                        </div>
-                    </div>
-                </div>`;
+            statsHtmlStr += `
+                <div class="stat-card-box"><span class="label">應有工時</span><span class="value text-primary">${hrs.toFixed(1)}</span><span class="diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span></div>
+                <div class="stat-card-box"><span class="label">休假</span><span class="value">${rest}</span><span class="diff">(${formatDiff(rest - monthlyTargets.rest)})</span></div>
+                <div class="stat-card-box"><span class="label">例假</span><span class="value">${reg}</span><span class="diff">(${formatDiff(reg - monthlyTargets.reg)})</span></div>
+                <div class="stat-card-box"><span class="label">國定假</span><span class="value">${nat}</span><span class="diff">(${formatDiff(nat - monthlyTargets.nat)})</span></div>`;
         }
+        statsHtmlStr += '</div>';
         
-        let row2Html = `
-            <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
-                <span class="text-danger"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
-            </div>
-        `;
+        let otSummaryHtml = `<div class="ot-summary-box">已申請加班(O): ${totalO.toFixed(1)}</div>`;
 
         statsDiv.innerHTML = `
-            <div class="d-flex flex-column w-100">
-                <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
-                <div class="stat-box-row">${row2Html}</div>
+            <div class="d-flex flex-column w-100" style="background:transparent; padding:0;">
+                ${statsHtmlStr}
+                ${otSummaryHtml}
                 ${btnHtml}
             </div>`;
         
