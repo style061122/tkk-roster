@@ -87,16 +87,54 @@
         #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
         #staffTable td:nth-child(7) { width: 100% !important; }
 
-        /* 店長端 & 員工端卡片模式切換 (Step 3) */
+        /* 店長端 & 員工端卡片模式切換 (修正右側空白問題) */
         .mobile-card-mode thead { display: none !important; }
         .mobile-card-mode tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; padding: 10px; }
-        .mobile-card-mode tbody td { display: flex !important; justify-content: space-between !important; align-items: center !important; border: none !important; padding: 8px 0 !important; border-bottom: 1px dashed #eee !important; text-align: right !important; }
-        .mobile-card-mode tbody td::before { content: attr(data-label); font-weight: bold; color: #666; text-align: left; }
+        .mobile-card-mode tbody td { 
+            display: flex !important; 
+            align-items: center !important; 
+            border: none !important; 
+            padding: 8px 0 !important; 
+            border-bottom: 1px dashed #eee !important; 
+            text-align: right !important;
+            width: 100% !important; 
+        }
+        /* 標籤靠左，內容靠右，中間自動填滿 */
+        .mobile-card-mode tbody td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            color: #666; 
+            text-align: left; 
+            margin-right: auto; /* 關鍵：把數值推向右邊 */
+        }
         .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
+
+        /* 員工端日期置中修正 (問題 3) */
+        #personalTableBody td:nth-child(1) {
+            background-color: #f8f9fa;
+            margin: -10px -10px 10px -10px;
+            padding: 10px !important;
+            justify-content: center !important;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-bottom: 2px solid #dee2e6 !important;
+        }
+        #personalTableBody td:nth-child(1)::before { display: none !important; }
         
-        /* 月統計優化 (Step 2) */
+        /* 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
-        #statsModal table tbody td::before { margin-right: auto; padding-right: 10px; }
+        #statsModal table thead { display: none !important; }
+        #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
+        #statsModal table tbody td { display: flex !important; align-items: center !important; border: none !important; padding: 8px 0 !important; border-bottom: 1px dashed #eee !important; }
+        #statsModal table tbody td::before { margin-right: auto; padding-right: 10px; font-weight: bold; color: #666; }
+        #statsTableMonthly td:nth-child(1), #statsTableHourly td:nth-child(1) { justify-content: center !important; font-size: 1.2rem; color: #0d6efd; border-bottom: 2px solid #eee !important; }
+        #statsTableMonthly td:nth-child(1)::before, #statsTableHourly td:nth-child(1)::before { content: none !important; }
+        #statsTableMonthly td:nth-child(2)::before { content: '應有時數 (差):'; }
+        #statsTableMonthly td:nth-child(3)::before { content: '休假 (差):'; }
+        #statsTableMonthly td:nth-child(4)::before { content: '例假 (差):'; }
+        #statsTableMonthly td:nth-child(5)::before { content: '國定假 (差):'; }
+        #statsTableMonthly td:nth-child(6)::before { content: '空班:'; }
+        #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; }
     }
 </style>
 </head>
@@ -834,33 +872,31 @@
               tbody.innerHTML = "";
               if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='11' class='text-muted'>本月無資料</td></tr>"; return; }
               
-              // ★★★ 4. 填入表格並加上 data-label ★★★
-              data.data.forEach(r => {
-                 let dPart = r.date.split('/')[2] + "日";
-                 let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
-                 let dateDisplay = `${dPart} <small class="text-muted">(${wDay})</small>`;
-                 
-                 let planTime = (r.input_status === '上班' && r.input_start) ? `${r.input_start}~${r.input_end}` : "";
-                 let clockStr = (r.sys_clockIn || r.sys_clockOut) ? `${formatTime(r.sys_clockIn)}<br>${formatTime(r.sys_clockOut)}` : "";
-                 let abnormalStr = r.sys_abnormal ? `<span class="badge badge-abnormal">${r.sys_abnormal}</span>` : "";
-                 let leaveType = r.sys_leaveType ? `<span class="badge badge-leave">${r.sys_leaveType}</span>` : "";
-                 
-                 const tr = document.createElement('tr');
-                 tr.innerHTML = `
-                   <td data-label="日期">${dateDisplay}</td>
-                   <td data-label="班表狀態" class="fw-bold text-primary">${r.input_status}</td>
-                   <td data-label="排班時間">${planTime}</td>
-                   <td data-label="應有時數(H)" class="fw-bold">${formatNumber(r.calc_hours)}</td>
-                   <td data-label="系統狀態(I)">${r.sys_status}</td>
-                   <td data-label="實際打卡">${clockStr}</td>
-                   <td data-label="請假時間(L)">${formatTime(r.sys_leave)}</td>
-                   <td data-label="假別(M)">${leaveType}</td>
-                   <td data-label="加班時間(N)">${formatTime(r.sys_overtime)}</td>
-                   <td data-label="加班時數(O)">${r.sys_overtimeHrs || ""}</td>
-                   <td data-label="異常(P)">${abnormalStr}</td>
-                 `;
-                 tbody.appendChild(tr);
-              });
+              // ★★★ 4. 填入表格並加上 data-label (修正格式為 2/1(週日)) ★★★
+      data.data.forEach(r => {
+         let dObj = new Date(r.date);
+         let shortDate = (dObj.getMonth() + 1) + "/" + dObj.getDate() + "(" + ["週日","週一","週二","週三","週四","週五","週六"][dObj.getDay()] + ")";
+         
+         let planTime = (r.input_status === '上班' && r.input_start) ? `${r.input_start}~${r.input_end}` : "";
+         let clockStr = (r.sys_clockIn || r.sys_clockOut) ? `${formatTime(r.sys_clockIn)}<br>${formatTime(r.sys_clockOut)}` : "";
+         let abnormalStr = r.sys_abnormal ? `<span class="badge badge-abnormal">${r.sys_abnormal}</span>` : "";
+         let leaveType = r.sys_leaveType ? `<span class="badge badge-leave">${r.sys_leaveType}</span>` : "";
+         
+         const tr = document.createElement('tr');
+         tr.innerHTML = `
+           <td data-label="日期">${shortDate}</td> <td data-label="班表狀態" class="fw-bold text-primary">${r.input_status}</td>
+           <td data-label="排班時間">${planTime}</td>
+           <td data-label="應有時數(H)" class="fw-bold">${formatNumber(r.calc_hours)}</td>
+           <td data-label="系統狀態(I)">${r.sys_status}</td>
+           <td data-label="實際打卡">${clockStr}</td>
+           <td data-label="請假時間(L)">${formatTime(r.sys_leave)}</td>
+           <td data-label="假別(M)">${leaveType}</td>
+           <td data-label="加班時間(N)">${formatTime(r.sys_overtime)}</td>
+           <td data-label="加班時數(O)">${r.sys_overtimeHrs || ""}</td>
+           <td data-label="異常(P)">${abnormalStr}</td>
+         `;
+         tbody.appendChild(tr);
+      });
           } catch(e) {
               alert("渲染錯誤: " + e.message);
           }
