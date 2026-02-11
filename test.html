@@ -87,39 +87,87 @@
         #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
         #staffTable td:nth-child(7) { width: 100% !important; }
 
-        /* 店長端 & 員工端卡片模式切換 (修正右側空白問題) */
+        /* --- 修正：店長端 & 員工端通用卡片模式 (解決右側空白、覆蓋與日期白邊) --- */
+        
+        /* 1. 容器與表格基礎修正 */
+        .table-responsive { border: none !important; padding: 0 !important; margin: 0 !important; overflow-x: auto !important; }
+        .mobile-card-mode { width: 100% !important; margin: 0 !important; border: none !important; display: block !important; }
         .mobile-card-mode thead { display: none !important; }
-        .mobile-card-mode tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; padding: 10px; }
+
+        /* 2. 每一列轉為卡片 */
+        .mobile-card-mode tbody { display: block !important; width: 100% !important; }
+        .mobile-card-mode tbody tr { 
+            display: block !important; 
+            background: #fff; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            margin: 0 0 15px 0 !important; 
+            padding: 10px !important; 
+            width: 100% !important;
+            box-sizing: border-box;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            overflow: hidden; /* 確保內部日期條不會溢出圓角 */
+        }
+
+        /* 3. 儲存格轉為左右佈局 (解決右側空白與覆蓋問題) */
         .mobile-card-mode tbody td { 
             display: flex !important; 
-            align-items: center !important; 
+            align-items: flex-start !important; /* 長文字從頂部對齊 */
+            justify-content: flex-end !important; 
             border: none !important; 
             padding: 8px 0 !important; 
             border-bottom: 1px dashed #eee !important; 
-            text-align: right !important;
             width: 100% !important; 
+            box-sizing: border-box;
+            min-height: 38px;
+            text-align: right !important;
+            white-space: normal !important; /* 允許換行 */
+            word-break: break-all !important;
         }
-        /* 標籤靠左，內容靠右，中間自動填滿 */
+
+        /* 4. 左側標籤固定寬度 (解決覆蓋問題) */
         .mobile-card-mode tbody td::before { 
             content: attr(data-label); 
             font-weight: bold; 
             color: #666; 
             text-align: left; 
-            margin-right: auto; /* 關鍵：把數值推向右邊 */
+            width: 95px !important;  /* 固定標籤寬度 */
+            flex-shrink: 0 !important; /* 標籤不准縮小，保護文字不被覆蓋 */
+            margin-right: auto !important; /* 強力推擠，把中間空間撐滿 */
+            padding-right: 10px;
+            white-space: nowrap;
         }
-        .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
 
-        /* 員工端日期置中修正 (問題 3) */
-        #personalTableBody td:nth-child(1) {
-            background-color: #f8f9fa;
-            margin: -10px -10px 10px -10px;
-            padding: 10px !important;
-            justify-content: center !important;
-            font-size: 1.1rem;
-            font-weight: bold;
+        /* 5. 日期欄位強行撐滿並置中 (解決問題 3：日期白邊) */
+        #personalTableBody td:nth-child(1), 
+        #indivTableBody td:nth-child(1) {
+            background-color: #f1f3f5 !important; /* 灰底色 */
+            margin: -10px -10px 10px -10px !important; /* 抵銷 tr padding，強行撞邊 */
+            padding: 12px !important;
+            justify-content: center !important; /* 文字置中 */
+            text-align: center !important;
+            font-size: 1.15rem !important;
+            font-weight: bold !important;
             border-bottom: 2px solid #dee2e6 !important;
+            width: calc(100% + 20px) !important; /* 精準計算撐滿寬度 */
+            color: #333 !important;
+            display: flex !important;
         }
-        #personalTableBody td:nth-child(1)::before { display: none !important; }
+        #personalTableBody td:nth-child(1)::before, 
+        #indivTableBody td:nth-child(1)::before { display: none !important; }
+
+        /* 6. 取消 Badge 背景特效，改用純文字顏色 (解決空間佔用問題) */
+        .badge-abnormal, .badge-leave { 
+            background-color: transparent !important; 
+            padding: 0 !important; 
+            font-size: 1rem !important; 
+            font-weight: bold !important;
+            display: inline !important;
+        }
+        .badge-leave { color: #fd7e14 !important; } /* 假別：橘色字 */
+        .badge-abnormal { color: #dc3545 !important; } /* 異常：紅色字 */
+
+        .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
         
         /* 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
