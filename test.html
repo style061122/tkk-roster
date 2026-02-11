@@ -87,98 +87,89 @@
         #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
         #staffTable td:nth-child(7) { width: 100% !important; }
 
-        /* 2. 手機卡片模式核心優化 (解決溢出與留白) */
-        .mobile-card-mode thead { display: none !important; }
+        /* ========================================= */
+        /* ★★★ 修正：店長與員工端卡片模式 (微調優化版) ★★★ */
+        /* ========================================= */
         
-        /* 修正：禁止外層容器在卡片模式下橫向捲動 */
-        .table-responsive { 
-            border: none !important; 
-            padding: 0 !important; 
-            margin: 0 !important; 
-            overflow-x: hidden !important; /* 禁止右滑出現空白 */
-        }
+        .mobile-card-mode thead { display: none !important; }
 
-        .mobile-card-mode { 
-            width: 100% !important; 
-            margin: 0 !important; 
-            border: none !important; 
-            display: block !important; /* 強制改為 block，徹底脫離 table 屬性 */
-        }
-
-        .mobile-card-mode tbody { display: block !important; width: 100% !important; }
-
+        /* 卡片容器：加入 overflow 隱藏，讓內部 Header 能貼齊圓角 */
         .mobile-card-mode tbody tr { 
             display: block !important; 
             background: #fff; 
             border: 1px solid #ddd; 
             border-radius: 8px; 
-            margin-bottom: 15px !important; 
-            padding: 0 !important; /* 內部由 td 控制，解決白邊 */
-            overflow: hidden !important; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 12px; 
+            padding: 10px; 
+            position: relative;
+            overflow: hidden !important; /* 確保內層 Header 背景能填滿到邊緣 */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* 欄位佈局優化 */
+        .mobile-card-mode tbody td { 
+            display: flex !important; 
+            align-items: flex-start !important; /* 長文字時對齊頂部 */
+            border: none !important; 
+            padding: 8px 0 !important; 
+            border-bottom: 1px dashed #eee !important; 
             width: 100% !important;
             box-sizing: border-box;
         }
 
-        .mobile-card-mode tbody td { 
-            display: flex !important; 
-            justify-content: flex-start !important; /* 改回左對齊，用 margin-left: auto 彈性推開 */
-            align-items: flex-start !important; 
-            border: none !important; 
-            padding: 10px 15px !important; 
-            border-bottom: 1px dashed #eee !important; 
-            width: 100% !important; 
-            box-sizing: border-box;
-            min-height: 44px;
-            white-space: normal !important; /* 強制換行 */
-            word-break: break-all !important; 
-        }
-
-        /* 標籤樣式：固定寬度保護 */
+        /* 標籤：設定固定寬度，防止被擠壓或覆蓋 (解決問題 1, 2) */
         .mobile-card-mode tbody td::before { 
             content: attr(data-label); 
             font-weight: bold; 
             color: #666; 
             text-align: left; 
-            flex: 0 0 100px !important; /* 絕對不縮小，佔據 100px */
+            flex: 0 0 100px !important; /* 標籤佔據固定 100px */
             margin-right: 10px;
         }
 
-        /* 數值內容樣式：撐滿剩餘空間並靠右 */
-        .mobile-card-mode tbody td > span, 
-        .mobile-card-mode tbody td > div,
+        /* 內容：強制撐開剩餘所有空間，並靠右對齊 (徹底解決右側留白) */
         .mobile-card-mode tbody td {
+            justify-content: flex-end !important;
             text-align: right !important;
-            margin-left: auto; /* 關鍵：把數值推到最右側 */
-            flex-grow: 1;
-            display: block; /* 確保內容能完整佔據空間 */
+            color: #212529;
+            word-break: break-all !important;
         }
-
-        /* 空值補足，消滅空白感 */
-        .mobile-card-mode tbody td:empty::after { content: "—"; color: #ccc; margin-left: auto; }
+        
+        /* 針對內容中的連結或文字加強撐開 */
+        .mobile-card-mode tbody td > * {
+            flex: 1 !important;
+            text-align: right !important;
+        }
 
         .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
 
-        /* 3. 日期 Header 完美填滿 */
-        #personalTableBody td:nth-child(1), 
+        /* --- 修正：日期 Header 填滿與置中 (解決問題 3) --- */
+        #personalTableBody td:nth-child(1),
         #indivTableBody td:nth-child(1) {
-            background-color: #f1f3f5 !important;
+            background-color: #f1f3f5 !important; /* 灰底色 */
+            /* 關鍵：利用負邊距與計算寬度抵銷外層 tr 的 10px padding */
+            margin: -10px -10px 10px -10px !important; 
+            width: calc(100% + 20px) !important; 
             padding: 12px 10px !important;
             justify-content: center !important; 
+            text-align: center !important;
             font-size: 1.15rem !important;
             font-weight: bold !important;
             border-bottom: 2px solid #dee2e6 !important;
-            width: 100% !important;
             display: flex !important;
-            margin: 0 !important;
         }
-        #personalTableBody td:nth-child(1)::before, #indivTableBody td:nth-child(1)::before { display: none !important; }
+        #personalTableBody td:nth-child(1)::before,
+        #indivTableBody td:nth-child(1)::before { display: none !important; }
 
-        /* 4. 取消 Badge，改顏色 */
-        .badge-abnormal, .badge-leave { background: transparent !important; padding: 0 !important; font-size: 1rem !important; }
-        .badge-leave { color: #fd7e14 !important; }
-        .badge-abnormal { color: #dc3545 !important; }
-    }
+        /* --- 視覺優化：取消背景特效，改用顏色字體 --- */
+        .badge-abnormal, .badge-leave { 
+            background-color: transparent !important; 
+            padding: 0 !important; 
+            font-size: 1rem !important; 
+            font-weight: bold !important;
+        }
+        .badge-leave { color: #fd7e14 !important; }   /* 假別：橘色 */
+        .badge-abnormal { color: #dc3545 !important; } /* 異常：紅色 */
         
         /* 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
