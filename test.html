@@ -38,6 +38,110 @@
       .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
+        /* ========================================= */
+      /* ★★★ 第一步：排班介面 手機版優化 (四層卡片) ★★★ */
+      /* ========================================= */
+      @media (max-width: 900px) {
+          
+          /* 1. 隱藏原本的表頭 (手機不需要) */
+          #scheduleForm thead { display: none; }
+
+          /* 2. 將每一列 (tr) 變成一個獨立的卡片 */
+          #staffTable tr {
+              display: flex;
+              flex-wrap: wrap; /* 允許內容換行 */
+              background: #fff;
+              margin-bottom: 15px;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+              padding: 10px;
+          }
+
+          /* 3. 設定所有儲存格的基本樣式 */
+          #staffTable td {
+              border: none;
+              padding: 5px;
+              position: relative; /* 為了讓左上角小標籤定位 */
+          }
+
+          /* --- 第一行：姓名/日期 (50%) + 狀態 (50%) --- */
+          #staffTable td:nth-child(1) { 
+              width: 50%; 
+              font-size: 1.1rem; 
+              border-bottom: 1px solid #eee;
+              padding-bottom: 8px;
+              margin-bottom: 8px;
+          }
+          #staffTable td:nth-child(2) { 
+              width: 50%; 
+              border-bottom: 1px solid #eee;
+              padding-bottom: 8px;
+              margin-bottom: 8px;
+          }
+
+          /* --- 第二行：上班(33%) | 下班(33%) | 休息(34%) --- */
+          /* 預留上方空間給小標籤 */
+          #staffTable td:nth-child(3), 
+          #staffTable td:nth-child(4), 
+          #staffTable td:nth-child(5) {
+              padding-top: 22px; 
+          }
+
+          /* 上班 (E) */
+          #staffTable td:nth-child(3) { width: 33%; }
+          #staffTable td:nth-child(3)::before {
+              content: '上班';
+              position: absolute; top: 0; left: 5px;
+              font-size: 0.75rem; color: #888; font-weight: bold;
+          }
+
+          /* 下班 (F) */
+          #staffTable td:nth-child(4) { width: 33%; }
+          #staffTable td:nth-child(4)::before {
+              content: '下班';
+              position: absolute; top: 0; left: 5px;
+              font-size: 0.75rem; color: #888; font-weight: bold;
+          }
+
+          /* 休息 (G) */
+          #staffTable td:nth-child(5) { width: 34%; }
+          #staffTable td:nth-child(5)::before {
+              content: '休息';
+              position: absolute; top: 0; left: 5px;
+              font-size: 0.75rem; color: #888; font-weight: bold;
+          }
+
+          /* --- 第三行：應有時數 H (100%) --- */
+          #staffTable td:nth-child(6) {
+              width: 100%;
+              background-color: #f0f8ff; /* 淺藍底色突顯 */
+              border-radius: 6px;
+              margin-top: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between; /* 標籤靠左，數值靠右 */
+              padding: 8px 15px;
+          }
+          /* 增加左側標籤 */
+          #staffTable td:nth-child(6)::before {
+              content: '應有時數 (H) :';
+              font-weight: bold; color: #0d6efd;
+          }
+          /* 調整輸入框樣式使其靠右 */
+          #staffTable td:nth-child(6) input {
+              text-align: right !important;
+              width: auto;
+              font-size: 1.1rem;
+          }
+
+          /* --- 第四行：檢核訊息 (100%) --- */
+          #staffTable td:nth-child(7) {
+              width: 100%;
+              padding: 0;
+              margin-top: 5px;
+          }
+      }
     </style>
 </head>
   <body>
