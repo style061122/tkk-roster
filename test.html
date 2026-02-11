@@ -124,49 +124,35 @@
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
       /* ========================================= */
-      /* ★ 系統狀態表：店長端 Modal 寬度補強 ★ */
-      /* 強制解決手機「電腦版檢視」下被擠扁的問題 */
+      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
+      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
       /* ========================================= */
-
-      /* 1. 基礎格線：針對店長端彈窗與員工端頁面 */
-      #indivModal table:not(.mobile-card-mode) td,
-      #personalSection table:not(.mobile-card-mode) td {
+      
+      /* 1. 基礎表格格線與對齊 */
+      table:not(.mobile-card-mode) #indivTableBody td, 
+      table:not(.mobile-card-mode) #personalTableBody td {
           vertical-align: middle !important;
           white-space: nowrap; 
           font-size: 0.9rem;
           padding: 6px 4px;
       }
 
-      /* 2. 關鍵修正：針對店長端(Modal)的假別與異常 */
-      /* 使用 ID 選取器開頭，權重最高，絕對能撐開 */
-      #indivModal table:not(.mobile-card-mode) td:nth-child(9),  /* 假別 */
-      #indivModal table:not(.mobile-card-mode) td:nth-child(12), /* 異常 */
-      #indivModal table:not(.mobile-card-mode) td:nth-child(13), /* 註記 */
-      #personalTableBody td:nth-child(8), 
-      #personalTableBody td:nth-child(12) {
+      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
+      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
           white-space: normal !important;
-          word-break: break-all !important;
+          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
           
-          /* 將保底寬度提高到 110px，強制撐開 */
-          min-width: 110px !important;  
-          max-width: 200px !important;
+          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
+          min-width: 100px !important;  
+          max-width: 180px !important;
           
           line-height: 1.4;
           font-size: 0.85rem;
           vertical-align: top !important;
-          display: table-cell !important; /* 確保維持單元格特性 */
-      }
-
-      /* 3. 強制讓 Modal 內的表格寬度由內容撐開，而不是被螢幕限制 */
-      #indivModal .table-responsive {
-          display: block !important;
-          width: 100% !important;
-          overflow-x: auto !important; /* 確保可以左右滑動 */
-      }
-      
-      #indivModal table {
-          width: auto !important; /* 關鍵：寬度設為 auto 才會走 min-width 邏輯 */
-          min-width: 100% !important;
       }
     </style>
 </head>
