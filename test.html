@@ -87,91 +87,98 @@
         #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
         #staffTable td:nth-child(7) { width: 100% !important; }
 
-        /* ========================================= */
-        /* ★★★ 修正：店長與員工端卡片模式優化 ★★★ */
-        /* ========================================= */
+        /* 2. 手機卡片模式核心優化 (解決溢出與留白) */
+        .mobile-card-mode thead { display: none !important; }
         
-        /* 1. 確保外層容器在電腦版能捲動，不留白邊 */
+        /* 修正：禁止外層容器在卡片模式下橫向捲動 */
         .table-responsive { 
             border: none !important; 
             padding: 0 !important; 
-            overflow-x: auto !important; 
-            -webkit-overflow-scrolling: touch;
+            margin: 0 !important; 
+            overflow-x: hidden !important; /* 禁止右滑出現空白 */
         }
 
-        /* 2. 卡片本體：增加 overflow hidden 讓內部背景能貼齊圓角 */
+        .mobile-card-mode { 
+            width: 100% !important; 
+            margin: 0 !important; 
+            border: none !important; 
+            display: block !important; /* 強制改為 block，徹底脫離 table 屬性 */
+        }
+
+        .mobile-card-mode tbody { display: block !important; width: 100% !important; }
+
         .mobile-card-mode tbody tr { 
             display: block !important; 
             background: #fff; 
             border: 1px solid #ddd; 
             border-radius: 8px; 
-            margin-bottom: 12px; 
-            padding: 0 !important; /* 移除 padding，改由內部 td 控制，解決白邊問題 */
+            margin-bottom: 15px !important; 
+            padding: 0 !important; /* 內部由 td 控制，解決白邊 */
             overflow: hidden !important; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        /* 3. 每列內容：改用 space-between 兩端對齊 */
-        .mobile-card-mode tbody td { 
-            display: flex !important; 
-            justify-content: space-between !important; /* 左右撐開 */
-            align-items: center !important; 
-            border: none !important; 
-            padding: 10px 15px !important; /* 在 td 內部補回間距 */
-            border-bottom: 1px dashed #eee !important; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             width: 100% !important;
             box-sizing: border-box;
         }
 
-        /* 4. 標籤(Label)：固定寬度，不准縮小 */
+        .mobile-card-mode tbody td { 
+            display: flex !important; 
+            justify-content: flex-start !important; /* 改回左對齊，用 margin-left: auto 彈性推開 */
+            align-items: flex-start !important; 
+            border: none !important; 
+            padding: 10px 15px !important; 
+            border-bottom: 1px dashed #eee !important; 
+            width: 100% !important; 
+            box-sizing: border-box;
+            min-height: 44px;
+            white-space: normal !important; /* 強制換行 */
+            word-break: break-all !important; 
+        }
+
+        /* 標籤樣式：固定寬度保護 */
         .mobile-card-mode tbody td::before { 
             content: attr(data-label); 
             font-weight: bold; 
             color: #666; 
             text-align: left; 
-            margin-right: 15px !important;
-            flex: 0 0 90px !important; /* 固定 90px，解決長文字覆蓋標題問題 */
+            flex: 0 0 100px !important; /* 絕對不縮小，佔據 100px */
+            margin-right: 10px;
         }
 
-        /* 5. 內容(Value)：一律靠右且自動補位 */
-        .mobile-card-mode tbody td > * {
-            margin-left: auto !important;
+        /* 數值內容樣式：撐滿剩餘空間並靠右 */
+        .mobile-card-mode tbody td > span, 
+        .mobile-card-mode tbody td > div,
+        .mobile-card-mode tbody td {
             text-align: right !important;
+            margin-left: auto; /* 關鍵：把數值推到最右側 */
+            flex-grow: 1;
+            display: block; /* 確保內容能完整佔據空間 */
         }
-        
-        /* 6. 空值補償：若沒資料補個 —，視覺更平衡 */
-        .mobile-card-mode tbody td:empty::after {
-            content: "—";
-            color: #ccc;
-            margin-left: auto;
-        }
+
+        /* 空值補足，消滅空白感 */
+        .mobile-card-mode tbody td:empty::after { content: "—"; color: #ccc; margin-left: auto; }
 
         .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
 
-        /* --- 修正：員工端與店長端 日期 Header 樣式 (解決問題 3) --- */
-        #personalTableBody td:nth-child(1),
+        /* 3. 日期 Header 完美填滿 */
+        #personalTableBody td:nth-child(1), 
         #indivTableBody td:nth-child(1) {
-            background-color: #f8f9fa !important; /* 灰底色 */
-            width: 100% !important;
-            margin: 0 !important;
+            background-color: #f1f3f5 !important;
             padding: 12px 10px !important;
-            justify-content: center !important; /* 置中 */
+            justify-content: center !important; 
             font-size: 1.15rem !important;
             font-weight: bold !important;
             border-bottom: 2px solid #dee2e6 !important;
-            border-radius: 0 !important; /* 交給 tr 的 overflow hidden 處理圓角 */
+            width: 100% !important;
+            display: flex !important;
+            margin: 0 !important;
         }
-        #personalTableBody td:nth-child(1)::before,
-        #indivTableBody td:nth-child(1)::before { display: none !important; }
+        #personalTableBody td:nth-child(1)::before, #indivTableBody td:nth-child(1)::before { display: none !important; }
 
-        /* 特效取消：異常與假別改用純顏色 */
-        .badge-abnormal, .badge-leave { 
-            background-color: transparent !important; 
-            padding: 0 !important; 
-            font-size: 1rem !important; 
-        }
-        .badge-leave { color: #fd7e14 !important; } /* 假別：橘色 */
-        .badge-abnormal { color: #dc3545 !important; } /* 異常：紅色 */
+        /* 4. 取消 Badge，改顏色 */
+        .badge-abnormal, .badge-leave { background: transparent !important; padding: 0 !important; font-size: 1rem !important; }
+        .badge-leave { color: #fd7e14 !important; }
+        .badge-abnormal { color: #dc3545 !important; }
+    }
         
         /* 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
