@@ -147,6 +147,79 @@
               padding-top: 4px;
           }
       }
+        /* ========================================= */
+      /* ★★★ 第二步：月統計介面 手機版優化 ★★★ */
+      /* ========================================= */
+      @media (max-width: 900px) {
+          
+          /* 1. 上方目標提示區塊 (改為垂直排列) */
+          #statsTarget {
+              flex-direction: column;
+              align-items: flex-start !important; /* 靠左對齊 */
+              gap: 8px;
+              font-size: 0.95rem;
+              background-color: #fff3cd !important; /* 淺黃色背景突顯 */
+              border-color: #ffecb5 !important;
+              color: #664d03 !important;
+          }
+
+          /* 2. 表格通用設定 (隱藏表頭、轉為卡片) */
+          #statsModal table thead { display: none; }
+          
+          #statsModal table tbody tr {
+              display: block;
+              background: #fff;
+              margin-bottom: 12px;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+              padding: 10px;
+          }
+
+          #statsModal table tbody td {
+              display: flex;
+              justify-content: space-between; /* 左右撐開 */
+              border: none;
+              padding: 8px 0;
+              border-bottom: 1px dashed #eee;
+              font-size: 1rem;
+          }
+          #statsModal table tbody td:last-child { border-bottom: none; }
+
+          /* --- 月薪制表格 (#statsTableMonthly) --- */
+          /* 第1欄：姓名 (置頂、變大、置中) */
+          #statsTableMonthly td:nth-child(1) {
+              font-size: 1.25rem;
+              font-weight: bold;
+              color: #0d6efd; /* 藍色 */
+              border-bottom: 2px solid #e9ecef;
+              margin-bottom: 5px;
+              padding-bottom: 8px;
+              justify-content: center; /* 名字置中 */
+          }
+
+          /* 利用 CSS 自動加入左側標題 (不用改 JS) */
+          #statsTableMonthly td:nth-child(2)::before { content: '應有時數 (差):'; color: #666; font-weight: bold; }
+          #statsTableMonthly td:nth-child(3)::before { content: '休假 (差):'; color: #666; font-weight: bold; }
+          #statsTableMonthly td:nth-child(4)::before { content: '例假 (差):'; color: #666; font-weight: bold; }
+          #statsTableMonthly td:nth-child(5)::before { content: '國定假 (差):'; color: #666; font-weight: bold; }
+          #statsTableMonthly td:nth-child(6)::before { content: '空班:'; color: #dc3545; font-weight: bold; }
+
+          /* --- 時薪制表格 (#statsTableHourly) --- */
+          /* 第1欄：姓名 (置頂、變大、置中) */
+          #statsTableHourly td:nth-child(1) {
+              font-size: 1.25rem;
+              font-weight: bold;
+              color: #198754; /* 綠色 */
+              border-bottom: 2px solid #e9ecef;
+              margin-bottom: 5px;
+              padding-bottom: 8px;
+              justify-content: center; /* 名字置中 */
+          }
+          /* 第2欄：累計 */
+          #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; color: #666; font-weight: bold; }
+          #statsTableHourly td:nth-child(2) { font-size: 1.1rem; font-weight: bold; }
+      }
     </style>
 </head>
   <body>
