@@ -16,57 +16,28 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
-    body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; }
-    .main-container { max-width: 1400px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    #loginSection { max-width: 400px; margin: 100px auto; text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-    
-    /* 電腦版表格基礎樣式 */
-    .table th { vertical-align: middle; text-align: center; white-space: nowrap; font-size: 0.95rem; background-color: #343a40; color: white; }
-    .table td { vertical-align: middle; padding: 8px 5px; font-size: 1rem; text-align: center; }
-
-    /* ★ 修正問題 5：店長端電腦版文字斷行與寬度 */
-    #indivTableBody td, #personalTableBody td {
-        white-space: nowrap; /* 預設不換行 */
-    }
-    /* 針對特定欄位允許正常換行 (不亂斷字) */
-    #indivModal td:nth-child(9),  /* 假別 */
-    #indivModal td:nth-child(12), /* 異常 */
-    #indivModal td:nth-child(13), /* 註記 */
-    #personalSection td:nth-child(8), /* 假別 */
-    #personalSection td:nth-child(11) { /* 異常 */
-        white-space: normal !important;
-        min-width: 80px;
-        max-width: 150px;
-        word-break: keep-all; /* 防止單個字斷行 */
-        line-height: 1.4;
-    }
-
-    input:read-only, select:disabled { background-color: #e9ecef; cursor: not-allowed; color: #6c757d; }
-    .row-error { background-color: #ffe6e6 !important; }
-    .row-warning { background-color: #fff3cd !important; }
-    .msg-box { font-size: 0.85em; font-weight: bold; line-height: 1.3; display: block; min-height: 18px; }
-    .text-err { color: #dc3545; } .text-warn { color: #856404; }
-    #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.85); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
-    .diff-pos { color: green; font-weight: bold; } 
-    .diff-neg { color: red; font-weight: bold; }
-    .view-btn.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
-    .filter-group { display: flex; align-items: center; margin-right: 15px; }
-    .custom-select-day { width: 100px !important; }
-    .custom-select-name { width: 160px !important; }
-    #liveSummaryBar { background-color: #fff3cd; border: 1px solid #ffecb5; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; display: none; font-size: 1rem; color: #664d03; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .swal2-container { z-index: 100000 !important; }
-    .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
-    .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
-    #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
-
-    /* --- 手機版 UI 儀表板樣式 --- */
-    .stat-grid-mobile { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-    .stat-card-item { background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #ddd; text-align: center; }
-    .stat-card-label { display: block; font-size: 0.8rem; color: #666; margin-bottom: 4px; }
-    .stat-card-value { font-size: 1.1rem; font-weight: bold; }
-    .val-highlight { color: #0d6efd; }
-    .stat-card-diff { font-size: 0.75rem; color: #dc3545; margin-left: 2px; }
-    .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: center; width: 100%; }
+      body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; }
+      .main-container { max-width: 1400px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+      #loginSection { max-width: 400px; margin: 100px auto; text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+      .table th { vertical-align: middle; text-align: center; white-space: nowrap; font-size: 0.95rem; background-color: #343a40; color: white; }
+      .table td { vertical-align: middle; padding: 8px 5px; font-size: 1rem; text-align: center; }
+      input:read-only, select:disabled { background-color: #e9ecef; cursor: not-allowed; color: #6c757d; }
+      .row-error { background-color: #ffe6e6 !important; }
+      .row-warning { background-color: #fff3cd !important; }
+      .msg-box { font-size: 0.85em; font-weight: bold; line-height: 1.3; display: block; min-height: 18px; }
+      .text-err { color: #dc3545; } .text-warn { color: #856404; }
+      #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.85); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+      .diff-pos { color: green; font-weight: bold; } 
+      .diff-neg { color: red; font-weight: bold; }
+      .view-btn.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+      .filter-group { display: flex; align-items: center; margin-right: 15px; }
+      .custom-select-day { width: 100px !important; }
+      .custom-select-name { width: 160px !important; }
+      #liveSummaryBar { background-color: #fff3cd; border: 1px solid #ffecb5; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; display: none; font-size: 1rem; color: #664d03; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+      .swal2-container { z-index: 100000 !important; }
+      .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+      .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+      #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
 
     /* ========================================= */
     /* ★ 核心修正：將手機模式放在最下方並強制權重 ★ */
@@ -86,74 +57,7 @@
         #staffTable td:nth-child(6)::before { content: '應有(H)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #0d6efd; font-weight: bold; }
         #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
         #staffTable td:nth-child(7) { width: 100% !important; }
-        
-      /* ========================================= */
-      /* ★★★ 手機版 RWD 卡片優化 (測試版風格) ★★★ */
-      /* ========================================= */
-          
-          /* 1. 隱藏表頭與調整容器捲動 */
-          .mobile-card-mode thead { display: none !important; }
-          .table-responsive { border: none !important; padding: 0 !important; overflow-x: auto !important; }
 
-          /* 2. 卡片本體： tr 轉為區塊，移除 tr padding 避免白邊 */
-          .mobile-card-mode tbody tr {
-              display: block !important;
-              background: #fff;
-              border: 1px solid #ddd;
-              border-radius: 8px;
-              margin-bottom: 15px;
-              box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-              overflow: hidden !important; 
-              padding: 0 !important;
-          }
-
-          /* 3. 欄位佈局：兩端對齊 (標籤左、數值右) */
-          .mobile-card-mode tbody td {
-              display: flex !important;
-              justify-content: space-between !important;
-              align-items: center !important;
-              border: none !important;
-              padding: 10px 15px !important;
-              font-size: 0.95rem;
-              border-bottom: 1px dashed #eee !important;
-              width: 100% !important;
-              box-sizing: border-box;
-              white-space: normal !important; /* 允許換行 */
-              word-break: break-all !important;
-          }
-          .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
-
-          /* 4. 左側標籤樣式 (data-label) */
-          .mobile-card-mode tbody td::before {
-              content: attr(data-label);
-              font-weight: bold;
-              color: #666;
-              text-align: left;
-              flex: 0 0 100px !important; /* 固定標題寬度防止覆蓋 */
-          }
-
-          /* 5. 右側數值樣式：一律靠右且佔滿剩餘空間 */
-          .mobile-card-mode tbody td > * {
-              text-align: right !important;
-              margin-left: auto !important;
-          }
-
-          /* 6. 日期 Header：置中灰色條狀背景樣式 (同步測試版) */
-          .mobile-card-mode tbody td:nth-child(1) {
-              background-color: #f1f3f5 !important;
-              justify-content: center !important;
-              font-weight: bold;
-              font-size: 1.1rem;
-              color: #333;
-              border-bottom: 2px solid #dee2e6 !important;
-          }
-          .mobile-card-mode tbody td:nth-child(1)::before { display: none !important; }
-
-          /* 7. 特效取消，改用顏色字體 */
-          .badge-leave, .badge-abnormal { background: transparent !important; padding: 0 !important; font-weight: bold; }
-          .badge-leave { color: #fd7e14 !important; } /* 橘字 */
-          .badge-abnormal { color: #dc3545 !important; } /* 紅字 */
-      }
         /* 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
         #statsModal table thead { display: none !important; }
@@ -168,8 +72,211 @@
         #statsTableMonthly td:nth-child(5)::before { content: '國定假 (差):'; }
         #statsTableMonthly td:nth-child(6)::before { content: '空班:'; }
         #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; }
-    }
-</style>
+      }
+
+      /* ========================================= */
+      /* ★★★ 系統狀態表 (電腦版與手機版分流) ★★★ */
+      /* ========================================= */
+
+      /* ------------------------------------------- */
+      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
+      /* ------------------------------------------- */
+      @media (min-width: 901px) {
+          /* 預設：所有儲存格不換行 (保持整齊) */
+          #indivTableBody td, #personalTableBody td {
+              vertical-align: middle;
+              white-space: nowrap; 
+              font-size: 0.9rem;
+              padding: 6px 4px;
+          }
+
+          /* 特例：針對「異常(14)」、「註記(15)」允許換行 */
+          #indivTableBody td:nth-child(14), 
+          #indivTableBody td:nth-child(15),
+          #personalTableBody td:nth-child(14) {
+              white-space: normal !important;  /* 強制允許換行 */
+              word-break: break-word;          /* 長單字切斷 */
+              min-width: 100px;                /* 設定最小寬度，避免擠壓 */
+              max-width: 160px;                /* 設定最大寬度，避免撐爆 */
+              line-height: 1.4;
+              font-size: 0.85rem;
+          }
+
+      /* ------------------------------------------- */
+      /* 2. 手機版專用樣式 (螢幕 <= 900px) - 卡片式 */
+      /* ------------------------------------------- */
+      @media (max-width: 900px) {
+          
+          /* 隱藏原本表頭 */
+          table.mobile-card-mode thead { display: none !important; }
+
+          /* 將每一列 (tr) 變成卡片區塊 */
+          table.mobile-card-mode tbody tr {
+              display: block !important;
+              background: #fff;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              margin-bottom: 12px;
+              box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+              padding: 10px;
+              position: relative;
+          }
+
+          /* 將儲存格 (td) 變成 Flex 橫向排列 (左標題、右數值) */
+          table.mobile-card-mode tbody td {
+              display: flex !important;
+              justify-content: space-between; /* 左右撐開 */
+              align-items: center;            /* 垂直置中 */
+              border: none !important;
+              padding: 8px 0 !important;
+              font-size: 0.95rem;
+              text-align: right;
+              border-bottom: 1px dashed #eee !important;
+              min-height: 32px;
+              width: 100% !important;         /* 佔滿卡片寬度 */
+              box-sizing: border-box;
+              
+              /* ★ 關鍵：允許右側數值換行，解決長文字問題 ★ */
+              white-space: normal !important;
+              word-break: break-word; 
+          }
+          
+          table.mobile-card-mode tbody td:last-child { border-bottom: none !important; }
+
+          /* 左側標題樣式 (透過 data-label) */
+          table.mobile-card-mode tbody td::before {
+              content: attr(data-label);
+              font-weight: bold;
+              color: #666;
+              text-align: left;
+              margin-right: 15px;
+              min-width: 100px; /* 固定標題寬度 */
+              flex-shrink: 0;   /* 禁止標題被壓縮 */
+          }
+
+          /* 日期 (置頂區塊) 特別樣式 */
+          table.mobile-card-mode tbody td:nth-child(1) {
+              background-color: #f8f9fa;
+              margin: -10px -10px 10px -10px !important;
+              padding: 10px 15px !important;
+              border-bottom: 2px solid #e9ecef !important;
+              font-weight: bold;
+              font-size: 1.1rem;
+              justify-content: center;
+              color: #333;
+              width: calc(100% + 20px) !important;
+          }
+          table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
+          
+          table.mobile-card-mode tbody td::before {
+              text-decoration: none;
+              margin-bottom: 0;
+          }
+      }
+
+      /* ------------------------------------------- */
+      /* 3. 通用輔助樣式 */
+      /* ------------------------------------------- */
+      
+      /* 讓表格在電腦版可以橫向捲動，不會被切掉 (關鍵！) */
+      .table-responsive {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          margin-bottom: 15px;
+          border: 1px solid #eee; /* 稍微加個框線讓範圍清楚 */
+      }
+
+      /* 顏色定義 */
+      .text-time-h { color: #0d6efd; font-weight: bold; }
+      
+      /* 統計區塊 */
+      .stat-box-row { 
+          display: flex; 
+          flex-wrap: wrap; 
+          gap: 10px; 
+          align-items: center; 
+          background: #fff; 
+          padding: 10px; 
+          border-radius: 6px; 
+          border: 1px solid #ddd; 
+          line-height: 1.8;
+      }
+
+      /* 手機版按鈕容器 */
+      .mobile-btn-container {
+          display: flex;
+          gap: 8px;
+          margin-top: 10px;
+          justify-content: flex-end;
+          width: 100%;
+          border-top: 1px dashed #eee;
+          padding-top: 8px;
+      }
+      /* ========================================= */
+      /* ★★★ 統一顏色樣式 (手機/電腦共用) ★★★ */
+      /* ========================================= */
+      .color-h { color: #0d6efd !important; font-weight: bold; }   /* 藍 */
+      .color-err { color: #dc3545 !important; font-weight: bold; } /* 紅(異常) */
+        /* ========================================= */
+      /* ★★★ 統計區塊優化 (手機版儀表板風格) ★★★ */
+      /* ========================================= */
+      
+      /* 預設(電腦版)維持原本的一行顯示，但移除強制 flex，讓內部元素決定 */
+      .stat-box-row {
+          background: #fff;
+          padding: 10px;
+          border-radius: 6px;
+          border: 1px solid #ddd;
+          margin-bottom: 10px;
+      }
+
+      /* 手機版專用樣式 */
+      @media (max-width: 900px) {
+          /* 將容器改為 Grid 網格佈局 */
+          .stat-grid-mobile {
+              display: grid;
+              grid-template-columns: 1fr 1fr; /* 分為兩欄，寬度平均 */
+              gap: 10px; /* 格子間距 */
+          }
+
+          /* 每一個統計小卡片 */
+          .stat-card-item {
+              display: flex;
+              flex-direction: column; /* 內容上下排列 */
+              align-items: center;    /* 水平居中 */
+              justify-content: center;
+              background: #f8f9fa;    /* 淺灰背景 */
+              padding: 12px 8px;
+              border-radius: 8px;
+              border: 1px solid #e9ecef;
+          }
+
+          /* 卡片內的小標題 (例如：應有、休) */
+          .stat-card-label {
+              font-size: 0.85rem;
+              color: #6c757d; /* 灰色 */
+              margin-bottom: 4px;
+              font-weight: normal;
+          }
+
+          /* 卡片內的主數值 */
+          .stat-card-value {
+              font-size: 1.25rem; /* 字體加大 */
+              font-weight: bold;
+              color: #212529;     /* 深黑色 */
+              line-height: 1.2;
+          }
+          
+          /* 應有時數特別用藍色強調 */
+          .val-highlight { color: #0d6efd; }
+
+          /* 差異值小字 (例如：-8.0) */
+          .stat-card-diff {
+              font-size: 0.8rem;
+              margin-left: 4px;
+          }
+      }
+    </style>
 </head>
   <body>
     <div id="loadingOverlay"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div><h5 class="mt-3 text-dark fw-bold" id="loadingText">系統載入中...</h5></div>
@@ -821,7 +928,7 @@
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
-        // ==========================================
+      // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
       // ==========================================
       function renderPersonalPage(data) {
@@ -840,16 +947,22 @@
               document.getElementById('personalClosingNotice').innerText = noticeText;
 
               let totalOvertime = 0;
+              let totalZ = 0;
+              let totalAA = 0;
+
               if (data.data) {
-                 data.data.forEach(r => { let otVal = parseFloat(r.sys_overtimeHrs); if (!isNaN(otVal)) totalOvertime += otVal; });
+                 data.data.forEach(r => { 
+                     let o = parseFloat(r.sys_overtimeHrs); if (!isNaN(o)) totalOvertime += o; 
+                     let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) totalZ += z;
+                     let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
+                 });
               }
               
               const s = data.stats;
               
-              // ★★★ 1. 手機版儀表板統計 (2x2 排列) ★★★
+              // ★★★ 核心修改：加入括號與間距，解決 40 問題 (同步店長端) ★★★
               let statsHtmlStr = "";
               if (data.isHourly) {
-                  // 時薪制
                   statsHtmlStr = `
                       <div class="stat-grid-mobile">
                           <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span></div>
@@ -858,78 +971,150 @@
                           <div class="stat-card-item"><span class="stat-card-label">國</span><span class="stat-card-value">${s.nat}</span></div>
                       </div>`;
               } else {
-                  // 月薪制 (含括號差異)
                   statsHtmlStr = `
                       <div class="stat-grid-mobile">
                           <div class="stat-card-item">
                               <span class="stat-card-label">應有工時</span>
-                              <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span><span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span>
+                              </div>
                           </div>
                           <div class="stat-card-item">
                               <span class="stat-card-label">休假</span>
-                              <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value">${s.rest}</span><span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.rest}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span>
+                              </div>
                           </div>
                           <div class="stat-card-item">
                               <span class="stat-card-label">例假</span>
-                              <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value">${s.reg}</span><span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.reg}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span>
+                              </div>
                           </div>
                           <div class="stat-card-item">
                               <span class="stat-card-label">國定假</span>
-                              <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value">${s.nat}</span><span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span></div>
+                              <div class="d-flex align-items-baseline gap-1">
+                                  <span class="stat-card-value">${s.nat}</span>
+                                  <span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span>
+                              </div>
                           </div>
                       </div>`;
               }
               
-              // 加班資訊放在下方
-              let rightContent = totalOvertime > 0 ? `<div class="mt-2 text-danger fw-bold text-center">已申請加班總時數: ${totalOvertime.toFixed(1)}</div>` : "";
-              
-              // ★★★ 2. 切換按鈕 ★★★
+              let row2Html = `
+                  <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                      <span class="text-primary"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
+                  </div>
+              `;
+
               let btnRow = `
                   <div class="mobile-btn-container">
                       <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#personalSection table', this)">🖥️ 電腦版檢視</button>
-                  </div>`;
+                  </div>
+              `;
 
-              // 組合統計區塊
               document.getElementById('personalStats').innerHTML = `
                   <div class="d-flex flex-column w-100">
                       <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
-                      ${rightContent}
+                      <div class="stat-box-row">${row2Html}</div>
                       ${btnRow}
-                  </div>`;
+                  </div>
+              `;
               
+              const thead = document.querySelector('#personalSection table thead');
+              const pTable = document.querySelector('#personalSection table');
+              if(pTable) pTable.classList.add('mobile-card-mode');
+              
+              thead.innerHTML = `
+                  <tr>
+                      <th>日期</th>
+                      <th>狀態(D)</th>
+                      <th style="min-width:100px;">排班時間</th>
+                      <th>應有(H)</th>
+                      <th>系統狀態</th>
+                      <th>上班卡</th>
+                      <th>下班卡</th>
+                      <th>請假</th>
+                      <th>假別</th>
+                      <th>加班</th>
+                      <th>加班時數</th>
+                      <th>異常</th>
+                  </tr>
+              `;
+
               const tbody = document.getElementById('personalTableBody');
-              
-              // ★★★ 3. 確保表格有 mobile-card-mode ★★★
-              document.querySelector('#personalSection table').classList.add('mobile-card-mode');
-              
               tbody.innerHTML = "";
-              if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='11' class='text-muted'>本月無資料</td></tr>"; return; }
               
-              // ★★★ 4. 填入表格並加上 data-label (修正格式為 2/1(週日)) ★★★
-      data.data.forEach(r => {
-         let dObj = new Date(r.date);
-         let shortDate = (dObj.getMonth() + 1) + "/" + dObj.getDate() + "(" + ["週日","週一","週二","週三","週四","週五","週六"][dObj.getDay()] + ")";
-         let planTime = (r.input_status === '上班' && r.input_start) ? `${r.input_start}~${r.input_end}` : "";
-         let clockStr = (r.sys_clockIn || r.sys_clockOut) ? `${formatTime(r.sys_clockIn)}<br>${formatTime(r.sys_clockOut)}` : "";
-         let abnormalStr = r.sys_abnormal ? `<span class="badge-abnormal">${r.sys_abnormal}</span>` : "";
-         let leaveType = r.sys_leaveType ? `<span class="badge-leave">${r.sys_leaveType}</span>` : "";
-         
-         const tr = document.createElement('tr');
-         tr.innerHTML = `
-           <td data-label="日期">${shortDate}</td>
-           <td data-label="班表狀態">${r.input_status}</td>
-           <td data-label="排班時間">${planTime}</td>
-           <td data-label="應有時數(H)">${formatNumber(r.calc_hours)}</td>
-           <td data-label="系統狀態">${r.sys_status}</td>
-           <td data-label="實際打卡">${clockStr}</td>
-           <td data-label="請假時間">${formatTime(r.sys_leave)}</td>
-           <td data-label="假別">${leaveType}</td>
-           <td data-label="加班時間">${formatTime(r.sys_overtime)}</td>
-           <td data-label="加班時數">${r.sys_overtimeHrs || ""}</td>
-           <td data-label="異常">${abnormalStr}</td>
-         `;
-         tbody.appendChild(tr);
-      });
+              if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='14' class='text-muted'>本月無資料</td></tr>"; return; }
+              
+              data.data.forEach(r => {
+                  let dPart = r.date.split('/')[2] + "日";
+                  let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
+                  let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${wDay})`;
+
+                  let startVal = r.input_start;
+                  let hVal = parseFloat(r.calc_hours) || 0;
+                  let zVal = parseFloat(r.input_est_overtime) || 0;
+                  let aaVal = parseFloat(r.calc_excess) || 0;
+                  
+                  let restVal = parseFloat(r.input_rest || r.rest || r.g) || 0; 
+                  
+                  let status = r.input_status;
+
+                  let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
+           
+                  if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
+                       let startMin = timeToFloat(startVal) * 60;
+                       let restMin = restVal * 60;
+
+                       if (hVal > 0 || status === '上班') {
+                           let duration = (hVal * 60);
+                           if (status === '上班') duration += restMin;
+                           let endH = startMin + duration;
+                           if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
+                           startMin = endH;
+                       }
+                       if (zVal > 0) {
+                           let duration = (zVal * 60);
+                           if (['休', '國'].includes(status)) duration += restMin;
+                           let endZ = startMin + duration;
+                           strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
+                           startMin = endZ;
+                       }
+                       if (aaVal > 0) {
+                           let duration = (aaVal * 60);
+                           if (['例', '空班'].includes(status)) duration += restMin;
+                           let endAA = startMin + duration;
+                           strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
+                       }
+                  }
+
+                  let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : "";
+                  let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
+                  let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : "";
+                  let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+
+                  const tr = document.createElement('tr');
+                  
+                  tr.innerHTML = `
+                    <td data-label="日期">${dateDisplay}</td>
+                    <td data-label="狀態(D)" class="color-h">${r.input_status}</td>
+                    <td data-label="排班時間" class="color-h">${strRangeH}</td>
+                    <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
+                    <td data-label="系統狀態">${r.sys_status}</td>
+                    <td data-label="上班卡">${sysIn}</td>
+                    <td data-label="下班卡">${sysOut}</td>
+                    <td data-label="請假">${sysLeaveRange}</td>
+                    <td data-label="假別">${r.sys_leaveType||""}</td>
+                    <td data-label="加班">${sysOtRange}</td>
+                    <td data-label="加班時數">${r.sys_overtimeHrs || ""}</td>
+                    <td data-label="異常" class="color-err">${r.sys_abnormal || ""}</td>
+                  `;
+                  tbody.appendChild(tr);
+              });
           } catch(e) {
               alert("渲染錯誤: " + e.message);
           }
@@ -945,19 +1130,21 @@
         if (pData.length === 0) return;
 
         const isHourly = (pData[0].salaryType && pData[0].salaryType.includes("時薪"));
-        let hrs=0, rest=0, reg=0, nat=0, totalOvertime=0;
+        let hrs=0, rest=0, reg=0, nat=0;
+        let totalZ=0, totalO=0, totalAA=0; 
         let userKey = pData[0].pKey || ""; 
 
         pData.forEach(r => {
            let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h;
            if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++;
-           let otHrs = parseFloat(r.sys_overtimeHrs); if (!isNaN(otHrs)) totalOvertime += otHrs;
+           let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) totalZ += z;
+           let o = parseFloat(r.sys_overtimeHrs); if(!isNaN(o)) totalO += o;
+           let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
         });
         
         let otDisplay = document.getElementById("totalOvertimeDisplay");
-        if (otDisplay) { otDisplay.innerText = totalOvertime > 0 ? "已申請加班總時數: " + totalOvertime.toFixed(1) : ""; }
+        if (otDisplay) otDisplay.style.display = 'none'; 
         
-        // ★★★ 1. 按鈕產生邏輯 (加入 mobile-btn-container) ★★★
         let currentBaseUrl = window.location.href.split('?')[0]; 
         let btnHtml = "";
         let personalLink = "";
@@ -969,7 +1156,8 @@
                   <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
                   <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
                   <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
-              </div>`;
+              </div>
+            `;
         } else {
             btnHtml = `
               <div class="mobile-btn-container align-items-center">
@@ -978,7 +1166,7 @@
               </div>`;
         }
         
-        // ★★★ 2. 手機版儀表板統計 (2x2 排列) ★★★
+        // ★★★ 核心修改：加入括號與間距，解決 40 問題 ★★★
         let statsHtmlStr = "";
         if (isHourly) {
             statsHtmlStr = `
@@ -993,51 +1181,132 @@
                 <div class="stat-grid-mobile">
                     <div class="stat-card-item">
                         <span class="stat-card-label">應有工時</span>
-                        <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span><span class="stat-card-diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span>
+                            <span class="stat-card-diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span>
+                        </div>
                     </div>
                     <div class="stat-card-item">
                         <span class="stat-card-label">休假</span>
-                        <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value">${rest}</span><span class="stat-card-diff">(${formatDiff(rest - monthlyTargets.rest)})</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${rest}</span>
+                            <span class="stat-card-diff">(${formatDiff(rest - monthlyTargets.rest)})</span>
+                        </div>
                     </div>
                     <div class="stat-card-item">
                         <span class="stat-card-label">例假</span>
-                        <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value">${reg}</span><span class="stat-card-diff">(${formatDiff(reg - monthlyTargets.reg)})</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${reg}</span>
+                            <span class="stat-card-diff">(${formatDiff(reg - monthlyTargets.reg)})</span>
+                        </div>
                     </div>
                     <div class="stat-card-item">
                         <span class="stat-card-label">國定假</span>
-                        <div class="d-flex align-items-baseline gap-1"><span class="stat-card-value">${nat}</span><span class="stat-card-diff">(${formatDiff(nat - monthlyTargets.nat)})</span></div>
+                        <div class="d-flex align-items-baseline gap-1">
+                            <span class="stat-card-value">${nat}</span>
+                            <span class="stat-card-diff">(${formatDiff(nat - monthlyTargets.nat)})</span>
+                        </div>
                     </div>
                 </div>`;
         }
         
-        // 組合內容
-        statsDiv.innerHTML = `<div class="d-flex flex-column w-100"><div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>${btnHtml}</div>`;
+        let row2Html = `
+            <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                <span class="text-primary"><strong>已申請加班(O):</strong> ${totalO.toFixed(1)}</span>
+            </div>
+        `;
+
+        statsDiv.innerHTML = `
+            <div class="d-flex flex-column w-100">
+                <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
+                <div class="stat-box-row">${row2Html}</div>
+                ${btnHtml}
+            </div>`;
         
-        // ★★★ 3. 確保表格有 class ★★★
-        document.querySelector('#indivModal table').classList.add('mobile-card-mode');
+        const thead = document.querySelector('#indivModal table thead');
+        const tableEl = document.querySelector('#indivModal table');
+        if(tableEl) tableEl.classList.add('mobile-card-mode');
         
-        // ★★★ 4. 填入表格並加上 data-label (修正日期格式) ★★★
+        thead.innerHTML = `
+            <tr>
+                <th>日期</th>
+                <th>狀態(D)</th>
+                <th style="min-width:100px;">排班時間</th>
+                <th>應有(H)</th>
+                <th>系統狀態</th>
+                <th>上班卡</th>
+                <th>下班卡</th>
+                <th>請假</th>
+                <th>假別</th>
+                <th>加班</th>
+                <th>加班時數</th>
+                <th>異常</th>
+                <th>註記(Q)</th>
+            </tr>
+        `;
+
         pData.forEach(r => {
-           let dObj = new Date(r.date);
-           let shortDate = (dObj.getMonth() + 1) + "/" + dObj.getDate() + "(" + ["週日","週一","週二","週三","週四","週五","週六"][dObj.getDay()] + ")";
-           let planTimeStr = (r.input_start && String(r.input_start).trim() !== "") ? `${r.input_start}~${r.input_end}` : "";
+           let startVal = r.input_start;
+           let hVal = parseFloat(r.calc_hours) || 0;
+           let zVal = parseFloat(r.input_est_overtime) || 0;
+           let aaVal = parseFloat(r.calc_excess) || 0;
+           let restVal = parseFloat(r.input_rest) || 0;
+           let status = r.input_status;
+
+           let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
            
+           if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
+               let startMin = timeToFloat(startVal) * 60;
+               let restMin = restVal * 60;
+
+               if (hVal > 0 || status === '上班') {
+                   let duration = (hVal * 60);
+                   if (status === '上班') duration += restMin;
+                   let endH = startMin + duration;
+                   if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
+                   startMin = endH;
+               }
+               if (zVal > 0) {
+                   let duration = (zVal * 60);
+                   if (['休', '國'].includes(status)) duration += restMin;
+                   let endZ = startMin + duration;
+                   strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
+                   startMin = endZ;
+               }
+               if (aaVal > 0) {
+                   let duration = (aaVal * 60);
+                   if (['例', '空班'].includes(status)) duration += restMin;
+                   let endAA = startMin + duration;
+                   strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
+               }
+           }
+
+           let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : "";
+           let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
+           let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : "";
+           let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+           
+           let dateObj = new Date(r.date);
+           let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
+           let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${weekDay})`;
+
            tbody.innerHTML += `
                <tr>
-                   <td data-label="日期">${shortDate}</td>
-                   <td data-label="班表(D)">${r.input_status}</td>
-                   <td data-label="排班時間">${planTimeStr}</td>
-                   <td data-label="應有(H)">${r.calc_hours}</td>
+                   <td data-label="日期">${dateDisplay}</td>
+                   <td data-label="狀態(D)" class="color-h">${r.input_status}</td>
+                   <td data-label="排班時間" class="color-h">${strRangeH}</td>
+                   <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
                    <td data-label="系統狀態">${r.sys_status}</td>
-                   <td data-label="上班卡">${r.sys_clockIn}</td>
-                   <td data-label="下班卡">${r.sys_clockOut}</td>
-                   <td data-label="請假">${r.sys_leave}</td>
-                   <td data-label="假別">${r.sys_leaveType}</td>
-                   <td data-label="加班">${r.sys_overtime}</td>
-                   <td data-label="加班時數">${r.sys_overtimeHrs}</td>
-                   <td data-label="異常">${r.sys_abnormal}</td>
-                   <td data-label="註記(Q)">${r.log}</td>
-               </tr>`;
+                   <td data-label="上班卡">${sysIn}</td>
+                   <td data-label="下班卡">${sysOut}</td>
+                   <td data-label="請假">${sysLeaveRange}</td>
+                   <td data-label="假別">${r.sys_leaveType||""}</td>
+                   <td data-label="加班">${sysOtRange}</td>
+                   <td data-label="加班時數">${r.sys_overtimeHrs || ""}</td>
+                   <td data-label="異常" class="color-err">${r.sys_abnormal || ""}</td>
+                   <td data-label="註記(Q)" class="text-muted small">${r.log}</td>
+               </tr>
+           `;
         });
       }
       
