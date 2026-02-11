@@ -39,37 +39,28 @@
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
 
-      /* ========================================= */
-      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
-      /* ========================================= */
-      @media (min-width: 901px) {
-          #indivTableBody td, #personalTableBody td {
-              vertical-align: middle;
-              white-space: nowrap; 
-              font-size: 0.9rem;
-              padding: 6px 4px;
-          }
+      /* ========================================= */
+      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
+      /* ========================================= */
+      @media (min-width: 901px) {
+          #indivTableBody td, #personalTableBody td {
+              vertical-align: middle;
+              white-space: nowrap; 
+              font-size: 0.9rem;
+              padding: 6px 4px;
+          }
 
-          /* 針對：假別、異常、註記 進行優化 */
-          /* 店長端 child(9)=假別, child(12)=異常, child(13)=註記 */
-          /* 員工端 child(8)=假別, child(12)=異常 */
-          #indivTableBody td:nth-child(9),
-          #indivTableBody td:nth-child(12), 
-          #indivTableBody td:nth-child(13),
-          #personalTableBody td:nth-child(8),
-          #personalTableBody td:nth-child(12) {
-              white-space: normal !important;
-              word-break: break-all !important; /* 對中文換行最友善的設定 */
-              
-              /* 關鍵修正：確保至少能放下 4 個中文字的寬度 */
-              min-width: 85px !important;  
-              max-width: 180px;
-              
-              line-height: 1.4;
-              font-size: 0.85rem;
-              vertical-align: top !important; /* 換行時文字靠上比較整齊 */
-          }
-      } 
+          #indivTableBody td:nth-child(12), 
+          #indivTableBody td:nth-child(13),
+          #personalTableBody td:nth-child(12) {
+              white-space: normal !important;
+              word-break: break-word;
+              min-width: 100px;
+              max-width: 160px;
+              line-height: 1.4;
+              font-size: 0.85rem;
+          }
+      }
 
       /* ========================================= */
       /* 2. 手機模式 (螢幕 <= 900px) */
