@@ -88,66 +88,85 @@
         #staffTable td:nth-child(7) { width: 100% !important; }
 
         /* --- 修正：手機卡片模式核心優化 --- */
-        .mobile-card-mode thead { display: none !important; }
-        
-        /* 移除外圈白邊：強制撐滿容器 */
-        .table-responsive { border: none !important; padding: 0 !important; margin: 0 !important; overflow-x: visible !important; }
-        .mobile-card-mode { width: 100% !important; margin: 0 !important; border: none !important; }
+        .mobile-card-mode thead { display: none !important; }
+        
+        /* 恢復容器捲動，確保切換回電腦版可滑動 */
+        .table-responsive { border: none !important; padding: 0 !important; margin: 0 !important; overflow-x: auto !important; }
+        .mobile-card-mode { width: 100% !important; margin: 0 !important; border: none !important; }
 
-        .mobile-card-mode tbody tr { 
-            display: block !important; 
-            background: #fff; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; 
-            margin: 0 0 15px 0 !important; /* 卡片間距 */
-            padding: 10px !important; 
-            width: 100% !important;
-            box-sizing: border-box;
-        }
+        .mobile-card-mode tbody tr { 
+            display: block !important; 
+            background: #fff; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            margin: 0 0 15px 0 !important; 
+            padding: 10px !important; 
+            width: 100% !important;
+            box-sizing: border-box;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
 
-        .mobile-card-mode tbody td { 
-            display: flex !important; 
-            align-items: center !important; 
-            justify-content: flex-end !important; /* 內容推到最右邊 */
-            border: none !important; 
-            padding: 10px 0 !important; /* 稍微增加高度 */
-            border-bottom: 1px dashed #eee !important; 
-            width: 100% !important; 
-            box-sizing: border-box;
-            min-height: 44px;
-            text-align: right !important;
-        }
+        .mobile-card-mode tbody td { 
+            display: flex !important; 
+            align-items: flex-start !important; /* 頂部對齊，適合長註記文字 */
+            justify-content: flex-end !important; 
+            border: none !important; 
+            padding: 10px 0 !important; 
+            border-bottom: 1px dashed #eee !important; 
+            width: 100% !important; 
+            box-sizing: border-box;
+            min-height: 44px;
+        }
 
-        /* 標籤樣式：靠左 */
-        .mobile-card-mode tbody td::before { 
-            content: attr(data-label); 
-            font-weight: bold; 
-            color: #666; 
-            text-align: left; 
-            margin-right: auto !important; /* 把標籤彈到最左邊 */
-            padding-right: 15px;
-            white-space: nowrap;
-        }
-        .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
+        /* 標籤樣式：給予固定寬度，確保不被文字擠壓 (解決覆蓋問題) */
+        .mobile-card-mode tbody td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            color: #666; 
+            text-align: left; 
+            width: 100px !important; /* 固定標題寬度 */
+            flex-shrink: 0 !important;
+            margin-right: auto !important;
+            white-space: nowrap;
+        }
 
-        /* --- 修正：日期標題置中與背景撐滿 --- */
-        #personalTableBody td:nth-child(1), 
-        #indivTableBody td:nth-child(1) {
-            background-color: #f1f3f5 !important; /* 淺灰色底 */
-            margin: -10px -10px 10px -10px !important; /* 抵銷 tr 的 padding 撐滿邊緣 */
-            padding: 12px !important;
-            justify-content: center !important; /* 橫向置中 */
-            text-align: center !important;
-            font-size: 1.2rem !important;
-            font-weight: bold !important;
-            border-bottom: 2px solid #dee2e6 !important;
-            width: calc(100% + 20px) !important; /* 撐滿 tr 寬度 (10px*2) */
-            color: #333 !important;
-        }
-        #personalTableBody td:nth-child(1)::before, 
-        #indivTableBody td:nth-child(1)::before { display: none !important; }
-        
-        /* 補回月統計卡片式樣式 (Step 2) */
+        /* 內容樣式：撐滿剩餘寬度並自動換行 (解決右側空白問題) */
+        .mobile-card-mode tbody td {
+            text-align: right !important;
+            word-break: break-all !important; /* 強制長字換行 */
+            color: #212529;
+        }
+
+        /* 取消 Badge 特效，改用顏色字體 */
+        .badge-abnormal, .badge-leave { 
+            background-color: transparent !important; 
+            padding: 0 !important; 
+            font-size: 1rem !important; 
+            font-weight: bold !important;
+        }
+        .badge-leave { color: #fd7e14 !important; } /* 假別：橘色字 */
+        .badge-abnormal { color: #dc3545 !important; } /* 異常：紅色字 */
+
+        .mobile-card-mode tbody td:last-child { border-bottom: none !important; }
+
+        /* --- 修正：日期標題置中與背景撐滿 --- */
+        #personalTableBody td:nth-child(1), 
+        #indivTableBody td:nth-child(1) {
+            background-color: #f1f3f5 !important;
+            margin: -10px -10px 10px -10px !important; 
+            padding: 12px !important;
+            justify-content: center !important; 
+            text-align: center !important;
+            font-size: 1.1rem !important;
+            font-weight: bold !important;
+            border-bottom: 2px solid #dee2e6 !important;
+            width: calc(100% + 20px) !important;
+            color: #333 !important;
+        }
+        #personalTableBody td:nth-child(1)::before, 
+        #indivTableBody td:nth-child(1)::before { display: none !important; }
+        
+        /* 補回月統計卡片式樣式 (Step 2) */
         #statsTarget { flex-direction: column; align-items: flex-start !important; }
         #statsModal table thead { display: none !important; }
         #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
