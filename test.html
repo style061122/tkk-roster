@@ -125,26 +125,29 @@
       .color-err { color: #dc3545 !important; font-weight: bold; }
         
       /* ========================================= */
-      /* ★ 系統狀態表：純淨電腦版模式 (徹底解決穩定性) ★ */
+      /* ★ 系統狀態表：極簡穩定版 (解決打不開問題) ★ */
       /* ========================================= */
       
-      /* 當表格「沒有」mobile-card-mode 類別時，強制執行純電腦版樣式 */
-      table:not(.mobile-card-mode) tbody td {
+      /* 1. 基礎設定：所有的表格格子預設都是電腦版樣式 (不換行) */
+      #indivTableBody td, 
+      #personalTableBody td {
           vertical-align: middle !important;
-          white-space: nowrap !important; /* 強制不換行，橫向延伸 */
+          white-space: nowrap !important; 
           font-size: 0.9rem !important;
           padding: 6px 8px !important;
-          word-break: normal !important;  /* 回歸正常斷行邏輯 */
-          min-width: auto !important;     /* 移除所有保底寬度限制 */
-          max-width: none !important;     /* 移除所有寬度上限 */
+          min-width: auto !important;
+          max-width: none !important;
       }
 
-      /* 特別針對店長端彈窗與員工端容器的表格優化：確保出現橫向捲軸而不擠壓內容 */
-      #indivModal .table-responsive, 
-      #personalSection .table-responsive {
-          display: block !important;
-          width: 100% !important;
-          overflow-x: auto !important; 
+      /* 2. 只有當表格被加上 .mobile-card-mode 時，才允許換行 */
+      /* 這個簡單的 CSS 覆蓋不會影響 JavaScript 彈窗的啟動 */
+      .mobile-card-mode tbody td {
+          white-space: normal !important;
+      }
+
+      /* 3. 確保彈窗容器有捲軸，不會擠壓內容 */
+      .modal-body {
+          overflow-x: auto !important;
           -webkit-overflow-scrolling: touch;
       }
 /* --- 優化：電腦版隱視切換按鈕 --- */
