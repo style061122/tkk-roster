@@ -123,36 +123,32 @@
       .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
+        
       /* ========================================= */
-      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
-      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
+      /* ★ 系統狀態表：優化與寬度保底 (修正點擊問題) ★ */
       /* ========================================= */
-      
-      /* 1. 基礎表格格線與對齊 */
-      table:not(.mobile-card-mode) #indivTableBody td, 
-      table:not(.mobile-card-mode) #personalTableBody td {
+      #indivTableBody td, #personalTableBody td {
           vertical-align: middle !important;
-          white-space: nowrap; 
           font-size: 0.9rem;
           padding: 6px 4px;
+          white-space: nowrap; /* 預設電腦版不換行 */
       }
 
-      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
-      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
-      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
-      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
-      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
-      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
+      /* 強制保底寬度，避免電腦版檢視被擠扁 */
+      #indivTableBody td:nth-child(12), #indivTableBody td:nth-child(13),
+      #personalTableBody td:nth-child(11), #personalTableBody td:nth-child(12) {
           white-space: normal !important;
-          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
-          
-          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
+          word-break: break-all !important;
           min-width: 100px !important;  
           max-width: 180px !important;
-          
           line-height: 1.4;
           font-size: 0.85rem;
           vertical-align: top !important;
+      }
+
+      /* 手機模式時重設 nowrap，確保卡片顯示正常 */
+      .mobile-card-mode tbody td {
+          white-space: normal !important;
       }
 /* --- 優化：電腦版隱視切換按鈕 --- */
 @media (min-width: 901px) {
