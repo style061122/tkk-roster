@@ -123,33 +123,6 @@
       .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
-        
-      /* ========================================= */
-      /* ★ 系統狀態表：極簡穩定版 (解決打不開問題) ★ */
-      /* ========================================= */
-      
-      /* 1. 基礎設定：所有的表格格子預設都是電腦版樣式 (不換行) */
-      #indivTableBody td, 
-      #personalTableBody td {
-          vertical-align: middle !important;
-          white-space: nowrap !important; 
-          font-size: 0.9rem !important;
-          padding: 6px 8px !important;
-          min-width: auto !important;
-          max-width: none !important;
-      }
-
-      /* 2. 只有當表格被加上 .mobile-card-mode 時，才允許換行 */
-      /* 這個簡單的 CSS 覆蓋不會影響 JavaScript 彈窗的啟動 */
-      .mobile-card-mode tbody td {
-          white-space: normal !important;
-      }
-
-      /* 3. 確保彈窗容器有捲軸，不會擠壓內容 */
-      .modal-body {
-          overflow-x: auto !important;
-          -webkit-overflow-scrolling: touch;
-      }
 /* --- 優化：電腦版隱視切換按鈕 --- */
 @media (min-width: 901px) {
     /* 隱藏店長端與員工端的檢視切換按鈕 */
