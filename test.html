@@ -16,7 +16,6 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
-      /* --- 1. 基礎樣式 (完全繼承測試版) --- */
       body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; }
       .main-container { max-width: 1400px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
       #loginSection { max-width: 400px; margin: 100px auto; text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
@@ -26,39 +25,50 @@
       .row-error { background-color: #ffe6e6 !important; }
       .row-warning { background-color: #fff3cd !important; }
       .msg-box { font-size: 0.85em; font-weight: bold; line-height: 1.3; display: block; min-height: 18px; }
+      .text-err { color: #dc3545; } .text-warn { color: #856404; }
       #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.85); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
       .diff-pos { color: green; font-weight: bold; } 
       .diff-neg { color: red; font-weight: bold; }
       .view-btn.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+      .filter-group { display: flex; align-items: center; margin-right: 15px; }
+      .custom-select-day { width: 100px !important; }
+      .custom-select-name { width: 160px !important; }
       #liveSummaryBar { background-color: #fff3cd; border: 1px solid #ffecb5; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; display: none; font-size: 1rem; color: #664d03; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+      .swal2-container { z-index: 100000 !important; }
       .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
-      #personalStats { background: transparent; padding: 0; margin-bottom: 20px; }
+      #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
 
-      /* --- 2. 電腦版統計方塊樣式 (配合 JS 產出) --- */
-      .stat-card-container { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; }
-      .stat-card-box { background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; min-width: 120px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex: 1; max-width: 200px; }
-      .stat-card-box .label { display: block; font-size: 0.85rem; color: #6c757d; margin-bottom: 5px; }
-      .stat-card-box .value { font-size: 1.3rem; font-weight: bold; color: #212529; }
-      .stat-card-box .diff { font-size: 0.85rem; margin-left: 4px; }
-      .ot-summary-box { width: 100%; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 15px; color: #dc3545; font-weight: bold; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-
-      /* --- 3. 電腦版表格專用 (螢幕 > 900px) --- */
+      /* ========================================= */
+      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
+      /* ========================================= */
       @media (min-width: 901px) {
-          #indivTableBody td, #personalTableBody td { vertical-align: middle; white-space: nowrap; font-size: 0.9rem; padding: 6px 4px; }
-          /* 特例：長文字欄位自動換行 */
-          #indivTableBody td:nth-child(12), #indivTableBody td:nth-child(13),
-          #personalTableBody td:nth-child(11), #personalTableBody td:nth-child(12) {
-              white-space: normal !important; word-break: break-all; min-width: 100px; max-width: 180px; line-height: 1.4;
+          #indivTableBody td, #personalTableBody td {
+              vertical-align: middle;
+              white-space: nowrap; 
+              font-size: 0.9rem;
+              padding: 6px 4px;
           }
-          .mobile-btn-container { display: none !important; }
-      }
 
-      /* --- 4. 手機模式 (螢幕 <= 900px) --- */
+          #indivTableBody td:nth-child(14), 
+          #indivTableBody td:nth-child(15),
+          #personalTableBody td:nth-child(14) {
+              white-space: normal !important;
+              word-break: break-word;
+              min-width: 100px;
+              max-width: 160px;
+              line-height: 1.4;
+              font-size: 0.85rem;
+          }
+      } /* 修正：補上原本缺少的結束大括號 */
+
+      /* ========================================= */
+      /* 2. 手機模式 (螢幕 <= 900px) */
+      /* ========================================= */
       @media (max-width: 900px) {
           /* 手機排班介面 (Step 1) */
           #scheduleForm thead { display: none !important; }
-          #staffTable tr { display: flex !important; flex-wrap: wrap !important; background: #fff; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
+          #staffTable tr { display: flex !important; flex-wrap: wrap !important; background: #fff; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 10px; }
           #staffTable td { border: none !important; padding: 4px !important; position: relative !important; display: block !important; }
           #staffTable td:nth-child(1) { width: 60% !important; font-size: 1.1rem !important; border-bottom: 1px solid #eee !important; }
           #staffTable td:nth-child(2) { width: 40% !important; text-align: right !important; border-bottom: 1px solid #eee !important; }
@@ -68,36 +78,97 @@
           #staffTable td:nth-child(5)::before { content: '休息'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
           #staffTable td:nth-child(6) { width: 50% !important; padding-top: 24px !important; }
           #staffTable td:nth-child(6)::before { content: '應有(H)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #0d6efd; font-weight: bold; }
-          #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; height: 38px !important; }
+          #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
+          #staffTable td:nth-child(7) { width: 100% !important; }
 
-          /* 月統計與系統狀態卡片 */
-          table.mobile-card-mode thead, #statsModal table thead { display: none !important; }
-          table.mobile-card-mode tbody tr, #statsModal table tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; padding: 10px; }
-          table.mobile-card-mode tbody td, #statsModal table tbody td { display: flex !important; justify-content: space-between; align-items: center; border: none !important; padding: 8px 0 !important; border-bottom: 1px dashed #eee !important; white-space: normal !important; }
-          table.mobile-card-mode tbody td::before, #statsModal table tbody td::before { content: attr(data-label); font-weight: bold; color: #666; min-width: 100px; text-align: left; }
-          
-          /* 月統計特定標籤補齊 */
-          #statsTableMonthly td:nth-child(1)::before { content: "姓名"; }
-          #statsTableMonthly td:nth-child(2)::before { content: "應有時數(差)"; }
-          #statsTableMonthly td:nth-child(3)::before { content: "休(差)"; }
-          #statsTableMonthly td:nth-child(4)::before { content: "例(差)"; }
-          #statsTableMonthly td:nth-child(5)::before { content: "國定(差)"; }
-          #statsTableMonthly td:nth-child(6)::before { content: "空班"; }
+          /* 補回月統計卡片式樣式 (Step 2) */
+          #statsTarget { flex-direction: column; align-items: flex-start !important; }
+          #statsModal table thead { display: none !important; }
+          #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
+          #statsModal table tbody td { display: flex !important; align-items: center !important; border: none !important; padding: 8px 0 !important; border-bottom: 1px dashed #eee !important; }
+          #statsModal table tbody td::before { margin-right: auto; padding-right: 10px; font-weight: bold; color: #666; }
+          #statsTableMonthly td:nth-child(1), #statsTableHourly td:nth-child(1) { justify-content: center !important; font-size: 1.2rem; color: #0d6efd; border-bottom: 2px solid #eee !important; }
+          #statsTableMonthly td:nth-child(1)::before, #statsTableHourly td:nth-child(1)::before { content: none !important; }
+          #statsTableMonthly td:nth-child(2)::before { content: '應有時數 (差):'; }
+          #statsTableMonthly td:nth-child(3)::before { content: '休假 (差):'; }
+          #statsTableMonthly td:nth-child(4)::before { content: '例假 (差):'; }
+          #statsTableMonthly td:nth-child(5)::before { content: '國定假 (差):'; }
+          #statsTableMonthly td:nth-child(6)::before { content: '空班:'; }
+          #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; }
 
-          /* 統計卡片佈局 (儀表板感) */
+          /* 卡片式表格通用樣式 */
+          table.mobile-card-mode thead { display: none !important; }
+          table.mobile-card-mode tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; position: relative; }
+          table.mobile-card-mode tbody td { display: flex !important; justify-content: space-between; align-items: center; border: none !important; padding: 8px 0 !important; font-size: 0.95rem; text-align: right; border-bottom: 1px dashed #eee !important; min-height: 32px; width: 100% !important; box-sizing: border-box; white-space: normal !important; word-break: break-word; }
+          table.mobile-card-mode tbody td:last-child { border-bottom: none !important; }
+          table.mobile-card-mode tbody td::before { content: attr(data-label); font-weight: bold; color: #666; text-align: left; margin-right: 15px; min-width: 100px; flex-shrink: 0; }
+          table.mobile-card-mode tbody td:nth-child(1) { background-color: #f8f9fa; margin: -10px -10px 10px -10px !important; padding: 10px 15px !important; border-bottom: 2px solid #e9ecef !important; font-weight: bold; font-size: 1.1rem; justify-content: center; color: #333; width: calc(100% + 20px) !important; }
+          table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
+
+          /* 統計卡片佈局 */
           .stat-grid-mobile { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
           .stat-card-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; padding: 12px 8px; border-radius: 8px; border: 1px solid #e9ecef; }
-          .stat-card-label { font-size: 0.85rem; color: #6c757d; margin-bottom: 4px; }
+          .stat-card-label { font-size: 0.85rem; color: #6c757d; margin-bottom: 4px; font-weight: normal; }
           .stat-card-value { font-size: 1.25rem; font-weight: bold; color: #212529; line-height: 1.2; }
           .val-highlight { color: #0d6efd; }
+          .stat-card-diff { font-size: 0.8rem; margin-left: 4px; }
       }
 
-      /* --- 5. 通用輔助 --- */
+      /* ========================================= */
+      /* 3. 通用輔助樣式 */
+      /* ========================================= */
       .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; border: 1px solid #eee; }
+      .text-time-h { color: #0d6efd; font-weight: bold; }
+      .stat-box-row { background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 10px; line-height: 1.8; }
       .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
-</style>
+      /* ========================================= */
+      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
+      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
+      /* ========================================= */
+      
+      /* 1. 基礎表格格線與對齊 */
+      table:not(.mobile-card-mode) #indivTableBody td, 
+      table:not(.mobile-card-mode) #personalTableBody td {
+          vertical-align: middle !important;
+          white-space: nowrap; 
+          font-size: 0.9rem;
+          padding: 6px 4px;
+      }
+
+      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
+      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
+          white-space: normal !important;
+          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
+          
+          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
+          min-width: 100px !important;  
+          max-width: 180px !important;
+          
+          line-height: 1.4;
+          font-size: 0.85rem;
+          vertical-align: top !important;
+      }
+/* --- 優化：電腦版隱視切換按鈕 --- */
+@media (min-width: 901px) {
+    /* 隱藏店長端與員工端的檢視切換按鈕 */
+    .mobile-btn-container {
+        display: none !important;
+    }
+}
+
+/* 確保在手機版（小於等於 900px）時正常顯示 */
+@media (max-width: 900px) {
+    .mobile-btn-container {
+        display: flex !important;
+    }
+}
+    </style>
 </head>
   <body>
     <div id="loadingOverlay"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div><h5 class="mt-3 text-dark fw-bold" id="loadingText">系統載入中...</h5></div>
@@ -747,8 +818,37 @@
          new bootstrap.Modal(document.getElementById('statsModal')).show();
       }
       function showIndividualStatus() {
-         const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
-      }
+    // 1. 安全檢查：確保有資料才執行
+    if (!currentData || currentData.length === 0) {
+        Swal.fire('提示', '目前尚無班表資料', 'info');
+        return;
+    }
+
+    // 2. 初始化選單
+    const select = document.getElementById('indivSelect');
+    if (select) {
+        select.innerHTML = '';
+        // 抓取不重複姓名
+        const names = [...new Set(currentData.map(r => r.name))];
+        names.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = n;
+            opt.textContent = n;
+            select.appendChild(opt);
+        });
+    }
+
+    // 3. 預先渲染表格內容
+    renderIndividualTable();
+
+    // 4. 強制喚起 Modal (使用原生 Bootstrap 實體化方法，防止反應失效)
+    const modalEl = document.getElementById('indivModal');
+    let modalInstance = bootstrap.Modal.getInstance(modalEl); // 檢查是否已存在實體
+    if (!modalInstance) {
+        modalInstance = new bootstrap.Modal(modalEl); // 不存在則建立
+    }
+    modalInstance.show(); // 顯示視窗
+}
       // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
       // ==========================================
