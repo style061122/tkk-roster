@@ -1123,39 +1123,15 @@
         `;
 
         pData.forEach(r => {
-           let startVal = r.input_start;
+           let startVal = r.input_start; // 原始輸入上班時間
+           let endVal = r.input_end;     // 原始輸入下班時間 (這裡就是 20:00)
            let hVal = parseFloat(r.calc_hours) || 0;
-           let zVal = parseFloat(r.input_est_overtime) || 0;
-           let aaVal = parseFloat(r.calc_excess) || 0;
-           let restVal = parseFloat(r.input_rest) || 0;
            let status = r.input_status;
 
-           let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
-           
-           if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
-               let startMin = timeToFloat(startVal) * 60;
-               let restMin = restVal * 60;
-
-               if (hVal > 0 || status === '上班') {
-                   let duration = (hVal * 60);
-                   if (status === '上班') duration += restMin;
-                   let endH = startMin + duration;
-                   if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
-                   startMin = endH;
-               }
-               if (zVal > 0) {
-                   let duration = (zVal * 60);
-                   if (['休', '國'].includes(status)) duration += restMin;
-                   let endZ = startMin + duration;
-                   strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
-                   startMin = endZ;
-               }
-               if (aaVal > 0) {
-                   let duration = (aaVal * 60);
-                   if (['例', '空班'].includes(status)) duration += restMin;
-                   let endAA = startMin + duration;
-                   strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
-               }
+           // 直接顯示原始時間，不再計算
+           let strRangeH = "-";
+           if (startVal && endVal && (hVal > 0 || status === '上班')) {
+               strRangeH = `${startVal}~${endVal}`;
            }
 
            let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : "";
