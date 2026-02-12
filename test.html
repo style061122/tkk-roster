@@ -818,37 +818,7 @@
          new bootstrap.Modal(document.getElementById('statsModal')).show();
       }
       function showIndividualStatus() {
-    // 1. 安全檢查：確保有資料才執行
-    if (!currentData || currentData.length === 0) {
-        Swal.fire('提示', '目前尚無班表資料', 'info');
-        return;
-    }
-
-    // 2. 初始化選單
-    const select = document.getElementById('indivSelect');
-    if (select) {
-        select.innerHTML = '';
-        // 抓取不重複姓名
-        const names = [...new Set(currentData.map(r => r.name))];
-        names.forEach(n => {
-            const opt = document.createElement('option');
-            opt.value = n;
-            opt.textContent = n;
-            select.appendChild(opt);
-        });
-    }
-
-    // 3. 預先渲染表格內容
-    renderIndividualTable();
-
-    // 4. 強制喚起 Modal (使用原生 Bootstrap 實體化方法，防止反應失效)
-    const modalEl = document.getElementById('indivModal');
-    let modalInstance = bootstrap.Modal.getInstance(modalEl); // 檢查是否已存在實體
-    if (!modalInstance) {
-        modalInstance = new bootstrap.Modal(modalEl); // 不存在則建立
-    }
-    modalInstance.show(); // 顯示視窗
-}
+         const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
       // ==========================================
