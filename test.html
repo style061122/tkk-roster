@@ -951,18 +951,23 @@
                   let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
                   let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${wDay})`;
 
-                  // --- 核心修改：直接讀取原始輸入的時間欄位 ---
-                  let startVal = r.input_start; // 店長輸入的上班時間
-                  let endVal = r.input_end;     // 店長輸入的下班時間
+                  let startVal = r.input_start; // 上班
+                  let endVal = r.input_end;     // 下班
                   let hVal = parseFloat(r.calc_hours) || 0;
+                  let restVal = parseFloat(r.input_rest || r.rest || 0); // 休息時間
                   let status = r.input_status;
 
-                  let strRangeH = "-"; // 預設為無
+                  let strRangeH = "-";
 
-                  // 只有在有輸入時間，且狀態是上班或有時數時才顯示區間
-                  if (startVal && endVal && (hVal > 0 || status === '上班')) {
-                      strRangeH = `${startVal}~${endVal}`;
-                  } 
+                  // 如果顯示不正確，我們在此重新手動推算正確的結束時間
+                  if (startVal && (hVal > 0 || status === '上班')) {
+                      let startMin = timeToFloat(startVal) * 60;
+                      // 正確結束時間 = 開始 + 應有(H) + 休息(G)
+                      let totalDurationMin = (hVal * 60) + (restVal * 60);
+                      let endMin = startMin + totalDurationMin;
+                      
+                      strRangeH = `${startVal}~${formatMinToTime(endMin)}`;
+                  }
                   // 處理特殊狀況：如「休/例/國」但店長有填時間算加班
                   else if (startVal && endVal && hVal === 0 && ['休', '例', '國', '空班'].includes(status)) {
                       // 如果需要顯示加班的區間，也可以在此處決定是否顯示
