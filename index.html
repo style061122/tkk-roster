@@ -38,6 +38,165 @@
       .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
+     /* ========================================= */
+      /* ★ 統計方塊：全體通用與電腦版加大樣式 ★ */
+      /* ========================================= */
+      .stat-grid-mobile { 
+          display: grid; 
+          grid-template-columns: repeat(4, 1fr); /* 電腦版預設 4 欄並排 */
+          gap: 15px; 
+      }
+      .stat-card-item { 
+          display: flex; 
+          flex-direction: column; 
+          align-items: center; 
+          justify-content: center; 
+          background: #f8f9fa; 
+          border-radius: 10px; 
+          border: 1px solid #e9ecef; 
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+          transition: all 0.3s ease;
+      }
+
+      /* ↓↓↓ 請務必補上這段，電腦版字才會夠大 ↓↓↓ */
+      @media (min-width: 901px) {
+          .stat-card-item { padding: 25px 15px; min-height: 120px; }
+          .stat-card-label { font-size: 1.1rem; color: #6c757d; margin-bottom: 10px; font-weight: bold; }
+          .stat-card-value { font-size: 1.8rem; font-weight: 900; color: #212529; line-height: 1.2; }
+          .stat-card-diff { font-size: 1rem; margin-left: 5px; }
+      }
+
+      /* ↓↓↓ 原本手機版的字體大小要移到這裡，才不會影響到電腦版 ↓↓↓ */
+      @media (max-width: 900px) {
+          .stat-grid-mobile { grid-template-columns: 1fr 1fr; gap: 10px; } 
+          .stat-card-item { padding: 12px 8px; }
+          .stat-card-label { font-size: 0.85rem; color: #6c757d; margin-bottom: 4px; }
+          .stat-card-value { font-size: 1.25rem; font-weight: bold; color: #212529; }
+          .stat-card-diff { font-size: 0.8rem; margin-left: 4px; }
+      }
+
+      /* 確保高亮顏色全體套用 */
+      .val-highlight { color: #0d6efd !important; }
+      /* ========================================= */
+      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
+      /* ========================================= */
+      @media (min-width: 901px) {
+          #indivTableBody td, #personalTableBody td {
+              vertical-align: middle;
+              white-space: nowrap; 
+              font-size: 0.9rem;
+              padding: 6px 4px;
+          }
+
+          #indivTableBody td:nth-child(14), 
+          #indivTableBody td:nth-child(15),
+          #personalTableBody td:nth-child(14) {
+              white-space: normal !important;
+              word-break: break-word;
+              min-width: 100px;
+              max-width: 160px;
+              line-height: 1.4;
+              font-size: 0.85rem;
+          }
+      } /* 修正：補上原本缺少的結束大括號 */
+
+      /* ========================================= */
+      /* 2. 手機模式 (螢幕 <= 900px) */
+      /* ========================================= */
+      @media (max-width: 900px) {
+          /* 手機排班介面 (Step 1) */
+          #scheduleForm thead { display: none !important; }
+          #staffTable tr { display: flex !important; flex-wrap: wrap !important; background: #fff; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 10px; }
+          #staffTable td { border: none !important; padding: 4px !important; position: relative !important; display: block !important; }
+          #staffTable td:nth-child(1) { width: 60% !important; font-size: 1.1rem !important; border-bottom: 1px solid #eee !important; }
+          #staffTable td:nth-child(2) { width: 40% !important; text-align: right !important; border-bottom: 1px solid #eee !important; }
+          #staffTable td:nth-child(3), #staffTable td:nth-child(4), #staffTable td:nth-child(5) { width: 50% !important; padding-top: 24px !important; }
+          #staffTable td:nth-child(3)::before { content: '上班'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
+          #staffTable td:nth-child(4)::before { content: '下班'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
+          #staffTable td:nth-child(5)::before { content: '休息'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
+          #staffTable td:nth-child(6) { width: 50% !important; padding-top: 24px !important; }
+          #staffTable td:nth-child(6)::before { content: '應有(H)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #0d6efd; font-weight: bold; }
+          #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
+          #staffTable td:nth-child(7) { width: 100% !important; }
+
+          /* 補回月統計卡片式樣式 (Step 2) */
+          #statsTarget { flex-direction: column; align-items: flex-start !important; }
+          #statsModal table thead { display: none !important; }
+          #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
+          #statsModal table tbody td { display: flex !important; align-items: center !important; border: none !important; padding: 8px 0 !important; border-bottom: 1px dashed #eee !important; }
+          #statsModal table tbody td::before { margin-right: auto; padding-right: 10px; font-weight: bold; color: #666; }
+          #statsTableMonthly td:nth-child(1), #statsTableHourly td:nth-child(1) { justify-content: center !important; font-size: 1.2rem; color: #0d6efd; border-bottom: 2px solid #eee !important; }
+          #statsTableMonthly td:nth-child(1)::before, #statsTableHourly td:nth-child(1)::before { content: none !important; }
+          #statsTableMonthly td:nth-child(2)::before { content: '應有時數 (差):'; }
+          #statsTableMonthly td:nth-child(3)::before { content: '休假 (差):'; }
+          #statsTableMonthly td:nth-child(4)::before { content: '例假 (差):'; }
+          #statsTableMonthly td:nth-child(5)::before { content: '國定假 (差):'; }
+          #statsTableMonthly td:nth-child(6)::before { content: '空班:'; }
+          #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; }
+
+          /* 卡片式表格通用樣式 */
+          table.mobile-card-mode thead { display: none !important; }
+          table.mobile-card-mode tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; position: relative; }
+          table.mobile-card-mode tbody td { display: flex !important; justify-content: space-between; align-items: center; border: none !important; padding: 8px 0 !important; font-size: 0.95rem; text-align: right; border-bottom: 1px dashed #eee !important; min-height: 32px; width: 100% !important; box-sizing: border-box; white-space: normal !important; word-break: break-word; }
+          table.mobile-card-mode tbody td:last-child { border-bottom: none !important; }
+          table.mobile-card-mode tbody td::before { content: attr(data-label); font-weight: bold; color: #666; text-align: left; margin-right: 15px; min-width: 100px; flex-shrink: 0; }
+          table.mobile-card-mode tbody td:nth-child(1) { background-color: #f8f9fa; margin: -10px -10px 10px -10px !important; padding: 10px 15px !important; border-bottom: 2px solid #e9ecef !important; font-weight: bold; font-size: 1.1rem; justify-content: center; color: #333; width: calc(100% + 20px) !important; }
+          table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
+      }
+      /* ========================================= */
+      /* 3. 通用輔助樣式 */
+      /* ========================================= */
+      .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; border: 1px solid #eee; }
+      .text-time-h { color: #0d6efd; font-weight: bold; }
+      .stat-box-row { background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 10px; line-height: 1.8; }
+      .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
+      .color-h { color: #0d6efd !important; font-weight: bold; }
+      .color-err { color: #dc3545 !important; font-weight: bold; }
+      /* ========================================= */
+      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
+      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
+      /* ========================================= */
+      
+      /* 1. 基礎表格格線與對齊 */
+      table:not(.mobile-card-mode) #indivTableBody td, 
+      table:not(.mobile-card-mode) #personalTableBody td {
+          vertical-align: middle !important;
+          white-space: nowrap; 
+          font-size: 0.9rem;
+          padding: 6px 4px;
+      }
+
+      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
+      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
+          white-space: normal !important;
+          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
+          
+          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
+          min-width: 100px !important;  
+          max-width: 180px !important;
+          
+          line-height: 1.4;
+          font-size: 0.85rem;
+          vertical-align: top !important;
+      }
+/* --- 優化：電腦版隱視切換按鈕 --- */
+@media (min-width: 901px) {
+    /* 隱藏店長端與員工端的檢視切換按鈕 */
+    .mobile-btn-container {
+        display: none !important;
+    }
+}
+
+/* 確保在手機版（小於等於 900px）時正常顯示 */
+@media (max-width: 900px) {
+    .mobile-btn-container {
+        display: flex !important;
+    }
+}
     </style>
 </head>
   <body>
@@ -80,7 +239,7 @@
        <h5 class="text-center text-secondary mb-4" id="personalNameDisplay">載入中...</h5>
        <div id="personalStats"></div>
        <div class="table-responsive">
-           <table class="table table-bordered table-hover table-striped">
+           <table class="table table-bordered table-hover table-striped mobile-card-mode">
                <thead><tr><th style="width: 8%">日期</th><th style="width: 8%">班表狀態</th><th style="width: 10%">排班時間</th><th style="width: 6%">應有時數<br>(H)</th><th style="width: 8%">系統狀態<br>(I)</th><th style="width: 10%">實際打卡<br>(上班/下班)</th><th style="width: 10%">請假時間<br>(L)</th><th style="width: 8%">假別<br>(M)</th><th style="width: 10%">加班時間<br>(N)</th><th style="width: 6%">加班時數<br>(O)</th><th style="width: 10%">異常<br>(P)</th></tr></thead>
                <tbody id="personalTableBody"></tbody>
            </table>
@@ -110,7 +269,7 @@
                 <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
             </div>
             <div class="table-responsive">
-              <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;">
+              <table class="table table-sm table-striped table-bordered text-center mobile-card-mode" style="font-size: 0.9em;">
                 <thead class="table-dark"><tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr></thead>
                 <tbody id="indivTableBody"></tbody>
               </table>
@@ -690,7 +849,7 @@
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
-        // ==========================================
+      // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
       // ==========================================
       function renderPersonalPage(data) {
@@ -703,49 +862,155 @@
               const meta = data.meta;
               document.getElementById('personalNameDisplay').innerText = `${meta.year}年 ${meta.month}月 - ${data.name}`;
               
-              // 結算提示
               let nextMonth = (parseInt(meta.month) % 12) + 1;
               let closeDay = meta.closingDay || 1; 
               let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，屆時將自動重置並產生隔月排班資料。`;
               document.getElementById('personalClosingNotice').innerText = noticeText;
 
               let totalOvertime = 0;
+              let totalZ = 0;
+              let totalAA = 0;
+
               if (data.data) {
-                 data.data.forEach(r => { let otVal = parseFloat(r.sys_overtimeHrs); if (!isNaN(otVal)) totalOvertime += otVal; });
+                 data.data.forEach(r => { 
+                     let o = parseFloat(r.sys_overtimeHrs); if (!isNaN(o)) totalOvertime += o; 
+                     let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) totalZ += z;
+                     let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
+                 });
               }
-              const s = data.stats;
-              let leftContent = data.isHourly 
-                  ? `累計應有：${s.hrs.toFixed(1)} | 休：${s.rest} | 例：${s.reg} | 國：${s.nat}`
-                  : `應有：${s.hrs.toFixed(1)} (${formatDiff(s.hrs - meta.hrs)}) | 休：${s.rest} (${formatDiff(s.rest - meta.rest)}) | 例：${s.reg} (${formatDiff(s.reg - meta.reg)}) | 國：${s.nat} (${formatDiff(s.nat - meta.nat)})`;
-              let rightContent = totalOvertime > 0 ? `已申請加班總時數: ${totalOvertime.toFixed(1)}` : "";
-              const finalLeftContent = (data.isStoreStaff) ? leftContent : "";
-              document.getElementById('personalStats').innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap"><div class="text-center flex-grow-1">${finalLeftContent}</div><div class="text-danger fw-bold" style="min-width: 200px; text-align: right;">${rightContent}</div></div>`;
               
+              const s = data.stats;
+              
+              // ★★★ 核心修改：加入括號與間距，解決 40 問題 (同步店長端) ★★★
+              let statsHtmlStr = "";
+              if (data.isHourly) {
+    statsHtmlStr = `
+        <div class="stat-grid-mobile">
+            <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span></div>
+            <div class="stat-card-item"><span class="stat-card-label">休息日</span><span class="stat-card-value">${s.rest}</span></div>
+            <div class="stat-card-item"><span class="stat-card-label">例假日</span><span class="stat-card-value">${s.reg}</span></div>
+            <div class="stat-card-item"><span class="stat-card-label">國定假</span><span class="stat-card-value">${s.nat}</span></div>
+        </div>`;
+} else {
+    statsHtmlStr = `
+        <div class="stat-grid-mobile">
+            <div class="stat-card-item"><span class="stat-card-label">應有工時</span><div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span><span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span></div></div>
+            <div class="stat-card-item"><span class="stat-card-label">休假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.rest}</span><span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span></div></div>
+            <div class="stat-card-item"><span class="stat-card-label">例假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.reg}</span><span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span></div></div>
+            <div class="stat-card-item"><span class="stat-card-label">國定假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.nat}</span><span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span></div></div>
+        </div>`;
+}
+              
+              let row2Html = `
+                  <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                      <span class="text-danger fs-5"><strong>已申請加班(O): ${totalOvertime.toFixed(1)}</strong></span>
+                  </div>
+              `;
+
+              let btnRow = `
+                  <div class="mobile-btn-container">
+                      <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#personalSection table', this)">🖥️ 電腦版檢視</button>
+                  </div>
+              `;
+
+              document.getElementById('personalStats').innerHTML = `
+                  <div class="d-flex flex-column w-100">
+                      <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
+                      <div class="stat-box-row">${row2Html}</div>
+                      ${btnRow}
+                  </div>
+              `;
+              
+              const thead = document.querySelector('#personalSection table thead');
+              const pTable = document.querySelector('#personalSection table');
+              if(pTable) pTable.classList.add('mobile-card-mode');
+              
+              thead.innerHTML = `
+                  <tr>
+                      <th>日期</th>
+                      <th>狀態(D)</th>
+                      <th style="min-width:100px;">排班時間</th>
+                      <th>應有(H)</th>
+                      <th>系統狀態</th>
+                      <th>上班卡</th>
+                      <th>下班卡</th>
+                      <th>請假</th>
+                      <th>假別</th>
+                      <th>加班</th>
+                      <th>加班時數</th>
+                      <th>異常</th>
+                  </tr>
+              `;
+
               const tbody = document.getElementById('personalTableBody');
               tbody.innerHTML = "";
-              if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='11' class='text-muted'>本月無資料</td></tr>"; return; }
+              
+              if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='14' class='text-muted'>本月無資料</td></tr>"; return; }
+              
               data.data.forEach(r => {
-                 let dPart = r.date.split('/')[2] + "日";
-                 let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
-                 let planTime = (r.input_status === '上班' && r.input_start) ? `${r.input_start}~${r.input_end}` : "";
-                 let clockStr = (r.sys_clockIn || r.sys_clockOut) ? `${formatTime(r.sys_clockIn)}<br>${formatTime(r.sys_clockOut)}` : "";
-                 let abnormalStr = r.sys_abnormal ? `<span class="badge badge-abnormal">${r.sys_abnormal}</span>` : "";
-                 let leaveType = r.sys_leaveType ? `<span class="badge badge-leave">${r.sys_leaveType}</span>` : "";
-                 const tr = document.createElement('tr');
-                 tr.innerHTML = `
-                   <td class="fw-bold">${dPart}<br><small class="text-muted">${wDay}</small></td>
-                   <td class="fw-bold text-primary">${r.input_status}</td>
-                   <td>${planTime}</td>
-                   <td class="fw-bold">${formatNumber(r.calc_hours)}</td>
-                   <td>${r.sys_status}</td>
-                   <td>${clockStr}</td>
-                   <td>${formatTime(r.sys_leave)}</td>
-                   <td>${leaveType}</td>
-                   <td>${formatTime(r.sys_overtime)}</td>
-                   <td>${r.sys_overtimeHrs || ""}</td>
-                   <td>${abnormalStr}</td>
-                 `;
-                 tbody.appendChild(tr);
+                  let dPart = r.date.split('/')[2] + "日";
+                  let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
+                  let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${wDay})`;
+
+                  let startVal = r.input_start;
+                  let hVal = parseFloat(r.calc_hours) || 0;
+                  let zVal = parseFloat(r.input_est_overtime) || 0;
+                  let aaVal = parseFloat(r.calc_excess) || 0;
+                  
+                  let restVal = parseFloat(r.input_rest || r.rest || r.g) || 0; 
+                  
+                  let status = r.input_status;
+
+                  let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
+           
+                  if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
+                       let startMin = timeToFloat(startVal) * 60;
+                       let restMin = restVal * 60;
+
+                       if (hVal > 0 || status === '上班') {
+                           let duration = (hVal * 60);
+                           if (status === '上班') duration += restMin;
+                           let endH = startMin + duration;
+                           if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
+                           startMin = endH;
+                       }
+                       if (zVal > 0) {
+                           let duration = (zVal * 60);
+                           if (['休', '國'].includes(status)) duration += restMin;
+                           let endZ = startMin + duration;
+                           strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
+                           startMin = endZ;
+                       }
+                       if (aaVal > 0) {
+                           let duration = (aaVal * 60);
+                           if (['例', '空班'].includes(status)) duration += restMin;
+                           let endAA = startMin + duration;
+                           strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
+                       }
+                  }
+
+                  let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : "";
+                  let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
+                  let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : "";
+                  let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+
+                  const tr = document.createElement('tr');
+                  
+                  tr.innerHTML = `
+                    <td data-label="日期">${dateDisplay}</td>
+                    <td data-label="狀態(D)" class="color-h">${r.input_status}</td>
+                    <td data-label="排班時間" class="color-h">${strRangeH}</td>
+                    <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
+                    <td data-label="系統狀態">${r.sys_status}</td>
+                    <td data-label="上班卡">${sysIn}</td>
+                    <td data-label="下班卡">${sysOut}</td>
+                    <td data-label="請假">${sysLeaveRange}</td>
+                    <td data-label="假別">${r.sys_leaveType||""}</td>
+                    <td data-label="加班">${sysOtRange}</td>
+                    <td data-label="加班時數">${r.sys_overtimeHrs || ""}</td>
+                    <td data-label="異常" class="color-err">${r.sys_abnormal || ""}</td>
+                  `;
+                  tbody.appendChild(tr);
               });
           } catch(e) {
               alert("渲染錯誤: " + e.message);
@@ -758,60 +1023,167 @@
         const statsDiv = document.getElementById('indivStats');
         document.getElementById('qrCodeContainer').style.display = 'none';
         
-        // 篩選出該員工的資料
         const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
-        
         if (pData.length === 0) return;
 
-        // 判斷時薪/月薪
         const isHourly = (pData[0].salaryType && pData[0].salaryType.includes("時薪"));
-        let hrs=0, rest=0, reg=0, nat=0, totalOvertime=0;
-        
-        // ★★★ 核心修改 1：嘗試抓取該員工的金鑰 (取第一筆即可) ★★★
-        // 如果後端還沒傳 pKey (例如後端還沒部署新版)，這裡會拿到 undefined
+        let hrs=0, rest=0, reg=0, nat=0;
+        let totalZ=0, totalOvertime=0, totalAA=0; // 統一使用 totalOvertime
         let userKey = pData[0].pKey || ""; 
 
         pData.forEach(r => {
            let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h;
            if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++;
-           let otHrs = parseFloat(r.sys_overtimeHrs); if (!isNaN(otHrs)) totalOvertime += otHrs;
+           let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) totalZ += z;
+           let o = parseFloat(r.sys_overtimeHrs); if(!isNaN(o)) totalOvertime += o; // 這裡改為累加到 totalOvertime
+           let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
         });
         
         let otDisplay = document.getElementById("totalOvertimeDisplay");
-        if (otDisplay) { otDisplay.innerText = totalOvertime > 0 ? "已申請加班總時數: " + totalOvertime.toFixed(1) : ""; }
+        if (otDisplay) otDisplay.style.display = 'none'; 
         
-        // ★★★ 核心修改 2：根據有無金鑰來決定顯示什麼 ★★★
         let currentBaseUrl = window.location.href.split('?')[0]; 
         let btnHtml = "";
         let personalLink = "";
 
-        // 檢查金鑰是否存在且長度合理 (至少4碼)
         if (userKey && userKey.length > 3) {
-            // 有金鑰 -> 產生安全連結 (使用 key=...)
-            personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
-            btnHtml = `
-              <button class="btn btn-sm btn-outline-primary fw-bold me-2" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
-              <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 顯示QR碼</button>
-            `;
-        } else {
-            // 無金鑰 -> 顯示紅字警告，不給按鈕
-            btnHtml = `<span class="badge bg-danger">❌ 未產生金鑰，請至後端執行「產生連結總表」</span>`;
-        }
+        personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
+        btnHtml = `
+          <div class="mobile-btn-container">
+              <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+          </div>
+          <div class="d-flex gap-2 mt-2 justify-content-end">
+              <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
+              <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
+          </div>
+        `;
+    } else {
+        btnHtml = `
+          <div class="mobile-btn-container align-items-center">
+              <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+          </div>
+          <div class="d-flex justify-content-end mt-2">
+              <span class="badge bg-danger">❌ 無金鑰</span>
+          </div>`;
+    }
         
-        let statText = "";
+        // ★★★ 核心修改：加入括號與間距，解決 40 問題 ★★★
+        let statsHtmlStr = "";
         if (isHourly) {
-           statText = `<strong>累計應有：</strong>${hrs.toFixed(1)} | <strong>休：</strong>${rest} | <strong>例：</strong>${reg} | <strong>國：</strong>${nat}`;
-        } else {
-           statText = `<strong>應有：</strong>${hrs.toFixed(1)} (${formatDiff(hrs - monthlyTargets.hrs)}) | <strong>休：</strong>${rest} (${formatDiff(rest - monthlyTargets.rest)}) | <strong>例：</strong>${reg} (${formatDiff(reg - monthlyTargets.reg)}) | <strong>國：</strong>${nat} (${formatDiff(nat - monthlyTargets.nat)})`;
-        }
+    statsHtmlStr = `
+        <div class="stat-grid-mobile">
+            <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span></div>
+            <div class="stat-card-item"><span class="stat-card-label">休息日</span><span class="stat-card-value">${rest}</span></div>
+            <div class="stat-card-item"><span class="stat-card-label">例假日</span><span class="stat-card-value">${reg}</span></div>
+            <div class="stat-card-item"><span class="stat-card-label">國定假</span><span class="stat-card-value">${nat}</span></div>
+        </div>`;
+} else {
+    statsHtmlStr = `
+        <div class="stat-grid-mobile">
+            <div class="stat-card-item"><span class="stat-card-label">應有工時</span><div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${hrs.toFixed(1)}</span><span class="stat-card-diff">(${formatDiff(hrs - monthlyTargets.hrs)})</span></div></div>
+            <div class="stat-card-item"><span class="stat-card-label">休假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${rest}</span><span class="stat-card-diff">(${formatDiff(rest - monthlyTargets.rest)})</span></div></div>
+            <div class="stat-card-item"><span class="stat-card-label">例假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${reg}</span><span class="stat-card-diff">(${formatDiff(reg - monthlyTargets.reg)})</span></div></div>
+            <div class="stat-card-item"><span class="stat-card-label">國定假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${nat}</span><span class="stat-card-diff">(${formatDiff(nat - monthlyTargets.nat)})</span></div></div>
+        </div>`;
+}
         
-        // 組合畫面
-        statsDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center w-100 flex-wrap gap-2"><div style="white-space: nowrap;">${statText}</div><div>${btnHtml}</div></div>`;
+        let row2Html = `
+            <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                <span class="text-danger fs-5"><strong>已申請加班(O): ${totalOvertime.toFixed(1)}</strong></span>
+            </div>
+        `;
+
+        statsDiv.innerHTML = `
+            <div class="d-flex flex-column w-100">
+                <div class="stat-box-row" style="padding: 5px;">${statsHtmlStr}</div>
+                <div class="stat-box-row">${row2Html}</div>
+                ${btnHtml}
+            </div>`;
         
-        // 填入表格內容 (不變)
+        const thead = document.querySelector('#indivModal table thead');
+        const tableEl = document.querySelector('#indivModal table');
+        if(tableEl) tableEl.classList.add('mobile-card-mode');
+        
+        thead.innerHTML = `
+            <tr>
+                <th>日期</th>
+                <th>狀態(D)</th>
+                <th style="min-width:100px;">排班時間</th>
+                <th>應有(H)</th>
+                <th>系統狀態</th>
+                <th>上班卡</th>
+                <th>下班卡</th>
+                <th>請假</th>
+                <th>假別</th>
+                <th>加班</th>
+                <th>加班時數</th>
+                <th>異常</th>
+                <th>註記(Q)</th>
+            </tr>
+        `;
+
         pData.forEach(r => {
-           let planTimeStr = (r.input_start && String(r.input_start).trim() !== "") ? `${r.input_start}~${r.input_end}` : "";
-           tbody.innerHTML += `<tr><td>${r.date}</td><td class="fw-bold text-primary">${r.input_status}</td><td style="color: #0d6efd; font-weight: bold;">${planTimeStr}</td><td>${r.calc_hours}</td><td>${r.sys_status}</td><td>${r.sys_clockIn}</td><td>${r.sys_clockOut}</td><td>${r.sys_leave}</td><td>${r.sys_leaveType}</td><td>${r.sys_overtime}</td><td>${r.sys_overtimeHrs}</td><td>${r.sys_abnormal}</td><td>${r.log}</td></tr>`;
+           let startVal = r.input_start;
+           let hVal = parseFloat(r.calc_hours) || 0;
+           let zVal = parseFloat(r.input_est_overtime) || 0;
+           let aaVal = parseFloat(r.calc_excess) || 0;
+           let restVal = parseFloat(r.input_rest) || 0;
+           let status = r.input_status;
+
+           let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
+           
+           if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
+               let startMin = timeToFloat(startVal) * 60;
+               let restMin = restVal * 60;
+
+               if (hVal > 0 || status === '上班') {
+                   let duration = (hVal * 60);
+                   if (status === '上班') duration += restMin;
+                   let endH = startMin + duration;
+                   if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
+                   startMin = endH;
+               }
+               if (zVal > 0) {
+                   let duration = (zVal * 60);
+                   if (['休', '國'].includes(status)) duration += restMin;
+                   let endZ = startMin + duration;
+                   strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
+                   startMin = endZ;
+               }
+               if (aaVal > 0) {
+                   let duration = (aaVal * 60);
+                   if (['例', '空班'].includes(status)) duration += restMin;
+                   let endAA = startMin + duration;
+                   strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
+               }
+           }
+
+           let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : "";
+           let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
+           let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : "";
+           let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+           
+           let dateObj = new Date(r.date);
+           let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
+           let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${weekDay})`;
+
+           tbody.innerHTML += `
+               <tr>
+                   <td data-label="日期">${dateDisplay}</td>
+                   <td data-label="狀態(D)" class="color-h">${r.input_status}</td>
+                   <td data-label="排班時間" class="color-h">${strRangeH}</td>
+                   <td data-label="應有(H)" class="color-h">${r.calc_hours}</td>
+                   <td data-label="系統狀態">${r.sys_status}</td>
+                   <td data-label="上班卡">${sysIn}</td>
+                   <td data-label="下班卡">${sysOut}</td>
+                   <td data-label="請假">${sysLeaveRange}</td>
+                   <td data-label="假別">${r.sys_leaveType||""}</td>
+                   <td data-label="加班">${sysOtRange}</td>
+                   <td data-label="加班時數">${r.sys_overtimeHrs || ""}</td>
+                   <td data-label="異常" class="color-err">${r.sys_abnormal || ""}</td>
+                   <td data-label="註記(Q)" class="text-muted small">${r.log}</td>
+               </tr>
+           `;
         });
       }
       
@@ -845,6 +1217,33 @@
         if (!currentStore) return;
         const { value: formValues } = await Swal.fire({ title: '🔑 變更登入密碼', html: '<div class="text-start mb-2"><label class="fw-bold">目前舊密碼</label><input id="swal-input1" class="form-control" type="password"></div><div class="text-start mb-2"><label class="fw-bold text-primary">設定新密碼</label><input id="swal-input2" class="form-control" type="password"></div><div class="text-start"><label class="fw-bold text-primary">確認新密碼</label><input id="swal-input3" class="form-control" type="password"></div>', focusConfirm: false, showCancelButton: true, confirmButtonText: '確認變更', cancelButtonText: '取消', preConfirm: () => { const oldPwd = document.getElementById('swal-input1').value; const newPwd = document.getElementById('swal-input2').value; const cfmPwd = document.getElementById('swal-input3').value; if (!oldPwd || !newPwd || !cfmPwd) { Swal.showValidationMessage('請填寫所有欄位'); return false; } if (newPwd !== cfmPwd) { Swal.showValidationMessage('兩次新密碼輸入不一致'); return false; } return { oldPwd: oldPwd, newPwd: newPwd }; } });
         if (formValues) { showLoading(true, "更新密碼中..."); callApi('changePassword', { store: currentStore, oldPwd: formValues.oldPwd, newPwd: formValues.newPwd }).then(res => { showLoading(false); if (res.success) { Swal.fire({ icon: 'success', title: '成功', text: res.message }).then(() => logout()); } else { Swal.fire('變更失敗', res.message, 'error'); } }).catch(err => errorHandler(err)); }
+      }
+        function formatMinToTime(mins) {
+        if (isNaN(mins)) return "-";
+        while (mins >= 1440) mins -= 1440;
+        let h = Math.floor(mins / 60);
+        let m = Math.round(mins % 60);
+        return ("0" + h).slice(-2) + ":" + ("0" + m).slice(-2);
+        }
+      // ==========================================
+      // ★★★ 手機/電腦版檢視切換功能 ★★★
+      // ==========================================
+      function toggleViewMode(tableSelector, btn) {
+          const table = document.querySelector(tableSelector);
+          if (!table) return;
+          
+          table.classList.toggle('mobile-card-mode');
+          
+          // 根據狀態切換按鈕文字與樣式
+          if (table.classList.contains('mobile-card-mode')) {
+              btn.innerHTML = '🖥️ 電腦版檢視';
+              btn.classList.remove('btn-secondary');
+              btn.classList.add('btn-dark');
+          } else {
+              btn.innerHTML = '📱 手機版檢視';
+              btn.classList.remove('btn-dark');
+              btn.classList.add('btn-secondary');
+          }
       }
     </script>
   </body>
