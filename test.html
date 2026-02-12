@@ -819,6 +819,7 @@
       }
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
+      }
       // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
       // ==========================================
@@ -1010,7 +1011,7 @@
               alert("渲染錯誤: " + e.message);
           }
       }
-    function renderIndividualTable() {
+      function renderIndividualTable() {
         const name = document.getElementById('indivSelect').value;
         const tbody = document.getElementById('indivTableBody'); 
         tbody.innerHTML = '';
