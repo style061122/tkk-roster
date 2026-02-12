@@ -57,6 +57,26 @@
           box-shadow: 0 2px 4px rgba(0,0,0,0.02);
           transition: all 0.3s ease;
       }
+
+      /* ↓↓↓ 請務必補上這段，電腦版字才會夠大 ↓↓↓ */
+      @media (min-width: 901px) {
+          .stat-card-item { padding: 25px 15px; min-height: 120px; }
+          .stat-card-label { font-size: 1.1rem; color: #6c757d; margin-bottom: 10px; font-weight: bold; }
+          .stat-card-value { font-size: 1.8rem; font-weight: 900; color: #212529; line-height: 1.2; }
+          .stat-card-diff { font-size: 1rem; margin-left: 5px; }
+      }
+
+      /* ↓↓↓ 原本手機版的字體大小要移到這裡，才不會影響到電腦版 ↓↓↓ */
+      @media (max-width: 900px) {
+          .stat-grid-mobile { grid-template-columns: 1fr 1fr; gap: 10px; } 
+          .stat-card-item { padding: 12px 8px; }
+          .stat-card-label { font-size: 0.85rem; color: #6c757d; margin-bottom: 4px; }
+          .stat-card-value { font-size: 1.25rem; font-weight: bold; color: #212529; }
+          .stat-card-diff { font-size: 0.8rem; margin-left: 4px; }
+      }
+
+      /* 確保高亮顏色全體套用 */
+      .val-highlight { color: #0d6efd !important; }
       /* ========================================= */
       /* 1. 電腦版專用樣式 (螢幕 > 900px) */
       /* ========================================= */
