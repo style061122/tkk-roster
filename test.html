@@ -1042,21 +1042,25 @@
         let personalLink = "";
 
         if (userKey && userKey.length > 3) {
-            personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
-            btnHtml = `
-              <div class="mobile-btn-container">
-                  <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
-                  <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
-                  <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
-              </div>
-            `;
-        } else {
-            btnHtml = `
-              <div class="mobile-btn-container align-items-center">
-                  <span class="badge bg-danger me-auto">❌ 無金鑰</span>
-                  <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
-              </div>`;
-        }
+        personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
+        btnHtml = `
+          <div class="mobile-btn-container">
+              <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+          </div>
+          <div class="d-flex gap-2 mt-2 justify-content-end">
+              <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
+              <button class="btn btn-sm btn-success fw-bold" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
+          </div>
+        `;
+    } else {
+        btnHtml = `
+          <div class="mobile-btn-container align-items-center">
+              <button class="btn btn-sm btn-dark fw-bold" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+          </div>
+          <div class="d-flex justify-content-end mt-2">
+              <span class="badge bg-danger">❌ 無金鑰</span>
+          </div>`;
+    }
         
         // ★★★ 核心修改：加入括號與間距，解決 40 問題 ★★★
         let statsHtmlStr = "";
