@@ -16,6 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
+      /* --- 基礎樣式 (電腦版預設) --- */
       body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; }
       .main-container { max-width: 1400px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
       #loginSection { max-width: 400px; margin: 100px auto; text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
@@ -50,8 +51,11 @@
               padding: 6px 4px;
           }
 
+          /* 針對系統狀態長文字欄位優化 */
+          #indivTableBody td:nth-child(12), 
           #indivTableBody td:nth-child(14), 
           #indivTableBody td:nth-child(15),
+          #personalTableBody td:nth-child(12), 
           #personalTableBody td:nth-child(14) {
               white-space: normal !important;
               word-break: break-word;
@@ -60,28 +64,15 @@
               line-height: 1.4;
               font-size: 0.85rem;
           }
-      } /* 修正：補上原本缺少的結束大括號 */
-
-
-      /* ========================================= */
-      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
-      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
-      /* ========================================= */
-      
-      /* 1. 基礎表格格線與對齊 */
-      table:not(.mobile-card-mode) #indivTableBody td, 
-      table:not(.mobile-card-mode) #personalTableBody td {
-          vertical-align: middle !important;
-          white-space: nowrap; 
-          font-size: 0.9rem;
-          padding: 6px 4px;
+          /* 電腦版隱藏切換按鈕 */
+          .mobile-btn-container { display: none !important; }
       }
 
       /* ========================================= */
       /* 2. 手機模式 (螢幕 <= 900px) */
       /* ========================================= */
       @media (max-width: 900px) {
-          /* 手機排班介面 (Step 1) */
+          /* ★ 手機排班介面 (Step 1) ★ */
           #scheduleForm thead { display: none !important; }
           #staffTable tr { display: flex !important; flex-wrap: wrap !important; background: #fff; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 10px; }
           #staffTable td { border: none !important; padding: 4px !important; position: relative !important; display: block !important; }
@@ -96,12 +87,12 @@
           #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
           #staffTable td:nth-child(7) { width: 100% !important; }
 
-          /* 補回月統計卡片式樣式 (Step 2) */
+          /* ★ 補回月統計卡片式樣式 (Step 2) ★ */
           #statsTarget { flex-direction: column; align-items: flex-start !important; }
           #statsModal table thead { display: none !important; }
           #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
           #statsModal table tbody td { display: flex !important; align-items: center !important; border: none !important; padding: 8px 0 !important; border-bottom: 1px dashed #eee !important; }
-          #statsModal table tbody td::before { margin-right: auto; padding-right: 10px; font-weight: bold; color: #666; }
+          #statsModal table tbody td::before { content: attr(data-label); margin-right: auto; padding-right: 10px; font-weight: bold; color: #666; }
           #statsTableMonthly td:nth-child(1), #statsTableHourly td:nth-child(1) { justify-content: center !important; font-size: 1.2rem; color: #0d6efd; border-bottom: 2px solid #eee !important; }
           #statsTableMonthly td:nth-child(1)::before, #statsTableHourly td:nth-child(1)::before { content: none !important; }
           #statsTableMonthly td:nth-child(2)::before { content: '應有時數 (差):'; }
@@ -111,7 +102,7 @@
           #statsTableMonthly td:nth-child(6)::before { content: '空班:'; }
           #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; }
 
-          /* 卡片式表格通用樣式 */
+          /* ★ 卡片式表格通用樣式 ★ */
           table.mobile-card-mode thead { display: none !important; }
           table.mobile-card-mode tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; position: relative; }
           table.mobile-card-mode tbody td { display: flex !important; justify-content: space-between; align-items: center; border: none !important; padding: 8px 0 !important; font-size: 0.95rem; text-align: right; border-bottom: 1px dashed #eee !important; min-height: 32px; width: 100% !important; box-sizing: border-box; white-space: normal !important; word-break: break-word; }
@@ -120,7 +111,7 @@
           table.mobile-card-mode tbody td:nth-child(1) { background-color: #f8f9fa; margin: -10px -10px 10px -10px !important; padding: 10px 15px !important; border-bottom: 2px solid #e9ecef !important; font-weight: bold; font-size: 1.1rem; justify-content: center; color: #333; width: calc(100% + 20px) !important; }
           table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
 
-          /* 統計卡片佈局 */
+          /* ★ 統計卡片佈局 ★ */
           .stat-grid-mobile { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
           .stat-card-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; padding: 12px 8px; border-radius: 8px; border: 1px solid #e9ecef; }
           .stat-card-label { font-size: 0.85rem; color: #6c757d; margin-bottom: 4px; font-weight: normal; }
@@ -129,60 +120,13 @@
           .stat-card-diff { font-size: 0.8rem; margin-left: 4px; }
       }
 
-      /* ========================================= */
       /* 3. 通用輔助樣式 */
-      /* ========================================= */
       .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; border: 1px solid #eee; }
       .text-time-h { color: #0d6efd; font-weight: bold; }
       .stat-box-row { background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 10px; line-height: 1.8; }
       .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
-      /* ========================================= */
-      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
-      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
-      /* ========================================= */
-      
-      /* 1. 基礎表格格線與對齊 */
-      table:not(.mobile-card-mode) #indivTableBody td, 
-      table:not(.mobile-card-mode) #personalTableBody td {
-          vertical-align: middle !important;
-          white-space: nowrap; 
-          font-size: 0.9rem;
-          padding: 6px 4px;
-      }
-
-      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
-      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
-      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
-      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
-      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
-      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
-          white-space: normal !important;
-          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
-          
-          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
-          min-width: 100px !important;  
-          max-width: 180px !important;
-          
-          line-height: 1.4;
-          font-size: 0.85rem;
-          vertical-align: top !important;
-      }
-/* --- 優化：電腦版隱視切換按鈕 --- */
-@media (min-width: 901px) {
-    /* 隱藏店長端與員工端的檢視切換按鈕 */
-    .mobile-btn-container {
-        display: none !important;
-    }
-}
-
-/* 確保在手機版（小於等於 900px）時正常顯示 */
-@media (max-width: 900px) {
-    .mobile-btn-container {
-        display: flex !important;
-    }
-}
     </style>
 </head>
   <body>
