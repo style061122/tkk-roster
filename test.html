@@ -38,8 +38,8 @@
       .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
-      /* ========================================= */
-      /* 2. 手機模式 (螢幕 <= 900px) */
+        /* ========================================= */
+      /* ★★★ 新增：手機版 RWD 優化 (兩列式排版) ★★★ */
       /* ========================================= */
       @media (max-width: 900px) {
           /* 手機排班介面 (Step 1) */
@@ -72,47 +72,217 @@
           #statsTableMonthly td:nth-child(6)::before { content: '空班:'; }
           #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; }
 
-          /* 卡片式表格通用樣式 */
-          table.mobile-card-mode thead { display: none !important; }
-          table.mobile-card-mode tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; position: relative; }
-          table.mobile-card-mode tbody td { display: flex !important; justify-content: space-between; align-items: center; border: none !important; padding: 8px 0 !important; font-size: 0.95rem; text-align: right; border-bottom: 1px dashed #eee !important; min-height: 32px; width: 100% !important; box-sizing: border-box; white-space: normal !important; word-break: break-word; }
-          table.mobile-card-mode tbody td:last-child { border-bottom: none !important; }
-          table.mobile-card-mode tbody td::before { content: attr(data-label); font-weight: bold; color: #666; text-align: left; margin-right: 15px; min-width: 100px; flex-shrink: 0; }
-          table.mobile-card-mode tbody td:nth-child(1) { background-color: #f8f9fa; margin: -10px -10px 10px -10px !important; padding: 10px 15px !important; border-bottom: 2px solid #e9ecef !important; font-weight: bold; font-size: 1.1rem; justify-content: center; color: #333; width: calc(100% + 20px) !important; }
-          table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
+      /* 手機版微調：讓表格標題不要換行，內容可滑動 */
+      @media (max-width: 900px) {
+          #statsModal .table-responsive {
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+          }
+          .stat-badge { 
+              display: block; /* 手機上變垂直排列，更清楚 */
+              margin-bottom: 5px; 
+              border: none;
+              padding: 0;
+              background: transparent;
+          }
+      }
+      /* ========================================= */
+      /* ★★★ 系統狀態表 (電腦版與手機版分流) ★★★ */
+      /* ========================================= */
 
-          /* 統計卡片佈局 */
-          .stat-grid-mobile { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-          .stat-card-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; padding: 12px 8px; border-radius: 8px; border: 1px solid #e9ecef; }
-          .stat-card-label { font-size: 0.85rem; color: #6c757d; margin-bottom: 4px; font-weight: normal; }
-          .stat-card-value { font-size: 1.25rem; font-weight: bold; color: #212529; line-height: 1.2; }
-          .val-highlight { color: #0d6efd; }
-          .stat-card-diff { font-size: 0.8rem; margin-left: 4px; }
+      /* ------------------------------------------- */
+      /* 1. 電腦版專用樣式 (螢幕 > 900px) */
+      /* ------------------------------------------- */
+      @media (min-width: 901px) {
+          /* 預設：所有儲存格不換行 (保持整齊) */
+          #indivTableBody td, #personalTableBody td {
+              vertical-align: middle;
+              white-space: nowrap; 
+              font-size: 0.9rem;
+              padding: 6px 4px;
+          }
+
+          /* 特例：針對「加班(12)」、「異常(14)」、「註記(15)」允許換行 */
+          #indivTableBody td:nth-child(10), 
+          #indivTableBody td:nth-child(12), 
+          #indivTableBody td:nth-child(13),
+          #personalTableBody td:nth-child(10), 
+          #personalTableBody td:nth-child(12) {
+              white-space: normal !important;  /* 強制允許換行 */
+              word-break: break-word;          /* 長單字切斷 */
+              min-width: 100px;                /* 設定最小寬度，避免擠壓 */
+              max-width: 160px;                /* 設定最大寬度，避免撐爆 */
+              line-height: 1.4;
+              font-size: 0.85rem;
+          }
       }
 
-      /* ========================================= */
-      /* 3. 通用輔助樣式 */
-      /* ========================================= */
-      .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; border: 1px solid #eee; }
-      .text-time-h { color: #0d6efd; font-weight: bold; }
-      .stat-box-row { background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 10px; line-height: 1.8; }
-      .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
-      .color-h { color: #0d6efd !important; font-weight: bold; }
-      .color-err { color: #dc3545 !important; font-weight: bold; }
-/* --- 優化：電腦版隱視切換按鈕 --- */
-@media (min-width: 901px) {
-    /* 隱藏店長端與員工端的檢視切換按鈕 */
-    .mobile-btn-container {
-        display: none !important;
-    }
-}
+      /* ------------------------------------------- */
+      /* 2. 手機版專用樣式 (螢幕 <= 900px) - 卡片式 */
+      /* ------------------------------------------- */
+      @media (max-width: 900px) {
+          
+          /* 隱藏原本表頭 */
+          table.mobile-card-mode thead { display: none !important; }
 
-/* 確保在手機版（小於等於 900px）時正常顯示 */
-@media (max-width: 900px) {
-    .mobile-btn-container {
-        display: flex !important;
-    }
-}
+          /* 將每一列 (tr) 變成卡片區塊 */
+          table.mobile-card-mode tbody tr {
+              display: block !important;
+              background: #fff;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              margin-bottom: 12px;
+              box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+              padding: 10px;
+              position: relative;
+          }
+
+          /* 將儲存格 (td) 變成 Flex 橫向排列 (左標題、右數值) */
+          table.mobile-card-mode tbody td {
+              display: flex !important;
+              justify-content: space-between; /* 左右撐開 */
+              align-items: center;            /* 垂直置中 */
+              border: none !important;
+              padding: 8px 0 !important;
+              font-size: 0.95rem;
+              text-align: right;
+              border-bottom: 1px dashed #eee !important;
+              min-height: 32px;
+              width: 100% !important;         /* 佔滿卡片寬度 */
+              box-sizing: border-box;
+              
+              /* ★ 關鍵：允許右側數值換行，解決長文字問題 ★ */
+              white-space: normal !important;
+              word-break: break-word; 
+          }
+          
+          table.mobile-card-mode tbody td:last-child { border-bottom: none !important; }
+
+          /* 左側標題樣式 (透過 data-label) */
+          table.mobile-card-mode tbody td::before {
+              content: attr(data-label);
+              font-weight: bold;
+              color: #666;
+              text-align: left;
+              margin-right: 15px;
+              min-width: 100px; /* 固定標題寬度 */
+              flex-shrink: 0;   /* 禁止標題被壓縮 */
+          }
+
+          /* 日期 (置頂區塊) 特別樣式 */
+          table.mobile-card-mode tbody td:nth-child(1) {
+              background-color: #f8f9fa;
+              margin: -10px -10px 10px -10px !important;
+              padding: 10px 15px !important;
+              border-bottom: 2px solid #e9ecef !important;
+              font-weight: bold;
+              font-size: 1.1rem;
+              justify-content: center;
+              color: #333;
+              width: calc(100% + 20px) !important;
+          }
+          table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
+          
+          table.mobile-card-mode tbody td::before {
+              text-decoration: none;
+              margin-bottom: 0;
+          }
+      }
+
+      /* ------------------------------------------- */
+      /* 3. 通用輔助樣式 */
+      /* ------------------------------------------- */
+      
+      /* 讓表格在電腦版可以橫向捲動，不會被切掉 (關鍵！) */
+      .table-responsive {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          margin-bottom: 15px;
+          border: 1px solid #eee; /* 稍微加個框線讓範圍清楚 */
+      }
+      
+      /* 統計區塊 */
+      .stat-box-row { 
+          display: flex; 
+          flex-wrap: wrap; 
+          gap: 10px; 
+          align-items: center; 
+          background: #fff; 
+          padding: 10px; 
+          border-radius: 6px; 
+          border: 1px solid #ddd; 
+          line-height: 1.8;
+      }
+
+      /* 手機版按鈕容器 */
+      .mobile-btn-container {
+          display: flex;
+          gap: 8px;
+          margin-top: 10px;
+          justify-content: flex-end;
+          width: 100%;
+          border-top: 1px dashed #eee;
+          padding-top: 8px;
+      }
+        /* ========================================= */
+      /* ★★★ 統計區塊優化 (手機版儀表板風格) ★★★ */
+      /* ========================================= */
+      
+      /* 預設(電腦版)維持原本的一行顯示，但移除強制 flex，讓內部元素決定 */
+      .stat-box-row {
+          background: #fff;
+          padding: 10px;
+          border-radius: 6px;
+          border: 1px solid #ddd;
+          margin-bottom: 10px;
+      }
+
+      /* 手機版專用樣式 */
+      @media (max-width: 900px) {
+          /* 將容器改為 Grid 網格佈局 */
+          .stat-grid-mobile {
+              display: grid;
+              grid-template-columns: 1fr 1fr; /* 分為兩欄，寬度平均 */
+              gap: 10px; /* 格子間距 */
+          }
+
+          /* 每一個統計小卡片 */
+          .stat-card-item {
+              display: flex;
+              flex-direction: column; /* 內容上下排列 */
+              align-items: center;    /* 水平居中 */
+              justify-content: center;
+              background: #f8f9fa;    /* 淺灰背景 */
+              padding: 12px 8px;
+              border-radius: 8px;
+              border: 1px solid #e9ecef;
+          }
+
+          /* 卡片內的小標題 (例如：應有、休) */
+          .stat-card-label {
+              font-size: 0.85rem;
+              color: #6c757d; /* 灰色 */
+              margin-bottom: 4px;
+              font-weight: normal;
+          }
+
+          /* 卡片內的主數值 */
+          .stat-card-value {
+              font-size: 1.25rem; /* 字體加大 */
+              font-weight: bold;
+              color: #212529;     /* 深黑色 */
+              line-height: 1.2;
+          }
+          
+          /* 應有時數特別用藍色強調 */
+          .val-highlight { color: #0d6efd; }
+
+          /* 差異值小字 (例如：-8.0) */
+          .stat-card-diff {
+              font-size: 0.8rem;
+              margin-left: 4px;
+          }
+      }
     </style>
 </head>
   <body>
@@ -155,7 +325,7 @@
        <h5 class="text-center text-secondary mb-4" id="personalNameDisplay">載入中...</h5>
        <div id="personalStats"></div>
        <div class="table-responsive">
-           <table class="table table-bordered table-hover table-striped mobile-card-mode">
+           <table class="table table-bordered table-hover table-striped">
                <thead><tr><th style="width: 8%">日期</th><th style="width: 8%">班表狀態</th><th style="width: 10%">排班時間</th><th style="width: 6%">應有時數<br>(H)</th><th style="width: 8%">系統狀態<br>(I)</th><th style="width: 10%">實際打卡<br>(上班/下班)</th><th style="width: 10%">請假時間<br>(L)</th><th style="width: 8%">假別<br>(M)</th><th style="width: 10%">加班時間<br>(N)</th><th style="width: 6%">加班時數<br>(O)</th><th style="width: 10%">異常<br>(P)</th></tr></thead>
                <tbody id="personalTableBody"></tbody>
            </table>
@@ -185,7 +355,7 @@
                 <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
             </div>
             <div class="table-responsive">
-              <table class="table table-sm table-striped table-bordered text-center mobile-card-mode" style="font-size: 0.9em;">
+              <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em;">
                 <thead class="table-dark"><tr><th>日期</th><th>班表(D)</th><th>排班時間</th><th>應有(H)</th><th>系統狀態(I)</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記(Q)</th></tr></thead>
                 <tbody id="indivTableBody"></tbody>
               </table>
@@ -766,7 +936,7 @@
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
       // ==========================================
-      // ★★★ 補回遺失的：個人班表渲染函式 ★★★
+      // ★★★ 個人班表渲染函式 (員工端) ★★★
       // ==========================================
       function renderPersonalPage(data) {
           try {
@@ -869,7 +1039,7 @@
                   <tr>
                       <th>日期</th>
                       <th>狀態(D)</th>
-                      <th style="min-width:100px;">排班時間</th>
+                      <th style="min-width:100px;">排班時段</th>
                       <th>應有(H)</th>
                       <th>系統狀態</th>
                       <th>上班卡</th>
@@ -1049,7 +1219,7 @@
         
         let row2Html = `
             <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
-                <span class="text-danger"><strong>已申請加班(O):</strong> ${totalOvertime.toFixed(1)}</span>
+                <span class="text-danger"><strong>已申請加班(O):</strong> ${totalO.toFixed(1)}</span>
             </div>
         `;
 
@@ -1168,10 +1338,13 @@
       function errorHandler(e) { showLoading(false); Swal.fire('錯誤', e.message||e, 'error'); }
       function generateTimeOptions() { let o='<option value="">請選擇</option>'; for(let h=0;h<24;h++){ let s=('0'+h).slice(-2); o+=`<option value="${s}:00">${s}:00</option><option value="${s}:30">${s}:30</option>`; } return o; }
       function generateRestOptions() { let o='<option value="">請選擇</option>'; for(let i=0; i<=8; i++){ let v = (i * 0.5).toFixed(1); o += `<option value="${v}">${v}</option>`; } return o; }
+      const overtimeOptions = generateOvertimeOptions(); // 初始化選項常數
       function createTimeSelect(v,c) { return `<select class="form-select time-select ${c}" onchange="handleRowChange(this)">${timeOptions.replace(`value="${v}"`,`value="${v}" selected`)}</select>`; }
       function createRestSelect(v) { return `<select class="form-select rest-select" onchange="handleRowChange(this)">${restOptions.replace(`value="${v}"`,`value="${v}" selected`)}</select>`; }
       function timeToFloat(t) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); }
       function formatTime(v) { if(!v) return ""; if(v instanceof Date) return ("0"+v.getHours()).slice(-2) + ":" + ("0"+v.getMinutes()).slice(-2); let s = String(v).trim(); if (s.includes("T")) return s.substr(11, 5); return s; }
+
+
       function formatDiff(val) { let n = parseFloat(val).toFixed(1); if (Math.abs(val) < 0.1) return `<span class="text-muted">0</span>`; if (val < 0) return `<span class="diff-neg">${n}</span>`; return `<span class="diff-pos">+${n}</span>`; }
       async function handleChangePassword() {
         if (!currentStore) return;
@@ -1185,9 +1358,10 @@
           const table = document.querySelector(tableSelector);
           if (!table) return;
           
+          // 切換 class
           table.classList.toggle('mobile-card-mode');
           
-          // 根據狀態切換按鈕文字與樣式
+          // 判斷目前狀態並更新按鈕文字
           if (table.classList.contains('mobile-card-mode')) {
               btn.innerHTML = '🖥️ 電腦版檢視';
               btn.classList.remove('btn-secondary');
