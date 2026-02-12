@@ -881,25 +881,29 @@
               
               const s = data.stats;
               
-              // ★★★ 核心修改：加入括號與間距，解決 40 問題 (同步店長端) ★★★
+              // ★★★ 核心修改：利用後端已傳入的 isStoreStaff 判斷 ★★★
+              // 如果 X 欄包含「門市」(isStoreStaff 為 true)，就依照原本的薪資制度(isHourly)顯示
+              // 如果 X 欄不包含「門市」(isStoreStaff 為 false)，強制當作時薪制(true)顯示
+              let showAsHourly = (!data.isStoreStaff) ? true : data.isHourly;
+
               let statsHtmlStr = "";
-              if (data.isHourly) {
-    statsHtmlStr = `
-        <div class="stat-grid-mobile">
-            <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span></div>
-            <div class="stat-card-item"><span class="stat-card-label">休息日</span><span class="stat-card-value">${s.rest}</span></div>
-            <div class="stat-card-item"><span class="stat-card-label">例假日</span><span class="stat-card-value">${s.reg}</span></div>
-            <div class="stat-card-item"><span class="stat-card-label">國定假</span><span class="stat-card-value">${s.nat}</span></div>
-        </div>`;
-} else {
-    statsHtmlStr = `
-        <div class="stat-grid-mobile">
-            <div class="stat-card-item"><span class="stat-card-label">應有工時</span><div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span><span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span></div></div>
-            <div class="stat-card-item"><span class="stat-card-label">休假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.rest}</span><span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span></div></div>
-            <div class="stat-card-item"><span class="stat-card-label">例假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.reg}</span><span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span></div></div>
-            <div class="stat-card-item"><span class="stat-card-label">國定假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.nat}</span><span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span></div></div>
-        </div>`;
-}
+              if (showAsHourly) {
+                  statsHtmlStr = `
+                      <div class="stat-grid-mobile">
+                          <div class="stat-card-item"><span class="stat-card-label">累計應有</span><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">休息日</span><span class="stat-card-value">${s.rest}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">例假日</span><span class="stat-card-value">${s.reg}</span></div>
+                          <div class="stat-card-item"><span class="stat-card-label">國定假</span><span class="stat-card-value">${s.nat}</span></div>
+                      </div>`;
+              } else {
+                  statsHtmlStr = `
+                      <div class="stat-grid-mobile">
+                          <div class="stat-card-item"><span class="stat-card-label">應有工時</span><div class="d-flex align-items-baseline"><span class="stat-card-value val-highlight">${s.hrs.toFixed(1)}</span><span class="stat-card-diff">(${formatDiff(s.hrs - meta.hrs)})</span></div></div>
+                          <div class="stat-card-item"><span class="stat-card-label">休假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.rest}</span><span class="stat-card-diff">(${formatDiff(s.rest - meta.rest)})</span></div></div>
+                          <div class="stat-card-item"><span class="stat-card-label">例假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.reg}</span><span class="stat-card-diff">(${formatDiff(s.reg - meta.reg)})</span></div></div>
+                          <div class="stat-card-item"><span class="stat-card-label">國定假</span><div class="d-flex align-items-baseline"><span class="stat-card-value">${s.nat}</span><span class="stat-card-diff">(${formatDiff(s.nat - meta.nat)})</span></div></div>
+                      </div>`;
+              }
               
               let row2Html = `
                   <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
