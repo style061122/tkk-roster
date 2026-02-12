@@ -1023,14 +1023,14 @@
 
         const isHourly = (pData[0].salaryType && pData[0].salaryType.includes("時薪"));
         let hrs=0, rest=0, reg=0, nat=0;
-        let totalZ=0, totalO=0, totalAA=0; 
+        let totalZ=0, totalOvertime=0, totalAA=0; // 統一使用 totalOvertime
         let userKey = pData[0].pKey || ""; 
 
         pData.forEach(r => {
            let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h;
            if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++;
            let z = parseFloat(r.input_est_overtime); if(!isNaN(z)) totalZ += z;
-           let o = parseFloat(r.sys_overtimeHrs); if(!isNaN(o)) totalO += o;
+           let o = parseFloat(r.sys_overtimeHrs); if(!isNaN(o)) totalOvertime += o; // 這裡改為累加到 totalOvertime
            let aa = parseFloat(r.calc_excess); if(!isNaN(aa)) totalAA += aa;
         });
         
