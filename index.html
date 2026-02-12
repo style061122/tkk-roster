@@ -948,46 +948,22 @@
               if (data.data.length === 0) { tbody.innerHTML = "<tr><td colspan='14' class='text-muted'>本月無資料</td></tr>"; return; }
               
               data.data.forEach(r => {
-                  let dPart = r.date.split('/')[2] + "日";
                   let wDay = new Date(r.date).toLocaleDateString('zh-TW', {weekday: 'short'});
                   let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${wDay})`;
 
-                  let startVal = r.input_start;
+                  // --- 核心修改：參照店長端模式，直接讀取原始時間字串 ---
+                  let startVal = r.input_start; // 店長輸入的上班時間
+                  let endVal = r.input_end;     // 店長輸入的下班時間 (20:00)
                   let hVal = parseFloat(r.calc_hours) || 0;
-                  let zVal = parseFloat(r.input_est_overtime) || 0;
-                  let aaVal = parseFloat(r.calc_excess) || 0;
-                  
-                  let restVal = parseFloat(r.input_rest || r.rest || r.g) || 0; 
-                  
                   let status = r.input_status;
 
-                  let strRangeH = "-", strRangeZ = "-", strRangeAA = "-";
-           
-                  if (startVal && (hVal>0 || zVal>0 || aaVal>0)) {
-                       let startMin = timeToFloat(startVal) * 60;
-                       let restMin = restVal * 60;
+                  let strRangeH = "-";
 
-                       if (hVal > 0 || status === '上班') {
-                           let duration = (hVal * 60);
-                           if (status === '上班') duration += restMin;
-                           let endH = startMin + duration;
-                           if (hVal > 0) strRangeH = `${formatMinToTime(startMin)}~${formatMinToTime(endH)}`;
-                           startMin = endH;
-                       }
-                       if (zVal > 0) {
-                           let duration = (zVal * 60);
-                           if (['休', '國'].includes(status)) duration += restMin;
-                           let endZ = startMin + duration;
-                           strRangeZ = `${formatMinToTime(startMin)}~${formatMinToTime(endZ)}`;
-                           startMin = endZ;
-                       }
-                       if (aaVal > 0) {
-                           let duration = (aaVal * 60);
-                           if (['例', '空班'].includes(status)) duration += restMin;
-                           let endAA = startMin + duration;
-                           strRangeAA = `${formatMinToTime(startMin)}~${formatMinToTime(endAA)}`;
-                       }
+                  // 只要有填時間，且狀態是上班或有應有工時，就直接顯示原始區間
+                  if (startVal && endVal && (hVal > 0 || status === '上班')) {
+                      strRangeH = `${startVal}~${endVal}`;
                   }
+                  // ---------------------------------------------------
 
                   let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : "";
                   let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
