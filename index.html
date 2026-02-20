@@ -829,9 +829,29 @@
         if (errors.length > 0) { msgBox.innerHTML = errors.map(e=>`<span class="text-err">${e}</span>`).join("<br>"); tr.classList.add('row-error'); } else if (warnings.length > 0) { msgBox.innerHTML = warnings.map(w=>`<span class="text-warn">${w}</span>`).join("<br>"); tr.classList.add('row-warning'); }
       }
       function checkRealTimeBudget(tr) {
-        if (!currentData.length) return; const name = tr.getAttribute('data-name'); let totalHours = 0, cnt = { rest:0, reg:0, nat:0 }; let pData = currentData.filter(r => r.name === name);
-        pData.forEach(r => { let h = parseFloat(r.calc_hours); if(!isNaN(h)) totalHours += h; if (r.input_status === '休') cnt.rest++; else if (r.input_status === '例') cnt.reg++; else if (r.input_status === '國') cnt.nat++; });
-        let msg = ""; if (monthlyTargets.hrs > 0 && totalHours > monthlyTargets.hrs) msg += `• 應有 ${totalHours.toFixed(1)} > ${monthlyTargets.hrs}<br>`; if (monthlyTargets.rest > 0 && cnt.rest > monthlyTargets.rest) msg += `• 休息日 ${cnt.rest} > ${monthlyTargets.rest}<br>`; if (monthlyTargets.reg > 0 && cnt.reg > monthlyTargets.reg) msg += `• 例假日 ${cnt.reg} > ${monthlyTargets.reg}<br>`; if (monthlyTargets.nat > 0 && cnt.nat > monthlyTargets.nat) msg += `• 國定假日 ${cnt.nat} > ${monthlyTargets.nat}<br>`;
+        if (!currentData.length) return; 
+        const name = tr.getAttribute('data-name'); 
+        let pData = currentData.filter(r => r.name === name);
+        
+        // ★★★ 核心修改：如果是時薪制，直接結束，不檢查也不跳提示 ★★★
+        if (pData.length > 0 && pData[0].salaryType && pData[0].salaryType.includes("時薪")) {
+            return;
+        }
+
+        let totalHours = 0, cnt = { rest:0, reg:0, nat:0 }; 
+        pData.forEach(r => { 
+            let h = parseFloat(r.calc_hours); if(!isNaN(h)) totalHours += h; 
+            if (r.input_status === '休') cnt.rest++; 
+            else if (r.input_status === '例') cnt.reg++; 
+            else if (r.input_status === '國') cnt.nat++; 
+        });
+
+        let msg = ""; 
+        if (monthlyTargets.hrs > 0 && totalHours > monthlyTargets.hrs) msg += `• 應有 ${totalHours.toFixed(1)} > ${monthlyTargets.hrs}<br>`; 
+        if (monthlyTargets.rest > 0 && cnt.rest > monthlyTargets.rest) msg += `• 休息日 ${cnt.rest} > ${monthlyTargets.rest}<br>`; 
+        if (monthlyTargets.reg > 0 && cnt.reg > monthlyTargets.reg) msg += `• 例假日 ${cnt.reg} > ${monthlyTargets.reg}<br>`; 
+        if (monthlyTargets.nat > 0 && cnt.nat > monthlyTargets.nat) msg += `• 國定假日 ${cnt.nat} > ${monthlyTargets.nat}<br>`;
+        
         if (msg !== "") Swal.fire({ title: '⚠️ 目標超標提醒', html: `人員：${name}<br>${msg}`, icon: 'warning', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
       }
       function validateAll() {
