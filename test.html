@@ -1423,10 +1423,15 @@
         const rowData = currentData[idx];
         document.getElementById('supportModalTitle').innerText = `設定支援：${rowData.name} (${rowData.date})`;
         
-        // 確保搜尋清單有資料
+        // ★ 修正：加入 </option> 結尾，並加上長度判斷
         let dl = document.getElementById('storeDataList');
-        if (dl && currentParams['support_stores']) {
-            dl.innerHTML = currentParams['support_stores'].map(s => `<option value="${s}">`).join('');
+        if (dl) {
+            if (currentParams['support_stores'] && currentParams['support_stores'].length > 0) {
+                dl.innerHTML = currentParams['support_stores'].map(s => `<option value="${s}"></option>`).join('');
+            } else {
+                // 如果沒資料，在開發者工具會提示
+                console.warn("⚠️ 警告：沒有抓到支援門市清單，請確認後端設定檔！");
+            }
         }
 
         const area = document.getElementById('supportEntriesArea');
