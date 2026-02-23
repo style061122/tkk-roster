@@ -290,7 +290,23 @@
         </div>
       </div>
     </div>
-
+        <div class="modal fade" id="monthlyModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header bg-info text-dark">
+            <h5 class="modal-title fw-bold" id="monthlyModalTitle">📅 門市整月排班檢視</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" style="background-color: #f8f9fa;">
+            <div id="monthlyCalendarArea"></div>
+          </div>
+          <div class="modal-footer">
+            <span class="text-muted small me-auto">💡 提示：點擊員工姓名即可查看上下班時間</span>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <script>
       // ★★★ 請務必確認這個網址是您最新的後端網址 ★★★
       const API_URL = "https://script.google.com/macros/s/AKfycbxjmLHWwKM8MTYelGf60uPtEPeJzWGWWORJ51oM2DyflNPaxuBeGe0REsJAaFPKkBU/exec";
@@ -880,23 +896,6 @@
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
-    <div class="modal fade" id="monthlyModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header bg-info text-dark">
-            <h5 class="modal-title fw-bold" id="monthlyModalTitle">📅 門市整月排班檢視</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body" style="background-color: #f8f9fa;">
-            <div id="monthlyCalendarArea"></div>
-          </div>
-          <div class="modal-footer">
-            <span class="text-muted small me-auto">💡 提示：點擊員工姓名即可查看上下班時間</span>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-          </div>
-        </div>
-      </div>
-    </div>
       // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
       // ==========================================
