@@ -356,9 +356,22 @@
             <div class="alert alert-light border border-primary text-center fw-bold mb-3 py-2" id="supportModalTitle"></div>
             
             <div class="form-check form-switch mb-3 p-3 bg-light rounded border">
-              <input class="form-check-input ms-1" type="checkbox" id="syncTimeCheckbox" style="transform: scale(1.3);" onchange="toggleSupportTimeSync()">
-              <label class="form-check-label fw-bold text-primary ms-3" for="syncTimeCheckbox">☑️ 支援時間 同 本日上下班時間</label>
+              <input class="form-check-input ms-1" type="checkbox" id="syncTimeCheckbox" style="transform: scale(1.3); cursor: pointer;" onchange="toggleSupportTimeSync()">
+              <label class="form-check-label fw-bold text-primary ms-3" for="syncTimeCheckbox" style="cursor: pointer;">支援時間 同 本日上下班時間</label>
             </div>
+            
+            <div id="supportEntriesArea">
+              </div>
+            
+            <button id="addSupportBtn" class="btn btn-outline-secondary w-100 fw-bold mt-2 border-dashed" onclick="addSupportEntry()">➕ 新增支援門市</button>
+          </div>
+          <div class="modal-footer d-flex justify-content-between">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn btn-success fw-bold px-4" onclick="saveSupportData()">💾 確認並套用</button>
+          </div>
+        </div>
+      </div>
+    </div>
             
             <div id="supportEntriesArea">
               </div>
@@ -1298,6 +1311,15 @@
         // 賦予專屬 class: z-select 與背景色 bg-z-col
         return `<select class="form-select z-select bg-z-col fw-bold" onchange="handleRowChange(this)">${o}</select>`;
       }
+     function checkSupNum(el, max) {
+          if (el.value === "") return;
+          let val = parseFloat(el.value);
+          // 檢查是否為數字、是否超出範圍、是否以 0.5 為單位
+          if (isNaN(val) || val < 0 || val > max || val % 0.5 !== 0) {
+              Swal.fire('格式錯誤', `僅限輸入 0 ~ ${max} 的數字，且最小單位為 0.5 (例如 1.0, 1.5, 9.5)`, 'error');
+              el.value = "";
+          }
+      }
 
       function openSupportModal(btn, idx) {
         // 先給個空殼彈窗，下一步再來寫裡面的完整邏輯
@@ -1423,36 +1445,38 @@
         const rowData = currentData[idx];
         document.getElementById('supportModalTitle').innerText = `設定支援：${rowData.name} (${rowData.date})`;
         
-        // ★ 修正：加入 </option> 結尾，並加上長度判斷
         let dl = document.getElementById('storeDataList');
-        if (dl) {
-            if (currentParams['support_stores'] && currentParams['support_stores'].length > 0) {
-                dl.innerHTML = currentParams['support_stores'].map(s => `<option value="${s}"></option>`).join('');
-            } else {
-                // 如果沒資料，在開發者工具會提示
-                console.warn("⚠️ 警告：沒有抓到支援門市清單，請確認後端設定檔！");
-            }
+        if (dl && currentParams['support_stores']) {
+            dl.innerHTML = currentParams['support_stores'].map(s => `<option value="${s}"></option>`).join('');
         }
 
         const area = document.getElementById('supportEntriesArea');
-        area.innerHTML = ''; // 清空
+        area.innerHTML = ''; 
         
-        document.getElementById('syncTimeCheckbox').checked = false; // 預設不勾
+        // 恢復預設狀態 (不勾選、顯示新增按鈕)
+        document.getElementById('syncTimeCheckbox').checked = false; 
+        document.getElementById('addSupportBtn').style.display = 'block';
 
         if (rowData.supports && rowData.supports.length > 0) {
             rowData.supports.forEach(sup => addSupportEntry(sup.supportStore, sup.startEnd, sup.rest));
         } else {
-            addSupportEntry(); // 預設產生一格空的
+            addSupportEntry(); 
         }
         
         new bootstrap.Modal(document.getElementById('supportModal')).show();
       }
 
-      // 2. 產生一筆支援輸入框 (含關鍵字搜尋功能)
+      // 2. 產生一筆支援輸入框 (改為數字輸入框，限制0~23.5與0~4)
       function addSupportEntry(store = "", timeRange = "", rest = "") {
         const area = document.getElementById('supportEntriesArea');
-        let [sStart, sEnd] = timeRange.split('~');
-        if (!sStart) sStart = ""; if (!sEnd) sEnd = "";
+        let sStart = ""; let sEnd = "";
+        if (timeRange) {
+            let parts = timeRange.split('~');
+            sStart = parts[0]; sEnd = parts[1];
+            // 若為舊格式 "09:30"，轉為 9.5
+            if(sStart && sStart.includes(':')) sStart = timeToFloat(sStart);
+            if(sEnd && sEnd.includes(':')) sEnd = timeToFloat(sEnd);
+        }
         
         const entryId = 'sup_' + Date.now() + Math.floor(Math.random() * 100);
         const html = `
@@ -1463,83 +1487,116 @@
               <input type="text" class="form-control fw-bold border-primary sup-store" value="${store}" placeholder="例如: lalaport" list="storeDataList">
             </div>
             <div class="d-flex gap-2 mb-2">
-              <div class="w-50">
-                <label class="fw-bold text-secondary small">支援起</label>
-                ${createTimeSelect(sStart, 'sup-start')}
+              <div class="w-100">
+                <label class="fw-bold text-secondary small">支援上 (0~23.5)</label>
+                <input type="number" class="form-control sup-start border-dark fw-bold" step="0.5" min="0" max="23.5" value="${sStart}" onchange="checkSupNum(this, 23.5)" placeholder="例: 9.5">
               </div>
-              <div class="w-50">
-                <label class="fw-bold text-secondary small">支援迄</label>
-                ${createTimeSelect(sEnd, 'sup-end')}
+              <div class="w-100">
+                <label class="fw-bold text-secondary small">支援下 (0~23.5)</label>
+                <input type="number" class="form-control sup-end border-dark fw-bold" step="0.5" min="0" max="23.5" value="${sEnd}" onchange="checkSupNum(this, 23.5)" placeholder="例: 18.5">
               </div>
             </div>
             <div>
-              <label class="fw-bold text-secondary small">支援休</label>
-              ${createRestSelect(rest || "0")}
+              <label class="fw-bold text-secondary small">支援休 (0~4)</label>
+              <input type="number" class="form-control rest-select border-dark fw-bold" step="0.5" min="0" max="4" value="${rest || '0'}" onchange="checkSupNum(this, 4)">
             </div>
           </div>
         `;
         area.insertAdjacentHTML('beforeend', html);
       }
 
-      // 3. 勾選「同步上下班時間」
+      // 3. 勾選「同步上下班時間」(防呆：勾選後隱藏新增按鈕並清除多餘店鋪)
       function toggleSupportTimeSync() {
         const isChecked = document.getElementById('syncTimeCheckbox').checked;
+        const addBtn = document.getElementById('addSupportBtn');
+        
+        // 勾選就隱藏新增按鈕，不勾就顯示
+        addBtn.style.display = isChecked ? 'none' : 'block';
+
         if (!isChecked || currentSupportRowIndex === -1) return;
         
-        // 去畫面上抓這名員工剛剛填寫的上下班與休息時間
         const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
-        if (!tr) return;
-        
         const mainStart = tr.querySelector('.start-select').value;
         const mainEnd = tr.querySelector('.end-select').value;
-        const mainRest = tr.querySelector('.rest-select').value;
+        const mainRest = parseFloat(tr.querySelector('.rest-select').value) || 0;
 
-        // 寫入所有支援項目中
+        const fStart = mainStart ? timeToFloat(mainStart) : "";
+        const fEnd = mainEnd ? timeToFloat(mainEnd) : "";
+
         const entries = document.querySelectorAll('.support-entry');
-        entries.forEach(entry => {
-            entry.querySelector('.sup-start').value = mainStart;
-            entry.querySelector('.sup-end').value = mainEnd;
-            entry.querySelector('.rest-select').value = mainRest || "0";
-        });
+        // 如果勾選同步，強迫只能留一筆支援紀錄 (把其他的刪掉)
+        if (entries.length > 1) {
+            for (let i = 1; i < entries.length; i++) entries[i].remove();
+        }
+
+        const entry = document.querySelector('.support-entry');
+        if (entry) {
+            entry.querySelector('.sup-start').value = fStart;
+            entry.querySelector('.sup-end').value = fEnd;
+            entry.querySelector('.rest-select').value = mainRest;
+        }
       }
 
-      // 4. 點擊「儲存」：將視窗資料寫回 currentData 並更新主畫面按鈕
+      // 4. 點擊「儲存」：驗證 O 欄名單與時間邏輯
       function saveSupportData() {
         if (currentSupportRowIndex === -1) return;
         
         let tempSupports = [];
         const entries = document.querySelectorAll('.support-entry');
+        const validStores = currentParams['support_stores'] || [];
+        let hasError = false; // 阻擋開關
         
         entries.forEach(entry => {
+            if (hasError) return; // 若有錯就跳過後續檢查
+            
             const store = entry.querySelector('.sup-store').value.trim();
-            const start = entry.querySelector('.sup-start').value;
-            const end = entry.querySelector('.sup-end').value;
-            const rest = parseFloat(entry.querySelector('.rest-select').value) || 0;
+            const startVal = entry.querySelector('.sup-start').value;
+            const endVal = entry.querySelector('.sup-end').value;
+            const restVal = parseFloat(entry.querySelector('.rest-select').value) || 0;
             
             if (store !== "") {
-                let startEnd = (start && end) ? `${start}~${end}` : "";
-                
-                // 計算時數 (H)
-                let hrs = 0;
-                if (start && end) {
-                    let s = timeToFloat(start); let e = timeToFloat(end);
-                    if (e < s) e += 24;
-                    hrs = e - s - rest;
+                // 防呆 1：檢查是否為清單內門市
+                if (!validStores.includes(store)) {
+                    Swal.fire('錯誤', `門市 [${store}] 不在允許清單內，請重新輸入關鍵字並從選單點選！`, 'error');
+                    hasError = true;
+                    return;
                 }
                 
+                // 防呆 2：檢查是否漏填起迄時間
+                if (startVal === "" || endVal === "") {
+                    Swal.fire('錯誤', `已填寫支援門市 [${store}]，請務必填寫完整的支援上/下班時間！`, 'error');
+                    hasError = true;
+                    return;
+                }
+
+                let s = parseFloat(startVal); let e = parseFloat(endVal);
+                let startEnd = `${s}~${e}`;
+                
+                let hrs = 0;
+                if (e < s) e += 24;
+                hrs = e - s - restVal;
+                
+                if (hrs < 0) {
+                     Swal.fire('錯誤', `[${store}] 支援休息時間大於工作時間，請重新確認！`, 'error');
+                     hasError = true;
+                     return;
+                }
+
                 tempSupports.push({
                     supportStore: store,
                     startEnd: startEnd,
-                    rest: rest > 0 ? rest.toString() : "",
+                    rest: restVal > 0 ? restVal.toString() : "",
                     hrs: hrs > 0 ? hrs.toFixed(1) : ""
                 });
             }
         });
 
-        // 存入全域變數
+        // 如果有發生任何錯誤，直接中斷，不存檔也不關視窗
+        if (hasError) return;
+
+        // 若無錯誤，存入全域變數
         currentData[currentSupportRowIndex].supports = tempSupports;
         
-        // 更新主畫面那顆按鈕的外觀
         const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
         if (tr) {
             const btn = tr.querySelector('.support-btn');
@@ -1550,12 +1607,9 @@
                 btn.className = "btn btn-outline-primary support-btn shadow-sm";
                 btn.innerHTML = `➕ 跨店支援`;
             }
-            
-            // 觸發檢核更新 (下一步會寫)
-            validateRow(tr); 
+            validateRow(tr); // 觸發主表檢核更新
         }
 
-        // 關閉視窗
         bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
       }
     </script>
