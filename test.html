@@ -239,7 +239,7 @@
 </head>
   <body>
     <div id="loadingOverlay"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div><h5 class="mt-3 text-dark fw-bold" id="loadingText">系統載入中...</h5></div>
-    
+    <datalist id="storeDataList"></datalist>
     <div id="loginSection" style="display:none;">
       <h3 class="mb-4 fw-bold text-primary">頂呱呱門市排班系統</h3>
       <div class="mb-3 text-start"><label class="form-label fw-bold">所屬公司</label><select id="loginCompany" class="form-select form-select-lg" onchange="updateStoreOptions()"><option value="">載入中...</option></select></div>
@@ -1411,6 +1411,147 @@
 
           html += '</div>'; // end grid
           area.innerHTML = html;
+      }
+    // ==========================================
+      // ★★★ 跨店支援視窗專用邏輯 ★★★
+      // ==========================================
+      let currentSupportRowIndex = -1; // 記錄現在正在編輯哪一列
+
+      // 1. 打開視窗並載入資料
+      function openSupportModal(btn, idx) {
+        currentSupportRowIndex = idx;
+        const rowData = currentData[idx];
+        document.getElementById('supportModalTitle').innerText = `設定支援：${rowData.name} (${rowData.date})`;
+        
+        // 確保搜尋清單有資料
+        let dl = document.getElementById('storeDataList');
+        if (dl && currentParams['support_stores']) {
+            dl.innerHTML = currentParams['support_stores'].map(s => `<option value="${s}">`).join('');
+        }
+
+        const area = document.getElementById('supportEntriesArea');
+        area.innerHTML = ''; // 清空
+        
+        document.getElementById('syncTimeCheckbox').checked = false; // 預設不勾
+
+        if (rowData.supports && rowData.supports.length > 0) {
+            rowData.supports.forEach(sup => addSupportEntry(sup.supportStore, sup.startEnd, sup.rest));
+        } else {
+            addSupportEntry(); // 預設產生一格空的
+        }
+        
+        new bootstrap.Modal(document.getElementById('supportModal')).show();
+      }
+
+      // 2. 產生一筆支援輸入框 (含關鍵字搜尋功能)
+      function addSupportEntry(store = "", timeRange = "", rest = "") {
+        const area = document.getElementById('supportEntriesArea');
+        let [sStart, sEnd] = timeRange.split('~');
+        if (!sStart) sStart = ""; if (!sEnd) sEnd = "";
+        
+        const entryId = 'sup_' + Date.now() + Math.floor(Math.random() * 100);
+        const html = `
+          <div class="support-entry" id="${entryId}">
+            <button type="button" class="btn-close remove-support-btn" onclick="document.getElementById('${entryId}').remove()"></button>
+            <div class="mb-2">
+              <label class="fw-bold text-secondary small">支援門市 (可輸入關鍵字)</label>
+              <input type="text" class="form-control fw-bold border-primary sup-store" value="${store}" placeholder="例如: lalaport" list="storeDataList">
+            </div>
+            <div class="d-flex gap-2 mb-2">
+              <div class="w-50">
+                <label class="fw-bold text-secondary small">支援起</label>
+                ${createTimeSelect(sStart, 'sup-start')}
+              </div>
+              <div class="w-50">
+                <label class="fw-bold text-secondary small">支援迄</label>
+                ${createTimeSelect(sEnd, 'sup-end')}
+              </div>
+            </div>
+            <div>
+              <label class="fw-bold text-secondary small">支援休</label>
+              ${createRestSelect(rest || "0")}
+            </div>
+          </div>
+        `;
+        area.insertAdjacentHTML('beforeend', html);
+      }
+
+      // 3. 勾選「同步上下班時間」
+      function toggleSupportTimeSync() {
+        const isChecked = document.getElementById('syncTimeCheckbox').checked;
+        if (!isChecked || currentSupportRowIndex === -1) return;
+        
+        // 去畫面上抓這名員工剛剛填寫的上下班與休息時間
+        const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
+        if (!tr) return;
+        
+        const mainStart = tr.querySelector('.start-select').value;
+        const mainEnd = tr.querySelector('.end-select').value;
+        const mainRest = tr.querySelector('.rest-select').value;
+
+        // 寫入所有支援項目中
+        const entries = document.querySelectorAll('.support-entry');
+        entries.forEach(entry => {
+            entry.querySelector('.sup-start').value = mainStart;
+            entry.querySelector('.sup-end').value = mainEnd;
+            entry.querySelector('.rest-select').value = mainRest || "0";
+        });
+      }
+
+      // 4. 點擊「儲存」：將視窗資料寫回 currentData 並更新主畫面按鈕
+      function saveSupportData() {
+        if (currentSupportRowIndex === -1) return;
+        
+        let tempSupports = [];
+        const entries = document.querySelectorAll('.support-entry');
+        
+        entries.forEach(entry => {
+            const store = entry.querySelector('.sup-store').value.trim();
+            const start = entry.querySelector('.sup-start').value;
+            const end = entry.querySelector('.sup-end').value;
+            const rest = parseFloat(entry.querySelector('.rest-select').value) || 0;
+            
+            if (store !== "") {
+                let startEnd = (start && end) ? `${start}~${end}` : "";
+                
+                // 計算時數 (H)
+                let hrs = 0;
+                if (start && end) {
+                    let s = timeToFloat(start); let e = timeToFloat(end);
+                    if (e < s) e += 24;
+                    hrs = e - s - rest;
+                }
+                
+                tempSupports.push({
+                    supportStore: store,
+                    startEnd: startEnd,
+                    rest: rest > 0 ? rest.toString() : "",
+                    hrs: hrs > 0 ? hrs.toFixed(1) : ""
+                });
+            }
+        });
+
+        // 存入全域變數
+        currentData[currentSupportRowIndex].supports = tempSupports;
+        
+        // 更新主畫面那顆按鈕的外觀
+        const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
+        if (tr) {
+            const btn = tr.querySelector('.support-btn');
+            if (tempSupports.length > 0) {
+                btn.className = "btn btn-primary text-white support-btn shadow-sm";
+                btn.innerHTML = `➕ 跨店支援 (${tempSupports.length})`;
+            } else {
+                btn.className = "btn btn-outline-primary support-btn shadow-sm";
+                btn.innerHTML = `➕ 跨店支援`;
+            }
+            
+            // 觸發檢核更新 (下一步會寫)
+            validateRow(tr); 
+        }
+
+        // 關閉視窗
+        bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
       }
     </script>
   </body>
