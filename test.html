@@ -594,52 +594,64 @@
         }
         // ==========================================
           
-        const rows = document.querySelectorAll('#staffTable tr'); 
         let inputData = []; 
         let incomplete = false;
         
-        rows.forEach(tr => {
-          const idx = parseInt(tr.getAttribute('data-index')); 
-          const s = tr.querySelector('.status-select').value; 
-          const verifyName = tr.getAttribute('data-name'); 
-          const verifyDate = tr.getAttribute('data-date');
-          
-          // ★ 新增：抓取該員工身上的「支援紀錄」
-          const rowSupports = currentData[idx].supports || [];
+        // ==========================================
+        // ★ 核心升級：放棄掃描 DOM，改為直接掃描 currentData 記憶體
+        // 且只打包「被修改過 (isModified)」的資料，大幅節省流量
+        // ==========================================
+        currentData.forEach((row, idx) => {
+            // 如果這筆資料根本沒動過，而且不是被強制存檔，就直接跳過不處理！
+            if (!row.isModified && !force) return; 
 
-          let start = "", end = "", rest = "", zVal = "0", hVal = "", aaVal = "";
-          
-          if (tr.querySelector('.start-select')) {
-              start = tr.querySelector('.start-select').value; 
-              end = tr.querySelector('.end-select').value; 
-              rest = tr.querySelector('.rest-select').value;
-              hVal = tr.querySelector('.hours-input').value;      // 抓取計算好的 H
-              zVal = tr.querySelector('.z-select').value;         // 抓取預計加班 Z
-              aaVal = tr.querySelector('.excess-input').value;    // 抓取超時 AA
-          }
+            // 直接從記憶體讀取最新狀態，不再從 tr.querySelector 抓取
+            let s = row.input_status || ""; 
+            let start = row.input_start || ""; 
+            let end = row.input_end || ""; 
+            let rest = row.input_rest !== undefined && row.input_rest !== null ? String(row.input_rest) : ""; 
+            let hVal = row.calc_hours || "";
+            let zVal = row.input_est_overtime || "0";
+            let aaVal = row.calc_excess || "";
+            
+            // ★★★ 您最關心的：抓取該員工身上的「支援紀錄」 (完全保留) ★★★
+            const rowSupports = row.supports || []; 
 
-          // ★ 修改：只要有選上班，或是其他狀態但有填時間，就檢查必填並傳送完整資料
-          let hasTimeInput = (start !== "" || end !== "");
-          if (s === '上班' || hasTimeInput) {
-             if (start === "" || end === "" || rest === "") { incomplete = true; tr.classList.add('row-error'); }
-             inputData.push({ 
-                 rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, 
-                 d: s, e: start, f: end, g: rest, 
-                 h: hVal, z: zVal, aa: aaVal,
-                 supports: rowSupports 
-             });
-          } else { 
-             inputData.push({ 
-                 rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, 
-                 d: s, e: "", f: "", g: "", 
-                 h: "", z: "", aa: "",
-                 supports: rowSupports 
-             }); 
-          }
+            // ★ 新增：抓取系統連動時打上的註記
+            let cascadeLog = row.cascade_log || ""; 
+
+            // ★ 必填與傳送邏輯 (與舊版 100% 一致)
+            let hasTimeInput = (start !== "" || end !== "");
+            if (s === '上班' || hasTimeInput) {
+               if (start === "" || end === "" || rest === "") { incomplete = true; }
+               inputData.push({ 
+                   rowIndex: idx, verifyName: row.name, verifyDate: row.date, 
+                   d: s, e: start, f: end, g: rest, 
+                   h: hVal, z: zVal, aa: aaVal,
+                   supports: rowSupports,   // ★ 支援紀錄完美上車
+                   cascadeLog: cascadeLog   // ★ 連動註記上車
+               });
+            } else { 
+               inputData.push({ 
+                   rowIndex: idx, verifyName: row.name, verifyDate: row.date, 
+                   d: s, e: "", f: "", g: "", 
+                   h: "", z: "", aa: "",
+                   supports: rowSupports,   // ★ 支援紀錄完美上車
+                   cascadeLog: cascadeLog 
+               }); 
+            }
         });
         
+        // ★ 保留您原本的警告文字
         if (incomplete) { Swal.fire('錯誤', '已選擇上班或有出勤紀錄，請填寫完整(起/迄/休)', 'warning'); return; }
+
+        // ★ 極速防呆：如果完全沒有修改任何東西，擋下並提示
+        if (inputData.length === 0) {
+            Swal.fire('系統訊息', '您尚未修改任何班表資料。', 'info');
+            return;
+        }
         
+        // ★ 保留您原本的 Loading 文字
         showLoading(true, "儲存中...");
         
         // ★ 呼叫後端時帶上 Token
@@ -652,7 +664,13 @@
           .then(res => {
              showLoading(false); 
              if (res.status === 'SUCCESS') { 
-                 Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false }).then((result) => { if (result.isConfirmed) loadData(); }); 
+                 Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false }).then((result) => { 
+                     if (result.isConfirmed) {
+                         // ★ 存檔成功後，把記憶體裡的所有髒標記洗乾淨，迎接下一次操作
+                         currentData.forEach(r => r.isModified = false);
+                         loadData(); 
+                     }
+                 }); 
              } 
              else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
                  // ★ 保留原版：搶旗失敗，被強制登出
@@ -946,30 +964,32 @@
         if (currentMode === 'name') updateLiveSummary(targetName);
       }
       // ==========================================
-      // ★ 狀態或時間修改時觸發
+      // ★ 狀態或時間修改時觸發 (含連動與髒標記)
       // ==========================================
       function handleRowChange(select) {
           const tr = select.closest('tr');
           if (!tr) return;
           
+          // ★ 遺漏點 1：抓取 index，並為手動修改的這筆資料打上「髒標記」！
+          // 這樣 saveData 才會知道要把這筆資料打包送出
+          let idx = parseInt(tr.getAttribute('data-index'));
+          currentData[idx].isModified = true; 
+
+          // 狀態切換防呆邏輯
           if (select.classList.contains('status-select')) {
               const status = select.value;
               
-              // ==========================================
-              // ★ 步驟二新增：一旦選了有效狀態，立刻銷毀「請選擇」選項，不給反悔！
-              // ==========================================
+              // 一旦選了有效狀態，立刻銷毀「請選擇」
               if (status !== "") {
                   const emptyOpt = select.querySelector('option[value=""]');
                   if (emptyOpt) emptyOpt.remove();
               }
-
-              // 恢復預設值
+              
               tr.querySelector('.start-select').value = "";
               tr.querySelector('.end-select').value = "";
-              tr.querySelector('.rest-select').value = "0"; // 預設休0
-              tr.querySelector('.z-select').value = "0";    // 預設Z為0
+              tr.querySelector('.rest-select').value = "0"; 
+              tr.querySelector('.z-select').value = "0";    
               
-              // 若狀態是空的 (請選擇)，鎖死後方所有欄位
               let isDisabled = (status === "");
               tr.querySelector('.start-select').disabled = isDisabled;
               tr.querySelector('.end-select').disabled = isDisabled;
@@ -977,13 +997,29 @@
               tr.querySelector('.z-select').disabled = isDisabled || (status !== "上班");
           }
 
-          validateRow(tr); 
+          // 1. 先計算店長「正在改」的這一天 (false 代表這不是被連動的，是手動的)
+          validateRow(tr, false); 
+          
+          // 2. 光速啟動「全月連動」！
+          const name = tr.getAttribute('data-name');
+          const date = tr.getAttribute('data-date');
+          cascadeFullMonth(name, date);
+
+          // ★ 遺漏點 2：補回您原本的 UI 更新邏輯 (讓上方的統計小卡即時跳動)
+          if (currentMode === 'name') { 
+              updateLiveSummary(name); 
+          }
+          
+          // 檢查是否超標並解鎖/鎖定儲存按鈕
+          if (typeof checkRealTimeBudget === 'function') checkRealTimeBudget(tr); 
+          if (typeof validateAll === 'function') validateAll();
       }
 
       // ==========================================
-      // ★ 核心時段切割與檢核引擎 (手動輸入進化版)
+      // ★ 核心時段切割與檢核引擎 (保留舊版全邏輯 + 連動標記)
       // ==========================================
-      function validateRow(tr) {
+      // ★ 升級 1：加入 isCascade 參數
+      function validateRow(tr, isCascade = false) {
           const status = tr.querySelector('.status-select').value;
           const startSelect = tr.querySelector('.start-select');
           const endSelect = tr.querySelector('.end-select');
@@ -1138,6 +1174,13 @@
           }
           tr.classList.remove('row-error');
 
+          // ==========================================
+          // ★ 升級 2：抓取連動前的舊數值，用來比對是否有發生自動調配
+          // ==========================================
+          let originalIndex = parseInt(tr.getAttribute('data-index'));
+          let oldZ = parseFloat(currentData[originalIndex].input_est_overtime) || 0;
+          let oldAA = parseFloat(currentData[originalIndex].calc_excess) || 0;
+
           // 組裝文字訊息 (完全保留)
           let msgs = []; let currTime = sF;
           const ft = (t) => {
@@ -1166,7 +1209,26 @@
               msgs.push(`<span class="text-danger fw-bold">超時 ${ft(currTime)}~${ft(endT)} ${tag}</span>`);
           }
 
-          let originalIndex = parseInt(tr.getAttribute('data-index'));
+          // ==========================================
+          // ★ 升級 3：判斷是否為系統連動，並加入提示字眼與記憶體註記
+          // ==========================================
+          let cascadeText = "";
+          if (isCascade) {
+              let newZ = outZ; // 剛剛算出的新 Z
+              let newAA = outAA; // 剛剛算出的新 AA
+              
+              if (newZ > oldZ && newAA < oldAA) {
+                  msgs.push(`<span class="text-success fw-bold mt-1 d-block border border-success rounded p-1" style="background-color: #e8f5e9;">✨ 系統連動：釋放超時轉為合法加班</span>`);
+                  cascadeText = "[自動優化額度]";
+                  currentData[originalIndex].isModified = true; // 打上存檔髒標記
+              }
+              else if (newZ < oldZ && newAA > oldAA) {
+                  msgs.push(`<span class="text-danger fw-bold mt-1 d-block border border-danger rounded p-1" style="background-color: #ffebee;">⚠️ 系統連動：額度排擠，轉為超時</span>`);
+                  cascadeText = "[自動排擠超時]";
+                  currentData[originalIndex].isModified = true; // 打上存檔髒標記
+              }
+          }
+
           let sups = currentData[originalIndex].supports || [];
           if (sups.length > 0) {
               let supStrs = sups.map(s => `${s.supportStore} ${s.startEnd.replace('~', '-')}(${s.hrs}H)`);
@@ -1174,12 +1236,17 @@
           }
           msgBox.innerHTML = msgs.join('<br>');
           
+          // ==========================================
+          // ★ 升級 4：完整寫入記憶體 (包含狀態與註記)
+          // ==========================================
+          currentData[originalIndex].input_status = status; // 確保狀態有存進去
           currentData[originalIndex].input_start = startVal;
           currentData[originalIndex].input_end = endVal;
           currentData[originalIndex].input_rest = restVal;
           currentData[originalIndex].calc_hours = outH;
           currentData[originalIndex].input_est_overtime = outZ;
           currentData[originalIndex].calc_excess = outAA;
+          currentData[originalIndex].cascade_log = cascadeText; // 傳遞給後端的註記
       }
 
       function refreshHourlyDropdowns(name) {
@@ -1689,6 +1756,95 @@
               }
           });
           return { h: totalH, z: totalZ };
+      }
+    // ==========================================
+      // ★ 瀑布式整月連動引擎 (背景自動掃描 1~31 號)
+      // ==========================================
+      function cascadeFullMonth(empName, triggerDateStr) {
+          // 抓出該員工本月的所有資料，並確保按照日期「順序」排列
+          let empRows = currentData.filter(r => r.name === empName);
+          empRows.sort((a, b) => a.date.localeCompare(b.date));
+
+          empRows.forEach(r => {
+              // 略過剛剛才由店長「手動」修改並已經算好的那一天
+              if (r.date === triggerDateStr) return; 
+
+              // 尋找這一天是否有顯示在目前的畫面上
+              let tr = document.querySelector(`tr[data-name="${empName}"][data-date="${r.date}"]`);
+              if (tr) {
+                  // 如果在畫面上，呼叫 validateRow 進行連動並「顯示文字提示」
+                  validateRow(tr, true); 
+              } else {
+                  // 如果不在畫面上 (例如被週別過濾掉了)，啟動「無頭模式」在背景摸黑運算！
+                  headlessValidate(r);
+              }
+          });
+      }
+
+      // ==========================================
+      // ★ 無頭計算機 (專門處理不在畫面上的排班)
+      // ==========================================
+      function headlessValidate(r) {
+          const isMonthly = r.salaryType.includes("月薪");
+          let startVal = r.input_start || ""; let endVal = r.input_end || "";
+          let restVal = parseFloat(r.input_rest) || 0;
+          let zInputVal = parseFloat(r.input_est_overtime) || 0;
+          let status = r.input_status || "";
+          
+          // 1. 記錄舊數值，用來比對是否發生連動
+          let oldZ = parseFloat(r.input_est_overtime) || 0;
+          let oldAA = parseFloat(r.calc_excess) || 0;
+
+          // 2. 防呆與空值排除
+          if (status === "" || (status === "國" && !isMonthly) || (startVal === "" && endVal === "" && status !== "上班" && status !== "休" && status !== "例" && status !== "國" && status !== "空班")) {
+              r.calc_hours = 0; r.calc_excess = 0; if(status !== "上班") r.input_est_overtime = 0; return;
+          }
+
+          let sF = String(startVal).includes(':') ? timeToFloat(startVal) : parseFloat(startVal);
+          let eF = String(endVal).includes(':') ? timeToFloat(endVal) : parseFloat(endVal);
+          if (isNaN(sF)) sF = 0; if (isNaN(eF)) eF = 0;
+          if (eF < sF) eF += 24; let totalWork = Math.max(0, eF - sF - restVal);
+
+          // 3. 抓取「當下」的最新額度
+          let stats = getAccumulatedStats(r.name, r.date);
+          let availableZ = Math.max(0, 46 - stats.z);
+          let outH = 0, outZ = 0, outAA = 0;
+
+          if (status === "上班") {
+              let effectiveZ = Math.min(zInputVal, availableZ);
+              outAA = Math.max(0, totalWork - 12);
+              if (zInputVal > availableZ) { outAA += (zInputVal - availableZ); }
+              outH = Math.max(0, totalWork - effectiveZ - outAA);
+          } else if (status === "休") {
+              outH = 0; outZ = Math.min(Math.min(totalWork, 12), availableZ); outAA = totalWork - outZ; 
+          } else if (status === "例" || status === "空班") {
+              outH = 0; outZ = 0; outAA = totalWork; 
+          } else if (status === "國" && isMonthly) {
+              outH = 0; outZ = Math.min(totalWork, 12);
+              if (outZ > 8) { let overtimePortion = outZ - 8; if (overtimePortion > availableZ) { let excess = overtimePortion - availableZ; outZ -= excess; outAA += excess; } }
+              outAA += (totalWork - Math.min(totalWork, 12)); 
+          }
+
+          // 決定最終的 Z 數值
+          let finalZ = (status === "上班" && zInputVal > availableZ) ? Math.floor(availableZ * 2) / 2 : (status !== "上班" ? outZ : zInputVal);
+
+          // ==========================================
+          // ★ 4. 您漏掉的關鍵：比對差異並打上「髒標記」！
+          // ==========================================
+          if (finalZ > oldZ && outAA < oldAA) {
+              r.cascade_log = "[自動優化額度]";
+              r.isModified = true; // ★ 讓 saveData 知道它被偷改了，必須打包送出！
+          } else if (finalZ < oldZ && outAA > oldAA) {
+              r.cascade_log = "[自動排擠超時]";
+              r.isModified = true; // ★ 讓 saveData 知道它被偷改了，必須打包送出！
+          } else {
+              r.cascade_log = ""; // 沒變動就清空註記
+          }
+
+          // 5. 最終統一寫入記憶體
+          r.calc_hours = outH; 
+          r.calc_excess = outAA;
+          r.input_est_overtime = finalZ;
       }
       function formatTime(v) { if(!v) return ""; if(v instanceof Date) return ("0"+v.getHours()).slice(-2) + ":" + ("0"+v.getMinutes()).slice(-2); let s = String(v).trim(); if (s.includes("T")) return s.substr(11, 5); return s; }
       function formatDiff(val) { let n = parseFloat(val).toFixed(1); if (Math.abs(val) < 0.1) return `<span class="text-muted">0</span>`; if (val < 0) return `<span class="diff-neg">${n}</span>`; return `<span class="diff-pos">+${n}</span>`; }
