@@ -422,11 +422,11 @@
       // window.onload (程式入口)
       // ==========================================
       window.onload = function() {
-        // 綁定閒置偵測
-        document.onmousemove = resetTimer;
-        document.onkeypress = resetTimer;
-        document.ontouchstart = resetTimer;
-
+        // ★ 綁定全平台閒置偵測 (含手機觸控與滑動)
+        ['mousemove', 'keypress', 'touchstart', 'touchmove', 'scroll', 'click'].forEach(evt => {
+            document.addEventListener(evt, resetTimer, true);
+        });
+        
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode');
           // ★★★ 修改這行：優先抓取 'key'，如果沒有才抓 'u' (相容舊版) ★★★
@@ -664,24 +664,18 @@
           .then(res => {
              showLoading(false); 
              if (res.status === 'SUCCESS') { 
-                 
-                 // ==========================================
-                 // ★ 新增：計算總共存了幾筆，有幾筆是被系統自動連動的
-                 // ==========================================
                  let cascadeCount = inputData.filter(i => i.cascadeLog !== "").length;
                  let msgText = `共更新了 ${inputData.length} 筆班表資料`;
-                 if (cascadeCount > 0) {
-                     msgText += `\n(包含 ${cascadeCount} 筆系統自動連動優化)`;
-                 }
+                 if (cascadeCount > 0) msgText += `\n(包含 ${cascadeCount} 筆系統自動連動優化)`;
 
                  Swal.fire({ 
-                     icon: 'success', 
-                     title: '✅ 儲存成功', 
-                     text: msgText, // ★ 將文字替換為精準的數量報告
-                     confirmButtonText: '確認', 
-                     allowOutsideClick: false 
+                     icon: 'success', title: '✅ 儲存成功', text: msgText, confirmButtonText: '確認', allowOutsideClick: false 
                  }).then((result) => { 
                      if (result.isConfirmed) {
+                         // ★ 紀錄當下的選項
+                         window.tempFilterName = document.getElementById('selectName').value;
+                         window.tempFilterWeek = document.getElementById('selectWeek').value;
+                         
                          currentData.forEach(r => r.isModified = false);
                          loadData(); 
                      }
@@ -794,7 +788,16 @@
                  document.getElementById('closingNotice').innerText = noticeText;
 
                  if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
-                 initNameSelect(); renderTable();
+                 initNameSelect(); 
+                 
+                 // ★ 恢復剛剛紀錄的選項
+                 if (window.tempFilterName) {
+                     document.getElementById('selectName').value = window.tempFilterName;
+                     document.getElementById('selectWeek').value = window.tempFilterWeek;
+                     window.tempFilterName = null;
+                     window.tempFilterWeek = null;
+                 }
+                 renderTable();
              } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
         }).catch(err => errorHandler(err));
       }
@@ -2156,8 +2159,11 @@
         const mainEnd = tr.querySelector('.end-select').value;
         const mainRest = parseFloat(tr.querySelector('.rest-select').value) || 0;
 
-        const fStart = mainStart ? timeToFloat(mainStart) : "";
-        const fEnd = mainEnd ? timeToFloat(mainEnd) : "";
+        // ★★★ 核心防呆修改在這裡：
+        // 因為新版時間變成 9.5 這種小數點，如果直接丟給舊版 timeToFloat 會變成 NaN
+        // 所以判斷：如果裡面有冒號 (:) 才用 timeToFloat，沒有就直接 parseFloat 取數字
+        const fStart = mainStart ? (String(mainStart).includes(':') ? timeToFloat(mainStart) : parseFloat(mainStart)) : "";
+        const fEnd = mainEnd ? (String(mainEnd).includes(':') ? timeToFloat(mainEnd) : parseFloat(mainEnd)) : "";
 
         const entries = document.querySelectorAll('.support-entry');
         // 如果勾選同步，強迫只能留一筆支援紀錄 (把其他的刪掉)
@@ -2232,7 +2238,7 @@
 
         // 若無錯誤，存入全域變數
         currentData[currentSupportRowIndex].supports = tempSupports;
-        
+        currentData[currentSupportRowIndex].isModified = true; // ★ 補上這行，讓系統知道這天有被修改！
         const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
         if (tr) {
             const btn = tr.querySelector('.support-btn');
