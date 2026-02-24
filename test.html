@@ -1065,7 +1065,10 @@
               startSelect.disabled = true; endSelect.disabled = true;
               restSelect.disabled = true; zSelect.disabled = true;
               hInput.value = ""; aaInput.value = ""; msgBox.innerHTML = "";
-              tr.classList.remove('row-error');
+              tr.classList.remove('row-error', 'row-warning'); // ★ 確保移除黃色背景
+              
+              let originalIndex = parseInt(tr.getAttribute('data-index'));
+              currentData[originalIndex].input_status = "";
               
               // ★ 新增：確實將空白寫入記憶體，避免漏存
               let originalIndex = parseInt(tr.getAttribute('data-index'));
@@ -1083,16 +1086,17 @@
           if (status === "國" && !isMonthly) {
               startSelect.disabled = true; endSelect.disabled = true;
               restSelect.disabled = true; zSelect.disabled = true;
-              hInput.value = ""; aaInput.value = ""; zSelect.value = "0";
-              // ★ 修改：拔掉 row-error 阻擋，改為純文字提示，讓它能存檔
-              msgBox.innerHTML = `<span class="text-secondary fw-bold" style="font-size:0.85rem;">💡 提示：時薪人員如有出勤，狀態請改為"上班"</span>`;
-              tr.classList.remove('row-error');
+              
+              tr.classList.remove('row-error'); 
+              tr.classList.add('row-warning'); // ★ 加上舊版的整列黃色背景！
               
               // 強制清空計算用變數，讓它順暢往下走寫入記憶體
               startVal = ""; endVal = ""; restVal = 0; zInputVal = 0;
           } else {
               startSelect.disabled = false; endSelect.disabled = false; restSelect.disabled = false;
               zSelect.disabled = (status !== "上班");
+              
+              tr.classList.remove('row-warning'); // ★ 確保切換回其他狀態時，黃色背景會消失
           }
 
           let hasTimeInput = (startVal !== "" || endVal !== "");
@@ -1287,8 +1291,10 @@
           // ★ 補回遺失的提示：確保在最後組合文字時，把時薪國定的提示加進去！
           // ==========================================
           if (status === "國" && !isMonthly) {
-              msgs.push(`<span class="text-secondary fw-bold" style="font-size:0.85rem;">💡 提示：時薪人員如有出勤，狀態請改為"上班"</span>`);
+              // ★ 換回舊版一模一樣的文字與顏色 (text-warn 專屬土黃色)
+              msgs.push(`<span class="text-warn fw-bold">⚠️ 時薪人員如有出勤，狀態請改為'上班'</span>`);
           }
+
           msgBox.innerHTML = msgs.join('<br>');
           
           // ==========================================
