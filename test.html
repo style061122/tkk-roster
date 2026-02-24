@@ -778,7 +778,7 @@
         names.forEach(n => select.innerHTML += `<option value="${n}">${n}</option>`);
       }
 
-      ffunction switchMode(mode) {
+      function switchMode(mode) {
           currentMode = mode;
           const btnDate = document.getElementById('btnModeDate');
           const btnName = document.getElementById('btnModeName');
