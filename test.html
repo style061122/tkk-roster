@@ -785,17 +785,48 @@
       function renderTable() {
         const tbody = document.getElementById('staffTable'); tbody.innerHTML = '';
         const summaryBar = document.getElementById('liveSummaryBar'); summaryBar.style.display = 'none'; 
-        const y = document.getElementById('displayYear').innerText; const m = document.getElementById('displayMonth').innerText.padStart(2, '0');
+        const y = document.getElementById('displayYear').innerText; 
+        const m = document.getElementById('displayMonth').innerText.padStart(2, '0');
+        
+        // ==========================================
+        // ★ 新增：自動初始化週別選單 (確保選單與當前顯示月份同步)
+        // ==========================================
+        const weekSelect = document.getElementById('selectWeek');
+        if (weekSelect && weekSelect.getAttribute('data-loaded') !== `${y}-${m}`) {
+            initWeekSelect(y, m);
+            weekSelect.setAttribute('data-loaded', `${y}-${m}`);
+        }
+
         let targetData = [], targetName = "";
+        
         if (currentMode === 'date') {
-           const d = document.getElementById('selectDay').value.padStart(2, '0'); const targetDateStr = `${y}/${m}/${d}`;
+           const d = document.getElementById('selectDay').value.padStart(2, '0'); 
+           const targetDateStr = `${y}/${m}/${d}`;
            targetData = currentData.filter(row => row.date === targetDateStr);
         } else {
-           targetName = document.getElementById('selectName').value; targetData = currentData.filter(row => row.name === targetName);
-           targetData.sort((a,b) => a.date.localeCompare(b.date)); summaryBar.style.display = 'block'; 
+           targetName = document.getElementById('selectName').value; 
+           
+           // ==========================================
+           // ★ 新增：抓取目前選擇的週別並過濾資料
+           // ==========================================
+           let weekVal = weekSelect.value; 
+           
+           targetData = currentData.filter(row => {
+               if (row.name !== targetName) return false;
+               if (weekVal === "ALL") return true; // 全月展開
+               
+               let parts = weekVal.split('-');
+               if (parts.length < 2) return true; // 防呆
+               let sD = parseInt(parts[0]); let eD = parseInt(parts[1]);
+               let rowDay = parseInt(row.date.split('/')[2]);
+               return (rowDay >= sD && rowDay <= eD); // 過濾出該週的日子
+           });
+           
+           targetData.sort((a,b) => a.date.localeCompare(b.date)); 
+           summaryBar.style.display = 'block'; 
         }
         
-        // 欄位數改為 9 (原本 7)
+        // 欄位數 9
         if (targetData.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="text-center py-5 text-muted fw-bold">無資料</td></tr>'; if(currentMode === 'name') updateLiveSummary(targetName); return; }
         
         targetData.forEach((row) => {
@@ -826,18 +857,19 @@
           statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (row.input_status === opt) ? "selected" : ""; statusHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
           statusHtml += `</select>`;
           
-          // ★★★ 新增：跨店支援按鈕 (若有支援，按鈕會變色並顯示數量) ★★★
           let supportCount = (row.supports && row.supports.length > 0) ? `(${row.supports.length})` : "";
           let supportBtnClass = (row.supports && row.supports.length > 0) ? "btn-primary text-white" : "btn-outline-primary";
           statusHtml += `<button type="button" class="btn ${supportBtnClass} support-btn shadow-sm" onclick="openSupportModal(this, ${originalIndex})">➕ 跨店支援 ${supportCount}</button>`;
           tr.innerHTML += `<td>${statusHtml}</td>`;
           
-          // ★★★ 新增：Z 預計加班, AA 超時 欄位 ★★★
+          // ==========================================
+          // ★ 修改：全面換成全新打造的手動輸入框元件
+          // ==========================================
           tr.innerHTML += `
-            <td>${createTimeSelect(row.input_start, 'start-select')}</td>
-            <td>${createTimeSelect(row.input_end, 'end-select')}</td>
-            <td>${createRestSelect(row.input_rest)}</td>
-            <td>${createZSelect(row.input_est_overtime)}</td>
+            <td>${createTimeInput(row.input_start, 'start-select')}</td>
+            <td>${createTimeInput(row.input_end, 'end-select')}</td>
+            <td>${createRestInput(row.input_rest)}</td>
+            <td>${createZInput(row.input_est_overtime)}</td>
             <td><input type="text" class="form-control text-center fw-bold hours-input border-0 bg-transparent" value="${row.calc_hours}" readonly></td>
             <td><input type="text" class="form-control text-center fw-bold excess-input border-0 bg-transparent text-danger bg-aa-col" value="${row.calc_excess}" readonly></td>
             <td><div class="msg-box"></div></td>
@@ -875,7 +907,7 @@
       }
 
       // ==========================================
-      // ★ 核心時段切割與檢核引擎
+      // ★ 核心時段切割與檢核引擎 (手動輸入進化版)
       // ==========================================
       function validateRow(tr) {
           const status = tr.querySelector('.status-select').value;
@@ -959,11 +991,10 @@
           let availableZ = Math.max(0, 46 - stats.z); 
 
           if (status === "上班") {
-              let currentZOptions = zSelect.options;
-              for(let i=0; i<currentZOptions.length; i++) {
-                  let optVal = parseFloat(currentZOptions[i].value);
-                  currentZOptions[i].disabled = (optVal > availableZ); 
-              }
+              // ★ 改為動態修改輸入框的 max 屬性 (取代舊版的下拉選單掃描)
+              let maxAllowedZ = Math.min(4, availableZ);
+              zSelect.setAttribute('max', maxAllowedZ);
+              
               if (zInputVal > availableZ) {
                   zInputVal = Math.floor(availableZ * 2) / 2;
                   zSelect.value = zInputVal;
@@ -981,7 +1012,7 @@
               if (zInputVal > availableZ) outAA += (zInputVal - availableZ); 
               outH = totalWork - effectiveZ - outAA;
 
-              // 【問題1】休息時間防呆
+              // 【問題1】休息時間防呆 (完全保留)
               if (outH >= 8 && restVal < 1) {
                   errMsg = `❌ 應有時數達 8 小時以上，休息時間至少需 1 小時 (目前休 ${restVal})`;
               } else if (outH >= 4 && restVal < 0.5) {
@@ -1021,12 +1052,9 @@
           hInput.value = outH > 0 ? outH.toFixed(1) : "0";
           aaInput.value = outAA > 0 ? outAA.toFixed(1) : "";
 
-          // 【問題2】非上班狀態，動態生成 Z 的選項並帶入
+          // 【問題2】非上班狀態，直接帶入 Z 值 (取代舊版加入新 option)
           if (status !== "上班") {
-              let zStr = outZ > 0 ? outZ.toFixed(1) : "0";
-              let optionExists = Array.from(zSelect.options).some(opt => opt.value === zStr);
-              if (!optionExists) zSelect.add(new Option(zStr, zStr)); // 如果選單沒有12，就動態加進去
-              zSelect.value = zStr;
+              zSelect.value = outZ > 0 ? outZ.toFixed(1) : "0";
           }
 
           if (errMsg) {
@@ -1035,7 +1063,7 @@
           }
           tr.classList.remove('row-error');
 
-          // 組裝文字訊息
+          // 組裝文字訊息 (完全保留)
           let msgs = []; let currTime = sF;
           const ft = (t) => {
               let h = Math.floor(t); let m = (t - h) * 60;
@@ -1483,26 +1511,65 @@
       function errorHandler(e) { showLoading(false); Swal.fire('錯誤', e.message||e, 'error'); }
       function generateTimeOptions() { let o='<option value="">請選擇</option>'; for(let h=0;h<24;h++){ let s=('0'+h).slice(-2); o+=`<option value="${s}:00">${s}:00</option><option value="${s}:30">${s}:30</option>`; } return o; }
       function generateRestOptions() { let o='<option value="">請選擇</option>'; for(let i=0; i<=8; i++){ let v = (i * 0.5).toFixed(1); o += `<option value="${v}">${v}</option>`; } return o; }
-      function createTimeSelect(v,c) { return `<select class="form-select time-select ${c}" onchange="handleRowChange(this)">${timeOptions.replace(`value="${v}"`,`value="${v}" selected`)}</select>`; }
-      function createRestSelect(v) {
-          // 如果沒填、空字串或 undefined，強制轉為數字 0
-          let currentV = (v === "" || v === null || v === undefined) ? 0 : Number(v);
-          let o = '';
-          for (let i = 0; i <= 4; i += 0.5) {
-              let selected = (currentV === i) ? "selected" : "";
-              o += `<option value="${i}" ${selected}>${i}</option>`;
+      // ==========================================
+      // ★ 1. 輸入框產生器 (全部改為手動輸入，並綁定防呆)
+      // ==========================================
+      function checkNumFormat(el, max) {
+          if (el.value === "") return;
+          let val = parseFloat(el.value);
+          let currentMax = parseFloat(el.getAttribute('max') || max);
+          if (isNaN(val) || val < 0 || val > currentMax || val % 0.5 !== 0) {
+              Swal.fire('格式錯誤', `僅限輸入 0 ~ ${currentMax} 的數字，且最小單位為 0.5 (例如 1.0, 9.5)`, 'error');
+              el.value = "";
           }
-          return `<select class="form-select rest-select fw-bold border-dark" onchange="handleRowChange(this)">${o}</select>`;
       }
-      function createZSelect(v) {
-        let o = '<option value="0">0</option>';
-        for(let i=1; i<=8; i++){
-            let val = (i * 0.5).toFixed(1);
-            let selected = (String(v) === String(val) || Number(v) === Number(val)) ? "selected" : "";
-            o += `<option value="${val}" ${selected}>${val}</option>`;
-        }
-        // 賦予專屬 class: z-select 與背景色 bg-z-col
-        return `<select class="form-select z-select bg-z-col fw-bold" onchange="handleRowChange(this)">${o}</select>`;
+
+      function createTimeInput(v, cls) {
+          let val = (v !== "" && v !== null && v !== undefined) ? v : "";
+          if(String(val).includes(':')) val = timeToFloat(val); // 舊資料防呆轉小數點
+          return `<input type="number" class="form-control ${cls} fw-bold text-center border-dark" step="0.5" min="0" max="23.5" value="${val}" placeholder="例:9.5" onchange="checkNumFormat(this, 23.5); handleRowChange(this)">`;
+      }
+
+      function createRestInput(v) {
+          let val = (v !== "" && v !== null && v !== undefined) ? v : "0";
+          return `<input type="number" class="form-control rest-select fw-bold text-center border-dark" step="0.5" min="0" max="4" value="${val}" onchange="checkNumFormat(this, 4); handleRowChange(this)">`;
+      }
+
+      function createZInput(v) {
+          let val = (v !== "" && v !== null && v !== undefined) ? v : "0";
+          return `<input type="number" class="form-control z-select bg-z-col fw-bold text-center" step="0.5" min="0" max="4" value="${val}" onchange="checkNumFormat(this, 4); handleRowChange(this)">`;
+      }
+
+      // ==========================================
+      // ★ 2. 動態週別產生器 (自動判斷該月的週一到週日)
+      // ==========================================
+      function initWeekSelect(y, m) {
+          const weekSelect = document.getElementById('selectWeek');
+          if (!weekSelect) return;
+          weekSelect.innerHTML = '<option value="ALL">全月展開 (不建議)</option>';
+          
+          const lastDay = new Date(y, m, 0).getDate();
+          let currentStart = 1;
+          let chunks = [];
+          
+          for (let d = 1; d <= lastDay; d++) {
+              let dayOfWeek = new Date(y, m - 1, d).getDay(); // 0是週日
+              if (dayOfWeek === 0 || d === lastDay) { 
+                  chunks.push({ start: currentStart, end: d });
+                  currentStart = d + 1;
+              }
+          }
+          
+          const today = new Date();
+          const isCurrentMonth = (today.getFullYear() === Number(y) && (today.getMonth() + 1) === Number(m));
+          const todayD = today.getDate();
+          
+          chunks.forEach(c => {
+              let text = (c.start === c.end) ? `${m}/${c.start}` : `${m}/${c.start}~${m}/${c.end}`;
+              let val = `${c.start}-${c.end}`;
+              let selected = (isCurrentMonth && todayD >= c.start && todayD <= c.end) ? "selected" : "";
+              weekSelect.innerHTML += `<option value="${val}" ${selected}>${text}</option>`;
+          });
       }
      function checkSupNum(el, max) {
           if (el.value === "") return;
