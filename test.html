@@ -536,7 +536,7 @@
 
       function saveData(force) {
         // ==========================================
-        // ★★★ 新增：關帳日鎖定機制 (前端防呆 - 區間顯示版) ★★★
+        // ★★★ 保留原版：關帳日鎖定機制 (前端防呆 - 區間顯示版) ★★★
         // ==========================================
         try {
             let limitDay = parseInt(monthlyTargets.closingDay) || 4;
@@ -598,18 +598,41 @@
           const verifyName = tr.getAttribute('data-name'); 
           const verifyDate = tr.getAttribute('data-date');
           
-          if (s === '上班') {
-            const start = tr.querySelector('.start-select').value; 
-            const end = tr.querySelector('.end-select').value; 
-            const rest = tr.querySelector('.rest-select').value;
-            if (!start || !end || rest === "") { incomplete = true; tr.classList.add('row-error'); }
-            inputData.push({ rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, d: s, e: start, f: end, g: rest });
+          // ★ 新增：抓取該員工身上的「支援紀錄」
+          const rowSupports = currentData[idx].supports || [];
+
+          let start = "", end = "", rest = "", zVal = "0", hVal = "", aaVal = "";
+          
+          if (tr.querySelector('.start-select')) {
+              start = tr.querySelector('.start-select').value; 
+              end = tr.querySelector('.end-select').value; 
+              rest = tr.querySelector('.rest-select').value;
+              hVal = tr.querySelector('.hours-input').value;      // 抓取計算好的 H
+              zVal = tr.querySelector('.z-select').value;         // 抓取預計加班 Z
+              aaVal = tr.querySelector('.excess-input').value;    // 抓取超時 AA
+          }
+
+          // ★ 修改：只要有選上班，或是其他狀態但有填時間，就檢查必填並傳送完整資料
+          let hasTimeInput = (start !== "" || end !== "");
+          if (s === '上班' || hasTimeInput) {
+             if (start === "" || end === "" || rest === "") { incomplete = true; tr.classList.add('row-error'); }
+             inputData.push({ 
+                 rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, 
+                 d: s, e: start, f: end, g: rest, 
+                 h: hVal, z: zVal, aa: aaVal,
+                 supports: rowSupports 
+             });
           } else { 
-            inputData.push({ rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, d: s, e: "", f: "", g: "" }); 
+             inputData.push({ 
+                 rowIndex: idx, verifyName: verifyName, verifyDate: verifyDate, 
+                 d: s, e: "", f: "", g: "", 
+                 h: "", z: "", aa: "",
+                 supports: rowSupports 
+             }); 
           }
         });
         
-        if (incomplete) { Swal.fire('錯誤', '上班需填寫完整時間', 'warning'); return; }
+        if (incomplete) { Swal.fire('錯誤', '已選擇上班或有出勤紀錄，請填寫完整(起/迄/休)', 'warning'); return; }
         
         showLoading(true, "儲存中...");
         
@@ -626,7 +649,7 @@
                  Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false }).then((result) => { if (result.isConfirmed) loadData(); }); 
              } 
              else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
-                 // ★ 搶旗失敗，被強制登出
+                 // ★ 保留原版：搶旗失敗，被強制登出
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
              }
              else if (res.status === 'PARTIAL') { 
@@ -636,6 +659,7 @@
                  Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
              }
              else { 
+                 // ★ 保留原版：未知錯誤處理
                  Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); 
              }
           })
@@ -865,16 +889,24 @@
           const tr = select.closest('tr');
           if (!tr) return;
           
-          // 如果店長切換了「狀態」下拉選單
           if (select.classList.contains('status-select')) {
-              // 依照您的規定：一旦修改狀態，上班/下班/休息 恢復預設值
+              const status = select.value;
+              // 恢復預設值
               tr.querySelector('.start-select').value = "";
               tr.querySelector('.end-select').value = "";
-              tr.querySelector('.rest-select').value = "0";
-              tr.querySelector('.z-select').value = "0"; // Z 也歸零
+              tr.querySelector('.rest-select').value = "0"; // 預設休0
+              tr.querySelector('.z-select').value = "0";    // 預設Z為0
+              
+              // 若狀態是空的 (請選擇)，鎖死後方所有欄位
+              let isDisabled = (status === "");
+              tr.querySelector('.start-select').disabled = isDisabled;
+              tr.querySelector('.end-select').disabled = isDisabled;
+              tr.querySelector('.rest-select').disabled = isDisabled;
+              // Z 只有在「上班」時才開放選擇，其餘鎖死
+              tr.querySelector('.z-select').disabled = isDisabled || (status !== "上班");
           }
 
-          validateRow(tr); // 呼叫檢核引擎
+          validateRow(tr); 
       }
 
       // ==========================================
@@ -900,9 +932,17 @@
           let restVal = parseFloat(restSelect.value) || 0;
           let zInputVal = parseFloat(zSelect.value) || 0;
 
-          // 1. UI 鎖定防呆機制
+          // 【問題3】狀態未選擇：清空並鎖定
+          if (status === "") {
+              startSelect.disabled = true; endSelect.disabled = true;
+              restSelect.disabled = true; zSelect.disabled = true;
+              hInput.value = ""; aaInput.value = ""; msgBox.innerHTML = "";
+              tr.classList.remove('row-error');
+              return;
+          }
+
+          // 時薪人員國定假日防呆
           if (status === "國" && !isMonthly) {
-              // 時薪人員遇國定假日，全數鎖死不給填
               startSelect.disabled = true; endSelect.disabled = true;
               restSelect.disabled = true; zSelect.disabled = true;
               hInput.value = ""; aaInput.value = ""; zSelect.value = "0";
@@ -911,45 +951,54 @@
               return;
           } else {
               startSelect.disabled = false; endSelect.disabled = false; restSelect.disabled = false;
-              // 預計加班(Z) 只有狀態=上班時可以自行選擇，其他狀態鎖死交由系統計算
               zSelect.disabled = (status !== "上班");
           }
 
-          // 如果上下班時間沒填完整，清空文字與計算結果
-          if (startVal === "" || endVal === "") {
-              hInput.value = ""; aaInput.value = "";
-              msgBox.innerHTML = "";
-              tr.classList.remove('row-error');
-              if(status !== "上班") zSelect.value = "0";
-              return;
+          let hasTimeInput = (startVal !== "" || endVal !== "");
+
+          // 【問題4 & 5】必填與連動防呆
+          if (status === "上班") {
+              if (!hasTimeInput) {
+                  hInput.value = ""; aaInput.value = ""; msgBox.innerHTML = `<span class="text-danger fw-bold">❌ 狀態為「上班」，請務必填寫上下班時間</span>`;
+                  tr.classList.add('row-error'); return;
+              } else if (startVal === "" || endVal === "") {
+                  hInput.value = ""; aaInput.value = ""; msgBox.innerHTML = `<span class="text-danger fw-bold">❌ 請填寫完整的上班與下班時間</span>`;
+                  tr.classList.add('row-error'); return;
+              }
+          } else {
+              // 非上班狀態：如果有填任何時間，就必須全填
+              if (hasTimeInput && (startVal === "" || endVal === "")) {
+                  hInput.value = ""; aaInput.value = ""; msgBox.innerHTML = `<span class="text-danger fw-bold">❌ 有出勤紀錄，請填寫完整的上下班時間</span>`;
+                  tr.classList.add('row-error'); return;
+              }
+              // 如果都沒填，代表正常休假，清空計算
+              if (!hasTimeInput) {
+                  hInput.value = ""; aaInput.value = ""; zSelect.value = "0"; msgBox.innerHTML = "";
+                  tr.classList.remove('row-error'); return;
+              }
           }
 
-          // 2. 基礎數值轉換與計算
           let sF = timeToFloat(startVal);
           let eF = timeToFloat(endVal);
-          if (eF < sF) eF += 24; // 跨夜處理
-          let totalWork = eF - sF - restVal; // 實際工作時間 (已經扣除休息)
+          if (eF < sF) eF += 24; 
+          let totalWork = eF - sF - restVal; 
 
           if (totalWork < 0) {
               hInput.value = ""; aaInput.value = "";
               msgBox.innerHTML = `<span class="text-danger fw-bold">❌ 休息時間大於在勤時間，請重新確認！</span>`;
-              tr.classList.add('row-error');
-              return;
+              tr.classList.add('row-error'); return;
           }
 
-          // 3. 抓取累計資訊與上限
           let stats = getAccumulatedStats(name, date);
-          let maxMonthH = parseFloat(monthlyTargets.hrs) || 0; // 參數設定 B4
-          let availableZ = Math.max(0, 46 - stats.z); // 當月剩餘的加班額度
+          let maxMonthH = parseFloat(monthlyTargets.hrs) || 0; 
+          let availableZ = Math.max(0, 46 - stats.z); 
 
-          // 動態調整 Z 下拉選單 (防呆)
           if (status === "上班") {
               let currentZOptions = zSelect.options;
               for(let i=0; i<currentZOptions.length; i++) {
                   let optVal = parseFloat(currentZOptions[i].value);
-                  currentZOptions[i].disabled = (optVal > availableZ); // 超過剩餘額度的變反灰
+                  currentZOptions[i].disabled = (optVal > availableZ); 
               }
-              // 如果店長之前選的 Z 已經大於可用額度，強制下修
               if (zInputVal > availableZ) {
                   zInputVal = Math.floor(availableZ * 2) / 2;
                   zSelect.value = zInputVal;
@@ -960,26 +1009,19 @@
           let errMsg = "";
           let maxDailyH = isMonthly ? 10 : 8;
 
-          // =====================================
-          // ★ 核心時段切割邏輯 ★
-          // =====================================
           if (status === "上班") {
-              // 擋修機制：月薪制且應有時數已滿 B4 上限
-              if (isMonthly && (stats.h >= maxMonthH)) {
-                  errMsg = `❌ 本月累計應有時數已達上限，不可再排上班，請改為休/例/空班`;
-              }
-              
-              // 總工時 = H + Z + AA
-              outAA = Math.max(0, totalWork - 12); // 超過 12 小時一律算 AA
-              
+              if (isMonthly && (stats.h >= maxMonthH)) errMsg = `❌ 本月累計應有時數已達上限，不可再排上班，請改為休/例/空班`;
+              outAA = Math.max(0, totalWork - 12); 
               let effectiveZ = Math.min(zInputVal, availableZ);
-              // 如果填寫的 Z 超過可用額度，多出來的直接灌進 AA (46小時滿載特例)
-              if (zInputVal > availableZ) { outAA += (zInputVal - availableZ); }
-
+              if (zInputVal > availableZ) outAA += (zInputVal - availableZ); 
               outH = totalWork - effectiveZ - outAA;
 
-              // 檢核 H 是否合理
-              if (outH > maxDailyH) {
+              // 【問題1】休息時間防呆
+              if (outH >= 8 && restVal < 1) {
+                  errMsg = `❌ 應有時數達 8 小時以上，休息時間至少需 1 小時 (目前休 ${restVal})`;
+              } else if (outH >= 4 && restVal < 0.5) {
+                  errMsg = `❌ 應有時數達 4 小時以上，休息時間至少需 0.5 小時 (目前休 ${restVal})`;
+              } else if (outH > maxDailyH) {
                   errMsg = `❌ 單日應有時數不可超過 ${maxDailyH} 小時，請增加預計加班(Z)`;
               } else if (outH < 0) {
                   errMsg = `❌ 預計加班時數(Z) 大於實際工作時間，請調降 Z`;
@@ -989,64 +1031,58 @@
           } else if (status === "休") {
               outH = 0;
               let maxZ = Math.min(totalWork, 12);
-              outZ = Math.min(maxZ, availableZ); // 最多只給到剩餘額度
+              outZ = Math.min(maxZ, availableZ); 
               outAA = totalWork - outZ;
 
           } else if (status === "例" || status === "空班") {
-              outH = 0; outZ = 0; outAA = totalWork; // 全部算超時
+              outH = 0; outZ = 0; outAA = totalWork; 
 
           } else if (status === "國" && isMonthly) {
               outH = 0;
               let maxZ = Math.min(totalWork, 12);
               outZ = maxZ;
-              
-              // 國定假日 Z 滿 46 防呆計算 (前8不計入)
               if (outZ > 8) {
                   let overtimePortion = outZ - 8;
                   if (overtimePortion > availableZ) {
                       let excess = overtimePortion - availableZ;
-                      outZ -= excess;
-                      outAA += excess;
+                      outZ -= excess; outAA += excess;
                   }
               }
               outAA += (totalWork - maxZ);
-              
-              if (outZ < 8 && totalWork > 0) {
-                   errMsg = `❌ 月薪人員國定假日務必排 8 小時以上，未滿 8 小時請改為其他狀態`;
-              }
+              if (outZ < 8 && totalWork > 0) errMsg = `❌ 月薪人員國定假日務必排 8 小時以上，未滿 8 小時請改為其他狀態`;
           }
 
-          // 4. 將計算結果同步顯示到畫面上
+          // 寫入畫面
           hInput.value = outH > 0 ? outH.toFixed(1) : "0";
-          if (status !== "上班") zSelect.value = outZ > 0 ? outZ.toFixed(1) : "0";
           aaInput.value = outAA > 0 ? outAA.toFixed(1) : "";
+
+          // 【問題2】非上班狀態，動態生成 Z 的選項並帶入
+          if (status !== "上班") {
+              let zStr = outZ > 0 ? outZ.toFixed(1) : "0";
+              let optionExists = Array.from(zSelect.options).some(opt => opt.value === zStr);
+              if (!optionExists) zSelect.add(new Option(zStr, zStr)); // 如果選單沒有12，就動態加進去
+              zSelect.value = zStr;
+          }
 
           if (errMsg) {
               msgBox.innerHTML = `<span class="text-danger fw-bold">${errMsg}</span>`;
-              tr.classList.add('row-error');
-              return;
+              tr.classList.add('row-error'); return;
           }
           tr.classList.remove('row-error');
 
-          // =====================================
-          // ★ 檢核文字組合器 ★
-          // =====================================
-          let msgs = [];
-          let currTime = sF;
-          
+          // 組裝文字訊息
+          let msgs = []; let currTime = sF;
           const ft = (t) => {
               let h = Math.floor(t); let m = (t - h) * 60;
               if (h >= 24) h -= 24;
               return String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0');
           };
 
-          // 優先將休息時間包在第一段裡面
           if (outH > 0) {
               let endT = currTime + outH + restVal;
               msgs.push(`<span class="text-primary fw-bold">應有 ${ft(currTime)}~${ft(endT)} (含休${restVal})</span>`);
               currTime = endT;
           }
-
           if (outZ > 0) {
               let zRest = (outH === 0) ? restVal : 0; 
               let endT = currTime + outZ + zRest;
@@ -1054,7 +1090,6 @@
               msgs.push(`<span class="text-warning fw-bold" style="color: #d39e00 !important;">加班 ${ft(currTime)}~${ft(endT)} ${tag}</span>`);
               currTime = endT;
           }
-
           if (outAA > 0) {
               let aaRest = (outH === 0 && outZ === 0) ? restVal : 0;
               let endT = currTime + outAA + aaRest;
@@ -1062,17 +1097,14 @@
               msgs.push(`<span class="text-danger fw-bold">超時 ${ft(currTime)}~${ft(endT)} ${tag}</span>`);
           }
 
-          // 附加支援紀錄
           let originalIndex = parseInt(tr.getAttribute('data-index'));
           let sups = currentData[originalIndex].supports || [];
           if (sups.length > 0) {
               let supStrs = sups.map(s => `${s.supportStore} ${s.startEnd.replace('~', '-')}(${s.hrs}H)`);
               msgs.push(`<span class="text-success fw-bold mt-1 d-block">支援：${supStrs.join(', ')}</span>`);
           }
-
           msgBox.innerHTML = msgs.join('<br>');
           
-          // 5. 將最新數值寫回 currentData (為了存檔與累計準備)
           currentData[originalIndex].input_start = startVal;
           currentData[originalIndex].input_end = endVal;
           currentData[originalIndex].input_rest = restVal;
