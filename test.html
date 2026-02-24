@@ -858,16 +858,227 @@
         });
         if (currentMode === 'name') updateLiveSummary(targetName);
       }
+      // ==========================================
+      // ★ 狀態或時間修改時觸發
+      // ==========================================
+      function handleRowChange(select) {
+          const tr = select.closest('tr');
+          if (!tr) return;
+          
+          // 如果店長切換了「狀態」下拉選單
+          if (select.classList.contains('status-select')) {
+              // 依照您的規定：一旦修改狀態，上班/下班/休息 恢復預設值
+              tr.querySelector('.start-select').value = "";
+              tr.querySelector('.end-select').value = "";
+              tr.querySelector('.rest-select').value = "0";
+              tr.querySelector('.z-select').value = "0"; // Z 也歸零
+          }
 
-      function handleRowChange(element) {
-        let tr = element.closest('tr'); let idx = parseInt(tr.getAttribute('data-index'));
-        currentData[idx].input_status = tr.querySelector('.status-select').value;
-        currentData[idx].input_start = tr.querySelector('.start-select').value;
-        currentData[idx].input_end = tr.querySelector('.end-select').value;
-        currentData[idx].input_rest = tr.querySelector('.rest-select').value;
-        updateRowState(tr); calculateRow(tr); currentData[idx].calc_hours = tr.querySelector('.hours-input').value;
-        if (currentMode === 'name') { let salary = tr.getAttribute('data-salary'); let name = tr.getAttribute('data-name'); if (salary.includes("時薪")) refreshHourlyDropdowns(name); else if (salary.includes("月薪")) refreshMonthlyDropdowns(name); updateLiveSummary(name); }
-        validateRow(tr); checkRealTimeBudget(tr); validateAll();
+          validateRow(tr); // 呼叫檢核引擎
+      }
+
+      // ==========================================
+      // ★ 核心時段切割與檢核引擎
+      // ==========================================
+      function validateRow(tr) {
+          const status = tr.querySelector('.status-select').value;
+          const startSelect = tr.querySelector('.start-select');
+          const endSelect = tr.querySelector('.end-select');
+          const restSelect = tr.querySelector('.rest-select');
+          const zSelect = tr.querySelector('.z-select');
+          const hInput = tr.querySelector('.hours-input');
+          const aaInput = tr.querySelector('.excess-input');
+          const msgBox = tr.querySelector('.msg-box');
+          
+          const name = tr.getAttribute('data-name');
+          const date = tr.getAttribute('data-date');
+          const salaryType = tr.getAttribute('data-salary');
+          const isMonthly = salaryType.includes("月薪");
+          
+          let startVal = startSelect.value;
+          let endVal = endSelect.value;
+          let restVal = parseFloat(restSelect.value) || 0;
+          let zInputVal = parseFloat(zSelect.value) || 0;
+
+          // 1. UI 鎖定防呆機制
+          if (status === "國" && !isMonthly) {
+              // 時薪人員遇國定假日，全數鎖死不給填
+              startSelect.disabled = true; endSelect.disabled = true;
+              restSelect.disabled = true; zSelect.disabled = true;
+              hInput.value = ""; aaInput.value = ""; zSelect.value = "0";
+              msgBox.innerHTML = `<span class="text-danger fw-bold">❌ 時薪人員如有出勤，狀態請改為"上班"</span>`;
+              tr.classList.add('row-error');
+              return;
+          } else {
+              startSelect.disabled = false; endSelect.disabled = false; restSelect.disabled = false;
+              // 預計加班(Z) 只有狀態=上班時可以自行選擇，其他狀態鎖死交由系統計算
+              zSelect.disabled = (status !== "上班");
+          }
+
+          // 如果上下班時間沒填完整，清空文字與計算結果
+          if (startVal === "" || endVal === "") {
+              hInput.value = ""; aaInput.value = "";
+              msgBox.innerHTML = "";
+              tr.classList.remove('row-error');
+              if(status !== "上班") zSelect.value = "0";
+              return;
+          }
+
+          // 2. 基礎數值轉換與計算
+          let sF = timeToFloat(startVal);
+          let eF = timeToFloat(endVal);
+          if (eF < sF) eF += 24; // 跨夜處理
+          let totalWork = eF - sF - restVal; // 實際工作時間 (已經扣除休息)
+
+          if (totalWork < 0) {
+              hInput.value = ""; aaInput.value = "";
+              msgBox.innerHTML = `<span class="text-danger fw-bold">❌ 休息時間大於在勤時間，請重新確認！</span>`;
+              tr.classList.add('row-error');
+              return;
+          }
+
+          // 3. 抓取累計資訊與上限
+          let stats = getAccumulatedStats(name, date);
+          let maxMonthH = parseFloat(monthlyTargets.hrs) || 0; // 參數設定 B4
+          let availableZ = Math.max(0, 46 - stats.z); // 當月剩餘的加班額度
+
+          // 動態調整 Z 下拉選單 (防呆)
+          if (status === "上班") {
+              let currentZOptions = zSelect.options;
+              for(let i=0; i<currentZOptions.length; i++) {
+                  let optVal = parseFloat(currentZOptions[i].value);
+                  currentZOptions[i].disabled = (optVal > availableZ); // 超過剩餘額度的變反灰
+              }
+              // 如果店長之前選的 Z 已經大於可用額度，強制下修
+              if (zInputVal > availableZ) {
+                  zInputVal = Math.floor(availableZ * 2) / 2;
+                  zSelect.value = zInputVal;
+              }
+          }
+
+          let outH = 0, outZ = 0, outAA = 0;
+          let errMsg = "";
+          let maxDailyH = isMonthly ? 10 : 8;
+
+          // =====================================
+          // ★ 核心時段切割邏輯 ★
+          // =====================================
+          if (status === "上班") {
+              // 擋修機制：月薪制且應有時數已滿 B4 上限
+              if (isMonthly && (stats.h >= maxMonthH)) {
+                  errMsg = `❌ 本月累計應有時數已達上限，不可再排上班，請改為休/例/空班`;
+              }
+              
+              // 總工時 = H + Z + AA
+              outAA = Math.max(0, totalWork - 12); // 超過 12 小時一律算 AA
+              
+              let effectiveZ = Math.min(zInputVal, availableZ);
+              // 如果填寫的 Z 超過可用額度，多出來的直接灌進 AA (46小時滿載特例)
+              if (zInputVal > availableZ) { outAA += (zInputVal - availableZ); }
+
+              outH = totalWork - effectiveZ - outAA;
+
+              // 檢核 H 是否合理
+              if (outH > maxDailyH) {
+                  errMsg = `❌ 單日應有時數不可超過 ${maxDailyH} 小時，請增加預計加班(Z)`;
+              } else if (outH < 0) {
+                  errMsg = `❌ 預計加班時數(Z) 大於實際工作時間，請調降 Z`;
+              }
+              outZ = effectiveZ;
+
+          } else if (status === "休") {
+              outH = 0;
+              let maxZ = Math.min(totalWork, 12);
+              outZ = Math.min(maxZ, availableZ); // 最多只給到剩餘額度
+              outAA = totalWork - outZ;
+
+          } else if (status === "例" || status === "空班") {
+              outH = 0; outZ = 0; outAA = totalWork; // 全部算超時
+
+          } else if (status === "國" && isMonthly) {
+              outH = 0;
+              let maxZ = Math.min(totalWork, 12);
+              outZ = maxZ;
+              
+              // 國定假日 Z 滿 46 防呆計算 (前8不計入)
+              if (outZ > 8) {
+                  let overtimePortion = outZ - 8;
+                  if (overtimePortion > availableZ) {
+                      let excess = overtimePortion - availableZ;
+                      outZ -= excess;
+                      outAA += excess;
+                  }
+              }
+              outAA += (totalWork - maxZ);
+              
+              if (outZ < 8 && totalWork > 0) {
+                   errMsg = `❌ 月薪人員國定假日務必排 8 小時以上，未滿 8 小時請改為其他狀態`;
+              }
+          }
+
+          // 4. 將計算結果同步顯示到畫面上
+          hInput.value = outH > 0 ? outH.toFixed(1) : "0";
+          if (status !== "上班") zSelect.value = outZ > 0 ? outZ.toFixed(1) : "0";
+          aaInput.value = outAA > 0 ? outAA.toFixed(1) : "";
+
+          if (errMsg) {
+              msgBox.innerHTML = `<span class="text-danger fw-bold">${errMsg}</span>`;
+              tr.classList.add('row-error');
+              return;
+          }
+          tr.classList.remove('row-error');
+
+          // =====================================
+          // ★ 檢核文字組合器 ★
+          // =====================================
+          let msgs = [];
+          let currTime = sF;
+          
+          const ft = (t) => {
+              let h = Math.floor(t); let m = (t - h) * 60;
+              if (h >= 24) h -= 24;
+              return String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0');
+          };
+
+          // 優先將休息時間包在第一段裡面
+          if (outH > 0) {
+              let endT = currTime + outH + restVal;
+              msgs.push(`<span class="text-primary fw-bold">應有 ${ft(currTime)}~${ft(endT)} (含休${restVal})</span>`);
+              currTime = endT;
+          }
+
+          if (outZ > 0) {
+              let zRest = (outH === 0) ? restVal : 0; 
+              let endT = currTime + outZ + zRest;
+              let tag = (outH > 0 || zRest === 0) ? "(請打下班卡)" : `(含休${restVal}，請打下班卡)`;
+              msgs.push(`<span class="text-warning fw-bold" style="color: #d39e00 !important;">加班 ${ft(currTime)}~${ft(endT)} ${tag}</span>`);
+              currTime = endT;
+          }
+
+          if (outAA > 0) {
+              let aaRest = (outH === 0 && outZ === 0) ? restVal : 0;
+              let endT = currTime + outAA + aaRest;
+              let tag = (aaRest > 0) ? `(含休${restVal}，不可打卡)` : "(不可打卡)";
+              msgs.push(`<span class="text-danger fw-bold">超時 ${ft(currTime)}~${ft(endT)} ${tag}</span>`);
+          }
+
+          // 附加支援紀錄
+          let originalIndex = parseInt(tr.getAttribute('data-index'));
+          let sups = currentData[originalIndex].supports || [];
+          if (sups.length > 0) {
+              let supStrs = sups.map(s => `${s.supportStore} ${s.startEnd.replace('~', '-')}(${s.hrs}H)`);
+              msgs.push(`<span class="text-success fw-bold mt-1 d-block">支援：${supStrs.join(', ')}</span>`);
+          }
+
+          msgBox.innerHTML = msgs.join('<br>');
+          
+          // 5. 將最新數值寫回 currentData (為了存檔與累計準備)
+          currentData[originalIndex].input_start = startVal;
+          currentData[originalIndex].input_end = endVal;
+          currentData[originalIndex].input_rest = restVal;
+          currentData[originalIndex].calc_hours = outH;
+          currentData[originalIndex].input_est_overtime = outZ;
+          currentData[originalIndex].calc_excess = outAA;
       }
 
       function refreshHourlyDropdowns(name) {
@@ -918,17 +1129,6 @@
         const status = tr.querySelector('.status-select').value; if (status !== '上班') return;
         const s = tr.querySelector('.start-select').value; const e = tr.querySelector('.end-select').value; const r = tr.querySelector('.rest-select').value; const hInput = tr.querySelector('.hours-input');
         if (s && e && r !== "") { let start = timeToFloat(s), end = timeToFloat(e), rest = parseFloat(r); if (end < start) end += 24; let total = end - start - rest; hInput.value = (total > 0) ? total.toFixed(1) : "0.0"; } else { hInput.value = ""; }
-      }
-      function validateRow(tr) {
-        const status = tr.querySelector('.status-select').value; const msgBox = tr.querySelector('.msg-box'); const salaryType = tr.getAttribute('data-salary'); const dateStr = tr.getAttribute('data-date'); 
-        const hVal = parseFloat(tr.querySelector('.hours-input').value) || 0; const rVal = parseFloat(tr.querySelector('.rest-select').value) || 0;
-        msgBox.innerHTML = ""; tr.classList.remove('row-error', 'row-warning'); let errors = [], warnings = [];
-        let currentDay = parseInt(dateStr.split('/')[2]).toString(); let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
-        if (salaryType.includes("時薪") && isHourlyHoliday && status === "國") warnings.push("⚠️ 時薪人員如有出勤，狀態請改為'上班'");
-        if (salaryType.includes("月薪") && status === "國") warnings.push("⚠️ 月薪人員如有出勤，請整天申請加班單");
-        if (salaryType.includes("月薪") && status === "空班") warnings.push("⚠️ 當月應有時數大於8才會產生空班");
-        if (status === '上班' && tr.querySelector('.start-select').value) { if (salaryType.includes("月薪") && hVal > 10) errors.push("❌ 月薪制不可>10小時"); else if (salaryType.includes("時薪") && hVal > 8) errors.push("❌ 時薪制不可>8小時"); if (hVal > 8 && rVal < 1) errors.push("❌ >8小時需休1小時"); else if (hVal > 4 && rVal < 0.5) errors.push("❌ >4小時需休0.5小時"); }
-        if (errors.length > 0) { msgBox.innerHTML = errors.map(e=>`<span class="text-err">${e}</span>`).join("<br>"); tr.classList.add('row-error'); } else if (warnings.length > 0) { msgBox.innerHTML = warnings.map(w=>`<span class="text-warn">${w}</span>`).join("<br>"); tr.classList.add('row-warning'); }
       }
       function checkRealTimeBudget(tr) {
         if (!currentData.length) return; 
@@ -1315,6 +1515,32 @@
         new bootstrap.Modal(document.getElementById('supportModal')).show();
       }
       function timeToFloat(t) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); }
+      // ==========================================
+      // ★★★ 取得該員整月累計時數 (排除目前正在編輯的這一天) ★★★
+      // ==========================================
+      function getAccumulatedStats(empName, excludeDateStr) {
+          let totalH = 0;
+          let totalZ = 0;
+          
+          currentData.forEach(r => {
+              if (r.name === empName && r.date !== excludeDateStr) {
+                  let h = parseFloat(r.calc_hours) || 0;
+                  let z = parseFloat(r.input_est_overtime) || 0;
+                  let s = r.input_status || "";
+                  
+                  // H 應有時數累計
+                  totalH += h;
+                  
+                  // Z 預計加班累計 (特例：國定假日的 Z，前 8 小時不計入 46 小時扣打)
+                  if (s === "國" && z > 0) {
+                      totalZ += Math.max(0, z - 8);
+                  } else {
+                      totalZ += z;
+                  }
+              }
+          });
+          return { h: totalH, z: totalZ };
+      }
       function formatTime(v) { if(!v) return ""; if(v instanceof Date) return ("0"+v.getHours()).slice(-2) + ":" + ("0"+v.getMinutes()).slice(-2); let s = String(v).trim(); if (s.includes("T")) return s.substr(11, 5); return s; }
       function formatDiff(val) { let n = parseFloat(val).toFixed(1); if (Math.abs(val) < 0.1) return `<span class="text-muted">0</span>`; if (val < 0) return `<span class="diff-neg">${n}</span>`; return `<span class="diff-pos">+${n}</span>`; }
       async function handleChangePassword() {
