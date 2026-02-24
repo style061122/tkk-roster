@@ -38,7 +38,8 @@
       .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
-        /* --- 整月檢視日曆專用樣式 --- */
+      
+      /* --- 整月檢視日曆專用樣式 --- */
       .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
       .calendar-header { font-weight: bold; text-align: center; background: #343a40; color: white; padding: 8px 5px; font-size: 0.9rem; }
       .calendar-day { background: #fff; min-height: 90px; padding: 6px; border-radius: 4px; position: relative; display: flex; flex-direction: column; gap: 4px; }
@@ -48,27 +49,21 @@
       .emp-tag { background: #e3f2fd; color: #084298; border: 1px solid #b6effb; border-radius: 4px; padding: 3px 5px; font-size: 0.85rem; cursor: pointer; text-align: center; font-weight: bold; transition: background 0.2s; user-select: none; }
       .emp-tag:hover { background: #cfe2ff; }
       .emp-time { display: none; background: #fff3cd; color: #664d03; font-size: 0.8rem; text-align: center; border-radius: 3px; padding: 2px; margin-bottom: 4px; border: 1px dashed #ffecb5; }
-     /* ========================================= */
+      
+      /* ========================================= */
       /* ★ 統計方塊：全體通用與電腦版加大樣式 ★ */
       /* ========================================= */
       .stat-grid-mobile { 
           display: grid; 
-          grid-template-columns: repeat(4, 1fr); /* 電腦版預設 4 欄並排 */
+          grid-template-columns: repeat(4, 1fr); 
           gap: 15px; 
       }
       .stat-card-item { 
-          display: flex; 
-          flex-direction: column; 
-          align-items: center; 
-          justify-content: center; 
-          background: #f8f9fa; 
-          border-radius: 10px; 
-          border: 1px solid #e9ecef; 
-          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-          transition: all 0.3s ease;
+          display: flex; flex-direction: column; align-items: center; justify-content: center; 
+          background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; 
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease;
       }
 
-      /* ↓↓↓ 請務必補上這段，電腦版字才會夠大 ↓↓↓ */
       @media (min-width: 901px) {
           .stat-card-item { padding: 25px 15px; min-height: 120px; }
           .stat-card-label { font-size: 1.1rem; color: #6c757d; margin-bottom: 10px; font-weight: bold; }
@@ -76,7 +71,6 @@
           .stat-card-diff { font-size: 1rem; margin-left: 5px; }
       }
 
-      /* ↓↓↓ 原本手機版的字體大小要移到這裡，才不會影響到電腦版 ↓↓↓ */
       @media (max-width: 900px) {
           .stat-grid-mobile { grid-template-columns: 1fr 1fr; gap: 10px; } 
           .stat-card-item { padding: 12px 8px; }
@@ -85,51 +79,50 @@
           .stat-card-diff { font-size: 0.8rem; margin-left: 4px; }
       }
 
-      /* 確保高亮顏色全體套用 */
       .val-highlight { color: #0d6efd !important; }
+
       /* ========================================= */
       /* 1. 電腦版專用樣式 (螢幕 > 900px) */
       /* ========================================= */
       @media (min-width: 901px) {
           #indivTableBody td, #personalTableBody td {
-              vertical-align: middle;
-              white-space: nowrap; 
-              font-size: 0.9rem;
-              padding: 6px 4px;
+              vertical-align: middle; white-space: nowrap; font-size: 0.9rem; padding: 6px 4px;
           }
-
           #indivTableBody td:nth-child(14), 
           #indivTableBody td:nth-child(15),
           #personalTableBody td:nth-child(14) {
-              white-space: normal !important;
-              word-break: break-word;
-              min-width: 100px;
-              max-width: 160px;
-              line-height: 1.4;
-              font-size: 0.85rem;
+              white-space: normal !important; word-break: break-word;
+              min-width: 100px; max-width: 160px; line-height: 1.4; font-size: 0.85rem;
           }
-      } /* 修正：補上原本缺少的結束大括號 */
+          .mobile-btn-container { display: none !important; }
+      }
 
       /* ========================================= */
       /* 2. 手機模式 (螢幕 <= 900px) */
       /* ========================================= */
       @media (max-width: 900px) {
-          /* 手機排班介面 (Step 1) */
+          .mobile-btn-container { display: flex !important; }
+          
+          /* ★ 手機排班介面 (最新 9 欄位版) ★ */
           #scheduleForm thead { display: none !important; }
           #staffTable tr { display: flex !important; flex-wrap: wrap !important; background: #fff; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 10px; }
           #staffTable td { border: none !important; padding: 4px !important; position: relative !important; display: block !important; }
           #staffTable td:nth-child(1) { width: 60% !important; font-size: 1.1rem !important; border-bottom: 1px solid #eee !important; }
           #staffTable td:nth-child(2) { width: 40% !important; text-align: right !important; border-bottom: 1px solid #eee !important; }
-          #staffTable td:nth-child(3), #staffTable td:nth-child(4), #staffTable td:nth-child(5) { width: 50% !important; padding-top: 24px !important; }
+          
+          #staffTable td:nth-child(3), #staffTable td:nth-child(4) { width: 50% !important; padding-top: 24px !important; }
+          #staffTable td:nth-child(5), #staffTable td:nth-child(6) { width: 50% !important; padding-top: 24px !important; }
+          #staffTable td:nth-child(7), #staffTable td:nth-child(8) { width: 50% !important; padding-top: 24px !important; }
+          
           #staffTable td:nth-child(3)::before { content: '上班'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
           #staffTable td:nth-child(4)::before { content: '下班'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
           #staffTable td:nth-child(5)::before { content: '休息'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
-          #staffTable td:nth-child(6) { width: 50% !important; padding-top: 24px !important; }
-          #staffTable td:nth-child(6)::before { content: '應有(H)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #0d6efd; font-weight: bold; }
-          #staffTable td:nth-child(6) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; background-color: #f0f8ff !important; border-radius: 4px; border: 1px solid #cce5ff !important; height: 38px !important; }
-          #staffTable td:nth-child(7) { width: 100% !important; }
+          #staffTable td:nth-child(6)::before { content: '預計加班(Z)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #b8860b; font-weight: bold; }
+          #staffTable td:nth-child(7)::before { content: '應有(H)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #0d6efd; font-weight: bold; }
+          #staffTable td:nth-child(8)::before { content: '超時(AA)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #dc3545; font-weight: bold; }
+          #staffTable td:nth-child(9) { width: 100% !important; padding-top: 10px !important; border-top: 1px dashed #eee !important; margin-top: 5px; }
 
-          /* 補回月統計卡片式樣式 (Step 2) */
+          /* 月統計卡片式樣式 */
           #statsTarget { flex-direction: column; align-items: flex-start !important; }
           #statsModal table thead { display: none !important; }
           #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
@@ -153,8 +146,9 @@
           table.mobile-card-mode tbody td:nth-child(1) { background-color: #f8f9fa; margin: -10px -10px 10px -10px !important; padding: 10px 15px !important; border-bottom: 2px solid #e9ecef !important; font-weight: bold; font-size: 1.1rem; justify-content: center; color: #333; width: calc(100% + 20px) !important; }
           table.mobile-card-mode tbody td:nth-child(1)::before { display: none; }
       }
+
       /* ========================================= */
-      /* 3. 通用輔助樣式 */
+      /* 3. 通用輔助樣式與新增欄位特化 */
       /* ========================================= */
       .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; border: 1px solid #eee; }
       .text-time-h { color: #0d6efd; font-weight: bold; }
@@ -162,94 +156,38 @@
       .mobile-btn-container { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; width: 100%; border-top: 1px dashed #eee; padding-top: 8px; }
       .color-h { color: #0d6efd !important; font-weight: bold; }
       .color-err { color: #dc3545 !important; font-weight: bold; }
-      /* ========================================= */
-      /* ★ 系統狀態表：非卡片模式下的通用樣式 ★ */
-      /* 不論螢幕大小，只要沒開啟 mobile-card-mode 就執行 */
-      /* ========================================= */
-      
-      /* 1. 基礎表格格線與對齊 */
+
+      /* ★ 系統狀態表：非卡片模式下的通用樣式 */
       table:not(.mobile-card-mode) #indivTableBody td, 
       table:not(.mobile-card-mode) #personalTableBody td {
-          vertical-align: middle !important;
-          white-space: nowrap; 
-          font-size: 0.9rem;
-          padding: 6px 4px;
+          vertical-align: middle !important; white-space: nowrap; font-size: 0.9rem; padding: 6px 4px;
       }
-
-      /* 2. 針對長文字欄位（異常、註記）的換行優化 */
-      /* 店長端 child(12)=異常, child(13)=註記 / 員工端 child(11)=異常(視欄位數調整) */
       table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
       table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
       table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
       table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
-          white-space: normal !important;
-          word-break: break-all !important; /* 改用 break-all 對中文斷行最有效 */
-          
-          /* 關鍵：強制保底寬度，確保不會被擠壓成一個字 */
-          min-width: 100px !important;  
-          max-width: 180px !important;
-          
-          line-height: 1.4;
-          font-size: 0.85rem;
-          vertical-align: top !important;
+          white-space: normal !important; word-break: break-all !important; 
+          min-width: 100px !important; max-width: 180px !important;
+          line-height: 1.4; font-size: 0.85rem; vertical-align: top !important;
       }
-/* --- 優化：電腦版隱視切換按鈕 --- */
-@media (min-width: 901px) {
-    /* 隱藏店長端與員工端的檢視切換按鈕 */
-    .mobile-btn-container {
-        display: none !important;
-    }
-}
 
-/* 確保在手機版（小於等於 900px）時正常顯示 */
-@media (max-width: 900px) {
-    .mobile-btn-container {
-        display: flex !important;
-    }
-}
-      /* ========================================= */
-      /* ★ 第一階段優化：新增欄位與支援視窗專用樣式 ★ */
-      /* ========================================= */
-      .bg-z-col { background-color: #fff9c4 !important; } /* 預計加班 黃底 */
-      .bg-aa-col { background-color: #ffebee !important; } /* 超時 紅底 */
+      /* ★ 第一階段優化：新增欄位與支援視窗專用樣式 */
+      .bg-z-col { background-color: #fff9c4 !important; } 
+      .bg-aa-col { background-color: #ffebee !important; } 
       .support-btn { font-size: 0.85rem; padding: 4px 8px; margin-top: 6px; width: 100%; font-weight: bold; border-radius: 6px; }
       .support-entry { border: 1px solid #dee2e6; padding: 12px; border-radius: 8px; background: #f8f9fa; margin-bottom: 10px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
       .remove-support-btn { position: absolute; top: 8px; right: 8px; }
       
-      /* ★ 統一放大 H, Z, AA 的字體與顏色 ★ */
+      /* ★ 統一放大 H, Z, AA 的字體與顏色 */
       .hours-input, .excess-input, .z-select {
-          font-size: 1.4rem !important; 
-          font-weight: 900 !important; 
-          text-align: center !important; 
-          height: 42px !important; 
-          border-radius: 6px !important;
+          font-size: 1.4rem !important; font-weight: 900 !important; text-align: center !important; 
+          height: 42px !important; border-radius: 6px !important;
       }
-      .hours-input { color: #0d6efd !important; background-color: #f0f8ff !important; border: 1px solid #cce5ff !important; } /* 應有 H: 藍字 */
-      .z-select { color: #b8860b !important; background-color: #fff9c4 !important; border: 1px solid #f7e089 !important;}  /* 預計加班 Z: 黃字 */
-      .excess-input { color: #dc3545 !important; background-color: #fff5f5 !important; border: 1px solid #f5c2c7 !important;} /* 超時 AA: 紅字 */
+      .hours-input { color: #0d6efd !important; background-color: #f0f8ff !important; border: 1px solid #cce5ff !important; }
+      .z-select { color: #b8860b !important; background-color: #fff9c4 !important; border: 1px solid #f7e089 !important;}  
+      .excess-input { color: #dc3545 !important; background-color: #fff5f5 !important; border: 1px solid #f5c2c7 !important;} 
 
-      /* 隱藏不必要的下拉箭頭 (針對 readonly 的選單) */
       select.z-select:disabled { appearance: none; -webkit-appearance: none; opacity: 1 !important; }
-        
-      /* 覆寫並擴充手機版表格排版 (因為多了 Z 和 AA 欄位) */
-      @media (max-width: 900px) {
-          #staffTable td:nth-child(3), #staffTable td:nth-child(4) { width: 50% !important; padding-top: 24px !important; }
-          #staffTable td:nth-child(5), #staffTable td:nth-child(6) { width: 50% !important; padding-top: 24px !important; }
-          #staffTable td:nth-child(7), #staffTable td:nth-child(8) { width: 50% !important; padding-top: 24px !important; }
-          
-          #staffTable td:nth-child(3)::before { content: '上班'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
-          #staffTable td:nth-child(4)::before { content: '下班'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
-          #staffTable td:nth-child(5)::before { content: '休息'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #666; font-weight: bold; }
-          #staffTable td:nth-child(6)::before { content: '預計加班(Z)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #b8860b; font-weight: bold; }
-          #staffTable td:nth-child(7)::before { content: '應有(H)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #0d6efd; font-weight: bold; }
-          #staffTable td:nth-child(8)::before { content: '超時(AA)'; position: absolute; top: 2px; left: 4px; font-size: 0.8rem; color: #dc3545; font-weight: bold; }
-
-          #staffTable td:nth-child(7) input, #staffTable td:nth-child(8) input { text-align: center !important; font-size: 1.4rem !important; font-weight: 900 !important; border-radius: 4px; height: 38px !important; border: 1px solid #dee2e6; width: 100%; }
-          #staffTable td:nth-child(7) input { background-color: #f0f8ff !important; color: #0d6efd; border-color: #cce5ff; }
-          #staffTable td:nth-child(8) input { background-color: #fff5f5 !important; color: #dc3545; border-color: #f5c2c7; }
-          
-          #staffTable td:nth-child(9) { width: 100% !important; padding-top: 10px !important; border-top: 1px dashed #eee !important; margin-top: 5px; }
-      }
     </style>
 </head>
   <body>
