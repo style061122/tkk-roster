@@ -664,14 +664,29 @@
           .then(res => {
              showLoading(false); 
              if (res.status === 'SUCCESS') { 
-                 Swal.fire({ icon: 'success', title: '✅ 儲存成功', text: '班表已更新完成', confirmButtonText: '確認', allowOutsideClick: false }).then((result) => { 
+                 
+                 // ==========================================
+                 // ★ 新增：計算總共存了幾筆，有幾筆是被系統自動連動的
+                 // ==========================================
+                 let cascadeCount = inputData.filter(i => i.cascadeLog !== "").length;
+                 let msgText = `共更新了 ${inputData.length} 筆班表資料`;
+                 if (cascadeCount > 0) {
+                     msgText += `\n(包含 ${cascadeCount} 筆系統自動連動優化)`;
+                 }
+
+                 Swal.fire({ 
+                     icon: 'success', 
+                     title: '✅ 儲存成功', 
+                     text: msgText, // ★ 將文字替換為精準的數量報告
+                     confirmButtonText: '確認', 
+                     allowOutsideClick: false 
+                 }).then((result) => { 
                      if (result.isConfirmed) {
-                         // ★ 存檔成功後，把記憶體裡的所有髒標記洗乾淨，迎接下一次操作
                          currentData.forEach(r => r.isModified = false);
                          loadData(); 
                      }
                  }); 
-             } 
+             }
              else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
                  // ★ 保留原版：搶旗失敗，被強制登出
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
@@ -1237,6 +1252,16 @@
               let supStrs = sups.map(s => `${s.supportStore} ${s.startEnd.replace('~', '-')}(${s.hrs}H)`);
               msgs.push(`<span class="text-success fw-bold mt-1 d-block">支援：${supStrs.join(', ')}</span>`);
           }
+          // ==========================================
+          // ★ 新增：提早在畫面上顯示額度不足的警告
+          // ==========================================
+          if (status === "上班") {
+              if (availableZ === 0) {
+                  msgs.push(`<span class="text-danger fw-bold mt-1 d-block" style="font-size:0.85rem;">⚠️ 46H額度已滿，超出部分將自動轉超時</span>`);
+              } else if (availableZ < 4) {
+                  msgs.push(`<span class="text-warning fw-bold mt-1 d-block" style="font-size:0.85rem; color:#856404!important;">⚠️ 本月加班額度僅剩 ${availableZ}H</span>`);
+              }
+          }
           msgBox.innerHTML = msgs.join('<br>');
           
           // ==========================================
@@ -1658,15 +1683,31 @@
       function generateTimeOptions() { let o='<option value="">請選擇</option>'; for(let h=0;h<24;h++){ let s=('0'+h).slice(-2); o+=`<option value="${s}:00">${s}:00</option><option value="${s}:30">${s}:30</option>`; } return o; }
       function generateRestOptions() { let o='<option value="">請選擇</option>'; for(let i=0; i<=8; i++){ let v = (i * 0.5).toFixed(1); o += `<option value="${v}">${v}</option>`; } return o; }
       // ==========================================
-      // ★ 1. 輸入框產生器 (全部改為手動輸入，並綁定防呆)
+      // ★ 1. 輸入框產生器 (加入智慧額度防呆提示)
       // ==========================================
       function checkNumFormat(el, max) {
           if (el.value === "") return;
           let val = parseFloat(el.value);
           let currentMax = parseFloat(el.getAttribute('max') || max);
+          
           if (isNaN(val) || val < 0 || val > currentMax || val % 0.5 !== 0) {
-              Swal.fire('格式錯誤', `僅限輸入 0 ~ ${currentMax} 的數字，且最小單位為 0.5 (例如 1.0, 9.5)`, 'error');
-              el.value = "";
+              // 判斷是否為預計加班(Z)的欄位，且上限被系統縮減了
+              if (el.classList.contains('z-select')) {
+                  if (val > currentMax && currentMax < 4) {
+                      if (currentMax === 0) {
+                          Swal.fire('額度已滿', '本月 46 小時免稅加班額度已滿，無法再填寫預計加班。超出部分系統將自動列為超時。', 'warning');
+                      } else {
+                          Swal.fire('額度不足', `本月加班額度僅剩 ${currentMax} 小時，無法輸入 ${val}，已為您自動填入最大值。`, 'warning');
+                      }
+                  } else {
+                      Swal.fire('格式錯誤', `僅限輸入 0 ~ ${currentMax} 的數字，且最小單位為 0.5`, 'error');
+                  }
+              } else {
+                  Swal.fire('格式錯誤', `僅限輸入 0 ~ ${currentMax} 的數字，且最小單位為 0.5`, 'error');
+              }
+              
+              // 自動修正為最大可輸入值，避免店長還要重打
+              el.value = (val > currentMax && currentMax >= 0) ? currentMax : "";
           }
       }
 
@@ -1760,17 +1801,24 @@
           });
           return { h: totalH, z: totalZ };
       }
-    // ==========================================
-      // ★ 瀑布式整月連動引擎 (背景自動掃描 1~31 號)
+      // ==========================================
+      // ★ 瀑布式整月連動引擎 (背景自動掃描 1~31 號) + 右下角通知
       // ==========================================
       function cascadeFullMonth(empName, triggerDateStr) {
           // 抓出該員工本月的所有資料，並確保按照日期「順序」排列
           let empRows = currentData.filter(r => r.name === empName);
           empRows.sort((a, b) => a.date.localeCompare(b.date));
 
+          // ★ 新增：用來記錄被系統自動更改的日期
+          let affectedDates = []; 
+
           empRows.forEach(r => {
               // 略過剛剛才由店長「手動」修改並已經算好的那一天
               if (r.date === triggerDateStr) return; 
+
+              // ★ 新增：在運算前，先偷偷記下這天的舊數字
+              let oldZ = parseFloat(r.input_est_overtime) || 0;
+              let oldAA = parseFloat(r.calc_excess) || 0;
 
               // 尋找這一天是否有顯示在目前的畫面上
               let tr = document.querySelector(`tr[data-name="${empName}"][data-date="${r.date}"]`);
@@ -1781,7 +1829,32 @@
                   // 如果不在畫面上 (例如被週別過濾掉了)，啟動「無頭模式」在背景摸黑運算！
                   headlessValidate(r);
               }
+
+              // ★ 新增：運算完後，檢查數字到底有沒有變
+              let newZ = parseFloat(r.input_est_overtime) || 0;
+              let newAA = parseFloat(r.calc_excess) || 0;
+              
+              // 如果有發生連動改變，就把這天加進清單裡
+              if (Math.abs(newZ - oldZ) > 0.1 || Math.abs(newAA - oldAA) > 0.1) {
+                  affectedDates.push(r.date.split('/')[2] + "日");
+              }
           });
+
+          // ★ 新增：掃描完畢後，如果有連動，統一跳出右下角綠色通知！
+          if (affectedDates.length > 0) {
+              const Toast = Swal.mixin({
+                  toast: true, 
+                  position: 'top-end', 
+                  showConfirmButton: false, 
+                  timer: 5000, 
+                  timerProgressBar: true
+              });
+              Toast.fire({
+                  icon: 'info',
+                  title: '✨ 系統連動通知',
+                  text: `已自動優化 ${empName} 於 ${affectedDates.join(', ')} 的超時與加班分配。`
+              });
+          }
       }
 
       // ==========================================
