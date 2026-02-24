@@ -1066,17 +1066,30 @@
               restSelect.disabled = true; zSelect.disabled = true;
               hInput.value = ""; aaInput.value = ""; msgBox.innerHTML = "";
               tr.classList.remove('row-error');
+              
+              // ★ 新增：確實將空白寫入記憶體，避免漏存
+              let originalIndex = parseInt(tr.getAttribute('data-index'));
+              currentData[originalIndex].input_status = "";
+              currentData[originalIndex].input_start = "";
+              currentData[originalIndex].input_end = "";
+              currentData[originalIndex].input_rest = "0";
+              currentData[originalIndex].calc_hours = "";
+              currentData[originalIndex].input_est_overtime = "0";
+              currentData[originalIndex].calc_excess = "";
+              currentData[originalIndex].cascade_log = "";
               return;
           }
-
           // 時薪人員國定假日防呆
           if (status === "國" && !isMonthly) {
               startSelect.disabled = true; endSelect.disabled = true;
               restSelect.disabled = true; zSelect.disabled = true;
               hInput.value = ""; aaInput.value = ""; zSelect.value = "0";
-              msgBox.innerHTML = `<span class="text-danger fw-bold">❌ 時薪人員如有出勤，狀態請改為"上班"</span>`;
-              tr.classList.add('row-error');
-              return;
+              // ★ 修改：拔掉 row-error 阻擋，改為純文字提示，讓它能存檔
+              msgBox.innerHTML = `<span class="text-secondary fw-bold" style="font-size:0.85rem;">💡 提示：時薪人員如有出勤，狀態請改為"上班"</span>`;
+              tr.classList.remove('row-error');
+              
+              // 強制清空計算用變數，讓它順暢往下走寫入記憶體
+              startVal = ""; endVal = ""; restVal = 0; zInputVal = 0;
           } else {
               startSelect.disabled = false; endSelect.disabled = false; restSelect.disabled = false;
               zSelect.disabled = (status !== "上班");
@@ -1101,8 +1114,13 @@
               }
               // 如果都沒填，代表正常休假，清空計算
               if (!hasTimeInput) {
-                  hInput.value = ""; aaInput.value = ""; zSelect.value = "0"; msgBox.innerHTML = "";
-                  tr.classList.remove('row-error'); return;
+                  hInput.value = ""; aaInput.value = ""; zSelect.value = "0"; 
+                  // ★ 修改：原本這裡是 msgBox.innerHTML = ""; return;
+                  // 我們把它拿掉，不要 return，讓它繼續往下執行到最後的「寫入記憶體」！
+                  if (status !== "國" || isMonthly) { // 避免洗掉上面時薪國定的提示
+                      msgBox.innerHTML = ""; 
+                  }
+                  tr.classList.remove('row-error');
               }
           }
 
