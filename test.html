@@ -914,6 +914,12 @@
              } else { allowed = statusOpts; }
           }
           if (row.input_status && !allowed.includes(row.input_status)) allowed.push(row.input_status);
+          // ==========================================
+          // ★ 步驟一新增：如果資料庫已經有明確狀態，就不允許再選回「請選擇」(空字串)
+          // ==========================================
+          if (row.input_status !== "") {
+              allowed = allowed.filter(opt => opt !== "");
+          }
           statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (row.input_status === opt) ? "selected" : ""; statusHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
           statusHtml += `</select>`;
           
@@ -948,6 +954,15 @@
           
           if (select.classList.contains('status-select')) {
               const status = select.value;
+              
+              // ==========================================
+              // ★ 步驟二新增：一旦選了有效狀態，立刻銷毀「請選擇」選項，不給反悔！
+              // ==========================================
+              if (status !== "") {
+                  const emptyOpt = select.querySelector('option[value=""]');
+                  if (emptyOpt) emptyOpt.remove();
+              }
+
               // 恢復預設值
               tr.querySelector('.start-select').value = "";
               tr.querySelector('.end-select').value = "";
@@ -959,7 +974,6 @@
               tr.querySelector('.start-select').disabled = isDisabled;
               tr.querySelector('.end-select').disabled = isDisabled;
               tr.querySelector('.rest-select').disabled = isDisabled;
-              // Z 只有在「上班」時才開放選擇，其餘鎖死
               tr.querySelector('.z-select').disabled = isDisabled || (status !== "上班");
           }
 
