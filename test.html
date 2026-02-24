@@ -188,6 +188,27 @@
       .excess-input { color: #dc3545 !important; background-color: #fff5f5 !important; border: 1px solid #f5c2c7 !important;} 
 
       select.z-select:disabled { appearance: none; -webkit-appearance: none; opacity: 1 !important; }
+      /* ========================================= */
+      /* ★ 頂部控制列專用美化 (解決手機擁擠跑版) ★ */
+      /* ========================================= */
+      @media (max-width: 900px) {
+          .w-100-mobile { width: 100% !important; }
+          .w-50-mobile { width: 48% !important; flex-grow: 1 !important; }
+          .action-btn-group {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr); /* 手機版按鈕變成3個一排 */
+              gap: 6px;
+              margin-top: 8px;
+          }
+          .action-btn-group button { font-size: 0.8rem; padding: 6px 2px; }
+          #filterNameGroup { justify-content: space-between; }
+      }
+      @media (min-width: 901px) {
+          .action-btn-group {
+              display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 10px;
+          }
+          .top-controls-wrapper { display: flex; flex-direction: column; align-items: flex-end; }
+      }
     </style>
 </head>
   <body>
@@ -203,31 +224,51 @@
     </div>
 
     <div id="appSection" class="main-container" style="display:none;">
-      <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 flex-wrap gap-3">
-        <div><h2 class="fw-bold text-primary mb-1"><span id="displayStoreName"></span> 排班表</h2><span class="badge bg-secondary fs-6" id="monthTargetInfo">載入中...</span></div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-           <div class="d-flex align-items-center border rounded px-2 py-1 bg-light"><span id="displayYear" class="fw-bold fs-5 text-primary">2026</span><span class="mx-1">年</span><span id="displayMonth" class="fw-bold fs-5 text-primary">1</span><span class="mx-1">月</span></div>
-           <div class="btn-group"><button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 依日期排班</button><button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 依人名排班</button></div>
-           <div id="filterContainer" class="d-flex">
-              <div id="filterDateGroup" class="filter-group">
-                 <label class="fw-bold mx-2">日：</label>
-                 <select id="selectDay" class="form-select fw-bold border-primary custom-select-day" onchange="renderTable()"></select>
-              </div>
-              <div id="filterNameGroup" class="filter-group" style="display:none;">
-                 <label class="fw-bold mx-2">人員：</label>
-                 <select id="selectName" class="form-select fw-bold border-primary custom-select-name" onchange="renderTable()"></select>
-                 
-                 <label class="fw-bold mx-2 ms-3">週別：</label>
-                 <select id="selectWeek" class="form-select fw-bold border-primary custom-select-day" style="width: 140px !important;" onchange="renderTable()"></select>
-              </div>
-           </div>
-           
-           <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
-           <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
-           <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
-           <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
-           <button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button>
-           <button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
+      <div class="d-flex justify-content-between align-items-start mb-4 border-bottom pb-3 flex-column flex-lg-row gap-3">
+        
+        <div class="w-100 d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold text-primary mb-1"><span id="displayStoreName"></span> 排班表</h2>
+                <span class="badge bg-secondary fs-6" id="monthTargetInfo">載入中...</span>
+            </div>
+            <div class="d-flex align-items-center border rounded px-2 py-1 bg-light">
+                <span id="displayYear" class="fw-bold fs-5 text-primary">2026</span><span class="mx-1">年</span><span id="displayMonth" class="fw-bold fs-5 text-primary">1</span><span class="mx-1">月</span>
+            </div>
+        </div>
+
+        <div class="top-controls-wrapper w-100">
+            <div class="d-flex flex-column flex-md-row gap-2 mb-2 w-100">
+                <div class="btn-group w-100-mobile">
+                    <button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 日期排班</button>
+                    <button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 人名排班</button>
+                </div>
+                
+                <div id="filterContainer" class="w-100-mobile bg-light p-2 rounded border">
+                    <div id="filterDateGroup" class="filter-group m-0 d-flex justify-content-between align-items-center">
+                        <label class="fw-bold mx-2 text-nowrap">日期：</label>
+                        <select id="selectDay" class="form-select fw-bold border-primary custom-select-day flex-grow-1" onchange="renderTable()"></select>
+                    </div>
+                    <div id="filterNameGroup" class="filter-group m-0 d-flex flex-wrap flex-md-nowrap gap-2" style="display:none !important;">
+                        <div class="d-flex align-items-center flex-grow-1 w-50-mobile">
+                            <label class="fw-bold me-1 text-nowrap">人員:</label>
+                            <select id="selectName" class="form-select fw-bold border-primary custom-select-name w-100" onchange="renderTable()"></select>
+                        </div>
+                        <div class="d-flex align-items-center flex-grow-1 w-50-mobile">
+                            <label class="fw-bold ms-md-2 me-1 text-nowrap">週別:</label>
+                            <select id="selectWeek" class="form-select fw-bold border-primary custom-select-day w-100" onchange="renderTable()"></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-btn-group w-100">
+                <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
+                <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
+                <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
+                <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
+                <button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button>
+                <button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
+            </div>
         </div>
       </div>
       <form id="scheduleForm">
@@ -975,10 +1016,11 @@
               }
           }
 
-          let sF = timeToFloat(startVal);
-          let eF = timeToFloat(endVal);
+          let sF = String(startVal).includes(':') ? timeToFloat(startVal) : parseFloat(startVal);
+          let eF = String(endVal).includes(':') ? timeToFloat(endVal) : parseFloat(endVal);
+          if (isNaN(sF)) sF = 0; if (isNaN(eF)) eF = 0;
           if (eF < sF) eF += 24; 
-          let totalWork = eF - sF - restVal; 
+          let totalWork = eF - sF - restVal;
 
           if (totalWork < 0) {
               hInput.value = ""; aaInput.value = "";
@@ -1066,7 +1108,8 @@
           // 組裝文字訊息 (完全保留)
           let msgs = []; let currTime = sF;
           const ft = (t) => {
-              let h = Math.floor(t); let m = (t - h) * 60;
+              if (isNaN(t)) return "00:00";
+              let h = Math.floor(t); let m = Math.round((t - h) * 60);
               if (h >= 24) h -= 24;
               return String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0');
           };
