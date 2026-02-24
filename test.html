@@ -878,7 +878,7 @@
             <td><div class="msg-box"></div></td>
           `;
           
-          tbody.appendChild(tr); updateRowState(tr); validateRow(tr);   
+          tbody.appendChild(tr); validateRow(tr);   
         });
         if (currentMode === 'name') updateLiveSummary(targetName);
       }
@@ -1519,7 +1519,16 @@
       function generateTimeOptions() { let o='<option value="">請選擇</option>'; for(let h=0;h<24;h++){ let s=('0'+h).slice(-2); o+=`<option value="${s}:00">${s}:00</option><option value="${s}:30">${s}:30</option>`; } return o; }
       function generateRestOptions() { let o='<option value="">請選擇</option>'; for(let i=0; i<=8; i++){ let v = (i * 0.5).toFixed(1); o += `<option value="${v}">${v}</option>`; } return o; }
       function createTimeSelect(v,c) { return `<select class="form-select time-select ${c}" onchange="handleRowChange(this)">${timeOptions.replace(`value="${v}"`,`value="${v}" selected`)}</select>`; }
-      function createRestSelect(v) { return `<select class="form-select rest-select" onchange="handleRowChange(this)">${restOptions.replace(`value="${v}"`,`value="${v}" selected`)}</select>`; }
+      function createRestSelect(v) {
+          // 如果沒填、空字串或 undefined，強制轉為數字 0
+          let currentV = (v === "" || v === null || v === undefined) ? 0 : Number(v);
+          let o = '';
+          for (let i = 0; i <= 4; i += 0.5) {
+              let selected = (currentV === i) ? "selected" : "";
+              o += `<option value="${i}" ${selected}>${i}</option>`;
+          }
+          return `<select class="form-select rest-select fw-bold border-dark" onchange="handleRowChange(this)">${o}</select>`;
+      }
       function createZSelect(v) {
         let o = '<option value="0">0</option>';
         for(let i=1; i<=8; i++){
