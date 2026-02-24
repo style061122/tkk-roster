@@ -964,22 +964,18 @@
         if (currentMode === 'name') updateLiveSummary(targetName);
       }
       // ==========================================
-      // ★ 狀態或時間修改時觸發 (含連動與髒標記)
+      // ★ 狀態或時間修改時觸發 (完美補回時/月薪下拉連動防呆)
       // ==========================================
       function handleRowChange(select) {
           const tr = select.closest('tr');
           if (!tr) return;
           
-          // ★ 遺漏點 1：抓取 index，並為手動修改的這筆資料打上「髒標記」！
-          // 這樣 saveData 才會知道要把這筆資料打包送出
           let idx = parseInt(tr.getAttribute('data-index'));
-          currentData[idx].isModified = true; 
+          currentData[idx].isModified = true; // ★ 打上髒標記 (新功能)
 
-          // 狀態切換防呆邏輯
           if (select.classList.contains('status-select')) {
               const status = select.value;
               
-              // 一旦選了有效狀態，立刻銷毀「請選擇」
               if (status !== "") {
                   const emptyOpt = select.querySelector('option[value=""]');
                   if (emptyOpt) emptyOpt.remove();
@@ -997,20 +993,27 @@
               tr.querySelector('.z-select').disabled = isDisabled || (status !== "上班");
           }
 
-          // 1. 先計算店長「正在改」的這一天 (false 代表這不是被連動的，是手動的)
+          // 1. 先計算店長「正在改」的這一天
           validateRow(tr, false); 
           
-          // 2. 光速啟動「全月連動」！
           const name = tr.getAttribute('data-name');
           const date = tr.getAttribute('data-date');
-          cascadeFullMonth(name, date);
+          const salary = tr.getAttribute('data-salary'); // ★ 抓取薪資型態
+          
+          // 2. 光速啟動「全月連動」 (新功能)
+          if (typeof cascadeFullMonth === 'function') cascadeFullMonth(name, date);
 
-          // ★ 遺漏點 2：補回您原本的 UI 更新邏輯 (讓上方的統計小卡即時跳動)
+          // 3. ★★★ 鄭重補回：依人名模式下的「動態下拉選單」與「統計小卡」更新 ★★★
           if (currentMode === 'name') { 
+              if (salary.includes("時薪") && typeof refreshHourlyDropdowns === 'function') {
+                  refreshHourlyDropdowns(name);
+              } else if (salary.includes("月薪") && typeof refreshMonthlyDropdowns === 'function') {
+                  refreshMonthlyDropdowns(name);
+              }
               updateLiveSummary(name); 
           }
           
-          // 檢查是否超標並解鎖/鎖定儲存按鈕
+          // 4. 預算警告與存檔按鈕鎖定
           if (typeof checkRealTimeBudget === 'function') checkRealTimeBudget(tr); 
           if (typeof validateAll === 'function') validateAll();
       }
