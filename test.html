@@ -207,7 +207,7 @@
         display: flex !important;
     }
 }
-/* ========================================= */
+      /* ========================================= */
       /* ★ 第一階段優化：新增欄位與支援視窗專用樣式 ★ */
       /* ========================================= */
       .bg-z-col { background-color: #fff9c4 !important; } /* 預計加班 黃底 */
@@ -216,6 +216,21 @@
       .support-entry { border: 1px solid #dee2e6; padding: 12px; border-radius: 8px; background: #f8f9fa; margin-bottom: 10px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
       .remove-support-btn { position: absolute; top: 8px; right: 8px; }
       
+      /* ★ 統一放大 H, Z, AA 的字體與顏色 ★ */
+      .hours-input, .excess-input, .z-select {
+          font-size: 1.4rem !important; 
+          font-weight: 900 !important; 
+          text-align: center !important; 
+          height: 42px !important; 
+          border-radius: 6px !important;
+      }
+      .hours-input { color: #0d6efd !important; background-color: #f0f8ff !important; border: 1px solid #cce5ff !important; } /* 應有 H: 藍字 */
+      .z-select { color: #b8860b !important; background-color: #fff9c4 !important; border: 1px solid #f7e089 !important;}  /* 預計加班 Z: 黃字 */
+      .excess-input { color: #dc3545 !important; background-color: #fff5f5 !important; border: 1px solid #f5c2c7 !important;} /* 超時 AA: 紅字 */
+
+      /* 隱藏不必要的下拉箭頭 (針對 readonly 的選單) */
+      select.z-select:disabled { appearance: none; -webkit-appearance: none; opacity: 1 !important; }
+        
       /* 覆寫並擴充手機版表格排版 (因為多了 Z 和 AA 欄位) */
       @media (max-width: 900px) {
           #staffTable td:nth-child(3), #staffTable td:nth-child(4) { width: 50% !important; padding-top: 24px !important; }
@@ -1720,14 +1735,13 @@
         new bootstrap.Modal(document.getElementById('supportModal')).show();
       }
 
-      // 2. 產生一筆支援輸入框 (改為數字輸入框，限制0~23.5與0~4)
+      // 2. 產生一筆支援輸入框 (改用自訂搜尋選單，不用 datalist)
       function addSupportEntry(store = "", timeRange = "", rest = "") {
         const area = document.getElementById('supportEntriesArea');
         let sStart = ""; let sEnd = "";
         if (timeRange) {
             let parts = timeRange.split('~');
             sStart = parts[0]; sEnd = parts[1];
-            // 若為舊格式 "09:30"，轉為 9.5
             if(sStart && sStart.includes(':')) sStart = timeToFloat(sStart);
             if(sEnd && sEnd.includes(':')) sEnd = timeToFloat(sEnd);
         }
@@ -1736,28 +1750,71 @@
         const html = `
           <div class="support-entry" id="${entryId}">
             <button type="button" class="btn-close remove-support-btn" onclick="document.getElementById('${entryId}').remove()"></button>
-            <div class="mb-2">
-              <label class="fw-bold text-secondary small">支援門市 (可輸入關鍵字)</label>
-              <input type="text" class="form-control fw-bold border-primary sup-store" value="${store}" placeholder="例如: lalaport" list="storeDataList">
+            <div class="mb-2 position-relative">
+              <label class="fw-bold text-secondary small">支援門市 (請輸入關鍵字)</label>
+              <input type="text" class="form-control fw-bold border-primary sup-store bg-white" value="${store}" placeholder="🔍 輸入店名..." onkeyup="filterStores(this)" onfocus="filterStores(this)">
+              <ul class="dropdown-menu w-100 store-dropdown-list shadow" style="max-height: 200px; overflow-y: auto; position: absolute; top: 100%; left: 0; z-index: 1050; display: none;"></ul>
             </div>
             <div class="d-flex gap-2 mb-2">
               <div class="w-100">
                 <label class="fw-bold text-secondary small">支援上 (0~23.5)</label>
-                <input type="number" class="form-control sup-start border-dark fw-bold" step="0.5" min="0" max="23.5" value="${sStart}" onchange="checkSupNum(this, 23.5)" placeholder="例: 9.5">
+                <input type="number" class="form-control sup-start border-dark fw-bold text-center" step="0.5" min="0" max="23.5" value="${sStart}" onchange="checkSupNum(this, 23.5)">
               </div>
               <div class="w-100">
                 <label class="fw-bold text-secondary small">支援下 (0~23.5)</label>
-                <input type="number" class="form-control sup-end border-dark fw-bold" step="0.5" min="0" max="23.5" value="${sEnd}" onchange="checkSupNum(this, 23.5)" placeholder="例: 18.5">
+                <input type="number" class="form-control sup-end border-dark fw-bold text-center" step="0.5" min="0" max="23.5" value="${sEnd}" onchange="checkSupNum(this, 23.5)">
               </div>
             </div>
             <div>
               <label class="fw-bold text-secondary small">支援休 (0~4)</label>
-              <input type="number" class="form-control rest-select border-dark fw-bold" step="0.5" min="0" max="4" value="${rest || '0'}" onchange="checkSupNum(this, 4)">
+              <input type="number" class="form-control rest-select border-dark fw-bold text-center" step="0.5" min="0" max="4" value="${rest || '0'}" onchange="checkSupNum(this, 4)">
             </div>
           </div>
         `;
         area.insertAdjacentHTML('beforeend', html);
       }
+
+      // ★ 自訂門市搜尋引擎
+      function filterStores(inputEl) {
+          const val = inputEl.value.trim().toLowerCase();
+          const listEl = inputEl.nextElementSibling; // 找到旁邊的 <ul>
+          listEl.innerHTML = ''; // 清空舊名單
+          
+          if (val === '') {
+              listEl.style.display = 'none';
+              return;
+          }
+
+          const stores = currentParams['support_stores'] || [];
+          const matches = stores.filter(s => s.toLowerCase().includes(val));
+
+          if (matches.length > 0) {
+              matches.forEach(m => {
+                  const li = document.createElement('li');
+                  li.innerHTML = `<a class="dropdown-item fw-bold text-primary py-2 border-bottom" href="#" onclick="selectStore(event, this, '${m}')">${m}</a>`;
+                  listEl.appendChild(li);
+              });
+              listEl.style.display = 'block';
+          } else {
+              listEl.innerHTML = `<li><span class="dropdown-item text-danger fw-bold py-2">❌ 無符合門市</span></li>`;
+              listEl.style.display = 'block';
+          }
+      }
+
+      // ★ 點擊選項帶入輸入框
+      function selectStore(e, aEl, storeName) {
+          e.preventDefault(); // 防止畫面亂跳
+          const inputEl = aEl.closest('.position-relative').querySelector('.sup-store');
+          inputEl.value = storeName;
+          aEl.closest('.dropdown-menu').style.display = 'none'; // 隱藏選單
+      }
+
+      // ★ 點擊旁邊空白處自動收起選單
+      document.addEventListener('click', function(e) {
+          if(!e.target.classList.contains('sup-store')) {
+              document.querySelectorAll('.store-dropdown-list').forEach(el => el.style.display = 'none');
+          }
+      });
 
       // 3. 勾選「同步上下班時間」(防呆：勾選後隱藏新增按鈕並清除多餘店鋪)
       function toggleSupportTimeSync() {
