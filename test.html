@@ -1283,6 +1283,12 @@
                   msgs.push(`<span class="text-warning fw-bold mt-1 d-block" style="font-size:0.85rem; color:#856404!important;">⚠️ 本月加班額度僅剩 ${availableZ}H</span>`);
               }
           }
+          // ==========================================
+          // ★ 補回遺失的提示：確保在最後組合文字時，把時薪國定的提示加進去！
+          // ==========================================
+          if (status === "國" && !isMonthly) {
+              msgs.push(`<span class="text-secondary fw-bold" style="font-size:0.85rem;">💡 提示：時薪人員如有出勤，狀態請改為"上班"</span>`);
+          }
           msgBox.innerHTML = msgs.join('<br>');
           
           // ==========================================
