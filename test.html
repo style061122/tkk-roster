@@ -224,12 +224,12 @@
     </div>
 
     <div id="appSection" class="main-container" style="display:none;">
-      <div class="d-flex justify-content-between align-items-start mb-4 border-bottom pb-3 flex-column flex-lg-row gap-3">
+      <div class="d-flex flex-column mb-4 border-bottom pb-3 gap-3">
         
-        <div class="w-100 d-flex justify-content-between align-items-center">
-            <div>
+        <div class="d-flex justify-content-between align-items-center w-100 flex-wrap gap-2">
+            <div class="d-flex flex-column">
                 <h2 class="fw-bold text-primary mb-1"><span id="displayStoreName"></span> 排班表</h2>
-                <span class="badge bg-secondary fs-6" id="monthTargetInfo">載入中...</span>
+                <span class="badge bg-secondary fs-6 align-self-start" id="monthTargetInfo">載入中...</span>
             </div>
             <div class="d-flex align-items-center border rounded px-2 py-1 bg-light">
                 <span id="displayYear" class="fw-bold fs-5 text-primary">2026</span><span class="mx-1">年</span><span id="displayMonth" class="fw-bold fs-5 text-primary">1</span><span class="mx-1">月</span>
@@ -246,16 +246,16 @@
                 <div id="filterContainer" class="w-100-mobile bg-light p-2 rounded border">
                     <div id="filterDateGroup" class="filter-group m-0 d-flex justify-content-between align-items-center">
                         <label class="fw-bold mx-2 text-nowrap">日期：</label>
-                        <select id="selectDay" class="form-select fw-bold border-primary custom-select-day flex-grow-1" onchange="renderTable()"></select>
+                        <select id="selectDay" class="form-select fw-bold border-primary flex-grow-1" onchange="renderTable()"></select>
                     </div>
-                    <div id="filterNameGroup" class="filter-group m-0 d-flex flex-wrap flex-md-nowrap gap-2" style="display:none !important;">
-                        <div class="d-flex align-items-center flex-grow-1 w-50-mobile">
-                            <label class="fw-bold me-1 text-nowrap">人員:</label>
-                            <select id="selectName" class="form-select fw-bold border-primary custom-select-name w-100" onchange="renderTable()"></select>
+                    <div id="filterNameGroup" class="filter-group m-0 d-none flex-column flex-md-row gap-2">
+                        <div class="d-flex align-items-center flex-grow-1 w-100">
+                            <label class="fw-bold me-2 text-nowrap">人員:</label>
+                            <select id="selectName" class="form-select fw-bold border-primary w-100" onchange="renderTable()"></select>
                         </div>
-                        <div class="d-flex align-items-center flex-grow-1 w-50-mobile">
-                            <label class="fw-bold ms-md-2 me-1 text-nowrap">週別:</label>
-                            <select id="selectWeek" class="form-select fw-bold border-primary custom-select-day w-100" onchange="renderTable()"></select>
+                        <div class="d-flex align-items-center flex-grow-1 w-100 mt-2 mt-md-0">
+                            <label class="fw-bold ms-md-2 me-2 text-nowrap">週別:</label>
+                            <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="renderTable()"></select>
                         </div>
                     </div>
                 </div>
@@ -778,14 +778,33 @@
         names.forEach(n => select.innerHTML += `<option value="${n}">${n}</option>`);
       }
 
-      function switchMode(mode) {
-        currentMode = mode;
-        document.getElementById('btnModeDate').classList.toggle('active', mode === 'date');
-        document.getElementById('btnModeName').classList.toggle('active', mode === 'name');
-        document.getElementById('filterDateGroup').style.display = (mode === 'date') ? 'flex' : 'none';
-        document.getElementById('filterNameGroup').style.display = (mode === 'name') ? 'flex' : 'none';
-        document.getElementById('tableHeaderRow').cells[0].innerText = (mode === 'date') ? "姓名" : "日期";
-        renderTable();
+      ffunction switchMode(mode) {
+          currentMode = mode;
+          const btnDate = document.getElementById('btnModeDate');
+          const btnName = document.getElementById('btnModeName');
+          const grpDate = document.getElementById('filterDateGroup');
+          const grpName = document.getElementById('filterNameGroup');
+
+          if (mode === 'date') {
+              btnDate.classList.add('active');
+              btnName.classList.remove('active');
+              
+              // 顯示日期，隱藏人名週別
+              grpDate.classList.remove('d-none');
+              grpDate.classList.add('d-flex');
+              grpName.classList.remove('d-flex', 'flex-column', 'flex-md-row');
+              grpName.classList.add('d-none');
+          } else {
+              btnDate.classList.remove('active');
+              btnName.classList.add('active');
+              
+              // 顯示人名週別，隱藏日期
+              grpDate.classList.remove('d-flex');
+              grpDate.classList.add('d-none');
+              grpName.classList.remove('d-none');
+              grpName.classList.add('d-flex', 'flex-column', 'flex-md-row');
+          }
+          renderTable();
       }
 
       function getWeeklyUsage(name, dateStr) {
