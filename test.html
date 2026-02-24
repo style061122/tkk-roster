@@ -208,7 +208,19 @@
         <div class="d-flex gap-2 align-items-center flex-wrap">
            <div class="d-flex align-items-center border rounded px-2 py-1 bg-light"><span id="displayYear" class="fw-bold fs-5 text-primary">2026</span><span class="mx-1">年</span><span id="displayMonth" class="fw-bold fs-5 text-primary">1</span><span class="mx-1">月</span></div>
            <div class="btn-group"><button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 依日期排班</button><button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 依人名排班</button></div>
-           <div id="filterContainer" class="d-flex"><div id="filterDateGroup" class="filter-group"><label class="fw-bold mx-2">日：</label><select id="selectDay" class="form-select fw-bold border-primary custom-select-day" onchange="renderTable()"></select></div><div id="filterNameGroup" class="filter-group" style="display:none;"><label class="fw-bold mx-2">人員：</label><select id="selectName" class="form-select fw-bold border-primary custom-select-name" onchange="renderTable()"></select></div></div>
+           <div id="filterContainer" class="d-flex">
+              <div id="filterDateGroup" class="filter-group">
+                 <label class="fw-bold mx-2">日：</label>
+                 <select id="selectDay" class="form-select fw-bold border-primary custom-select-day" onchange="renderTable()"></select>
+              </div>
+              <div id="filterNameGroup" class="filter-group" style="display:none;">
+                 <label class="fw-bold mx-2">人員：</label>
+                 <select id="selectName" class="form-select fw-bold border-primary custom-select-name" onchange="renderTable()"></select>
+                 
+                 <label class="fw-bold mx-2 ms-3">週別：</label>
+                 <select id="selectWeek" class="form-select fw-bold border-primary custom-select-day" style="width: 140px !important;" onchange="renderTable()"></select>
+              </div>
+           </div>
            
            <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
            <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
