@@ -1464,6 +1464,23 @@
           let restVal = parseFloat(restSelect.value) || 0;
           let zInputVal = parseFloat(zSelect.value) || 0;
 
+          // ★ 提早取得陣列索引，供全域使用
+          let originalIndex = parseInt(tr.getAttribute('data-index'));
+
+          // ★★★ 終極幽靈資料殺手：自動清除失效的支援紀錄 ★★★
+          // 只要狀態不是上班，或起迄時間沒填滿，就沒資格擁有支援資料，系統自動抹除！
+          let isValidForSupport = (status === "上班" && startVal !== "" && endVal !== "");
+          if (!isValidForSupport && currentData[originalIndex].supports && currentData[originalIndex].supports.length > 0) {
+              currentData[originalIndex].supports = []; // 1. 記憶體層級抹除
+              
+              // 2. 畫面層級復原按鈕 (退回灰色空狀態)
+              let supBtn = tr.querySelector('.support-btn');
+              if (supBtn) {
+                  supBtn.className = "btn btn-outline-primary support-btn shadow-sm";
+                  supBtn.innerHTML = `➕ 跨店支援`;
+              }
+          }
+
           // 【問題3】狀態未選擇：清空並鎖定
           if (status === "") {
               startSelect.disabled = true; endSelect.disabled = true;
@@ -1472,7 +1489,6 @@
               tr.classList.remove('row-error', 'row-warning'); // ★ 確保移除黃色背景
               
               // ★ 新增：確實將空白寫入記憶體，避免漏存
-              let originalIndex = parseInt(tr.getAttribute('data-index'));
               currentData[originalIndex].input_status = "";
               currentData[originalIndex].input_start = "";
               currentData[originalIndex].input_end = "";
@@ -1638,7 +1654,7 @@
           // ==========================================
           // ★ 升級 2：抓取連動前的舊數值，用來比對是否有發生自動調配
           // ==========================================
-          let originalIndex = parseInt(tr.getAttribute('data-index'));
+          // (originalIndex 已經在最上方宣告過了，這裡直接使用)
           let oldZ = parseFloat(currentData[originalIndex].input_est_overtime) || 0;
           let oldAA = parseFloat(currentData[originalIndex].calc_excess) || 0;
 
