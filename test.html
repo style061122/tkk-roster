@@ -202,7 +202,15 @@
       .bg-aa-col { background-color: #ffebee !important; } 
       .support-btn { font-size: 0.85rem; padding: 4px 8px; margin-top: 6px; width: 100%; font-weight: bold; border-radius: 6px; }
       .support-entry { border: 1px solid #dee2e6; padding: 12px; border-radius: 8px; background: #f8f9fa; margin-bottom: 10px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-      .remove-support-btn { position: absolute; top: 8px; right: 8px; }
+      /* ★ 優化：高層級、加大點擊範圍的刪除按鈕 */
+      .remove-support-btn { 
+          position: absolute; top: 10px; right: 10px; z-index: 20; 
+          cursor: pointer; background-color: #ffcccc; color: #dc3545; 
+          border-radius: 50%; width: 28px; height: 28px; 
+          display: flex; align-items: center; justify-content: center; 
+          font-weight: bold; transition: all 0.2s; opacity: 0.8; border: none; 
+      }
+      .remove-support-btn:hover { opacity: 1; background-color: #dc3545; color: white; }
       
       /* ★ 統一放大 H, Z, AA 的字體與顏色 */
       .hours-input, .excess-input, .z-select {
@@ -2447,6 +2455,18 @@
 
       // 1. 打開視窗並載入資料
       function openSupportModal(btn, idx) {
+        // ★★★ 終極防呆：檢查畫面上的「狀態、上班、下班」是否都有填寫 ★★★
+        const tr = btn.closest('tr');
+        const statusVal = tr.querySelector('.status-select').value;
+        const startVal = tr.querySelector('.start-select').value;
+        const endVal = tr.querySelector('.end-select').value;
+
+        // 如果狀態沒選，或者起迄時間有任何一個沒填，就擋下來！
+        if (statusVal === "" || startVal === "" || endVal === "") {
+            Swal.fire('⚠️ 無法設定支援', '請先完整填寫「狀態」以及「上班/下班時間」後，才能開啟跨店支援！', 'warning');
+            return; // 終止執行，不打開視窗
+        }
+
         currentSupportRowIndex = idx;
         const rowData = currentData[idx];
         document.getElementById('supportModalTitle').innerText = `設定支援：${rowData.name} (${rowData.date})`;
@@ -2486,7 +2506,7 @@
         const entryId = 'sup_' + Date.now() + Math.floor(Math.random() * 100);
         const html = `
           <div class="support-entry" id="${entryId}">
-            <button type="button" class="btn-close remove-support-btn" onclick="document.getElementById('${entryId}').remove()"></button>
+            <button type="button" class="remove-support-btn" onclick="document.getElementById('${entryId}').remove()" title="移除此支援">✕</button>
             <div class="mb-2 position-relative">
               <label class="fw-bold text-secondary small">支援門市 (請輸入關鍵字)</label>
               <input type="text" class="form-control fw-bold border-primary sup-store bg-white" value="${store}" placeholder="🔍 輸入店名..." onkeyup="filterStores(this)" onfocus="filterStores(this)">
