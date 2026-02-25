@@ -912,12 +912,19 @@
                      icon: 'success', title: '儲存成功', html: htmlMsg, confirmButtonText: '確認', allowOutsideClick: false 
                  }).then((result) => { 
                      if (result.isConfirmed) {
-                         window.tempFilterName = document.getElementById('selectName').value;
-                         window.tempFilterWeek = document.getElementById('selectWeek').value;
+                         // ★★★ 核心修復：尊重防護網指定的目的地！★★★
+                         // 只有在「沒有指定目的地」(一般存檔) 時，才抓取當下畫面的名字
+                         if (!window.tempFilterName) {
+                             window.tempFilterName = document.getElementById('selectName').value;
+                         }
+                         if (!window.tempFilterWeek) {
+                             window.tempFilterWeek = document.getElementById('selectWeek').value;
+                         }
+                         
                          currentData.forEach(r => r.isModified = false);
-                         loadData(); 
+                         loadData(); // 存檔完畢，系統會自動飛往 tempFilterName 指定的人！
                      }
-                 }); 
+                 });
              }
              else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
