@@ -426,16 +426,21 @@
       const timeOptions = generateTimeOptions(), restOptions = generateRestOptions();
 
       // ==========================================
-      // ★★★ 閒置自動登出機制 ★★★
+      // ★★★ 閒置自動登出機制 (完美支援 iPhone 與背景休眠) ★★★
       // ==========================================
-      let idleTime = 0;
-      const IDLE_LIMIT = 20; // 20 分鐘
+      let lastActivityTime = Date.now();
+      const IDLE_LIMIT_MS = 20 * 60 * 1000; // 20 分鐘轉成毫秒 (20 * 60 * 1000)
 
-      setInterval(() => {
-          // 只有在「已登入」且「在操作畫面」才計時
+      function resetTimer() { 
+          lastActivityTime = Date.now(); 
+      }
+
+      function checkIdleTime() {
+          // 只有在「已登入」且「在操作畫面」才檢查
           if (currentStore && document.getElementById('appSection').style.display !== 'none') {
-              idleTime++;
-              if (idleTime >= IDLE_LIMIT) {
+              let currentTime = Date.now();
+              // 絕對時間比對：現在時間 - 最後動作時間
+              if (currentTime - lastActivityTime >= IDLE_LIMIT_MS) {
                   Swal.fire({
                       icon: 'warning',
                       title: '閒置過久',
@@ -445,9 +450,21 @@
                   }).then(() => {
                       logout(); 
                   });
+                  // 觸發登出後重置時間，避免重複狂跳
+                  resetTimer(); 
               }
           }
-      }, 60000); 
+      }
+
+      // 每 10 秒檢查一次 (比 1 分鐘精準，且不影響手機效能)
+      setInterval(checkIdleTime, 10000);
+
+      // ★★★ 手機專屬大絕招：監聽「網頁從背景被喚醒」的瞬間 ★★★
+      document.addEventListener("visibilitychange", function() {
+          if (document.visibilityState === 'visible') {
+              checkIdleTime(); // 手機一解鎖/切回畫面，立刻查水表！
+          }
+      });
 
       function resetTimer() { idleTime = 0; }
 
@@ -455,9 +472,9 @@
       // window.onload (程式入口)
       // ==========================================
       window.onload = function() {
-        // ★ 綁定全平台閒置偵測 (含手機觸控與滑動)
-        ['mousemove', 'keypress', 'touchstart', 'touchmove', 'scroll', 'click'].forEach(evt => {
-            document.addEventListener(evt, resetTimer, true);
+        // ★ 綁定全平台閒置偵測 (加入 pointerdown，並提升手機滑動效能)
+        ['mousemove', 'keypress', 'touchstart', 'touchmove', 'scroll', 'click', 'pointerdown'].forEach(evt => {
+            document.addEventListener(evt, resetTimer, { passive: true, capture: true });
         });
         
         const urlParams = new URLSearchParams(window.location.search);
