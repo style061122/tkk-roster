@@ -649,19 +649,28 @@
             if (!row.isModified && !force) return; 
 
             // ★★★ 防呆守門員：判斷這筆修改是否該被放棄 ★★★
-            // 如果不是連動產生的，且「不在目前的畫面上」，代表是店長切換前忘記存的幽靈資料，一律拋棄！
             let isAutoCascade = (row.cascade_log && row.cascade_log !== "");
             let isRowOnScreen = false;
 
-            if (currentMode === 'name') {
-                let rowDay = parseInt(row.date.split('/')[2]);
-                if (row.name === currentName && rowDay >= sD && rowDay <= eD) {
+            // ★ 新增：如果現在是「異常過濾模式」，只要這筆資料有失敗註記，它就在畫面上！
+            if (isErrorFilterActive) {
+                let logStr = String(row.log || "");
+                if (logStr.includes("失敗") || logStr.includes("退件") || logStr.includes("錯誤")) {
                     isRowOnScreen = true;
                 }
-            } else if (currentMode === 'date') {
-                let currentDayStr = document.getElementById('selectDay').value.padStart(2, '0');
-                let targetDateStr = `${document.getElementById('displayYear').innerText}/${document.getElementById('displayMonth').innerText.padStart(2, '0')}/${currentDayStr}`;
-                if (row.date === targetDateStr) isRowOnScreen = true;
+            } 
+            // 正常的 日期/人名 模式判斷
+            else {
+                if (currentMode === 'name') {
+                    let rowDay = parseInt(row.date.split('/')[2]);
+                    if (row.name === currentName && rowDay >= sD && rowDay <= eD) {
+                        isRowOnScreen = true;
+                    }
+                } else if (currentMode === 'date') {
+                    let currentDayStr = document.getElementById('selectDay').value.padStart(2, '0');
+                    let targetDateStr = `${document.getElementById('displayYear').innerText}/${document.getElementById('displayMonth').innerText.padStart(2, '0')}/${currentDayStr}`;
+                    if (row.date === targetDateStr) isRowOnScreen = true;
+                }
             }
 
             if (!isAutoCascade && !isRowOnScreen && !force) {
