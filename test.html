@@ -550,18 +550,12 @@
               }
           }
       }
-
-      // 每 10 秒檢查一次 (比 1 分鐘精準，且不影響手機效能)
-      setInterval(checkIdleTime, 10000);
-
       // ★★★ 手機專屬大絕招：監聽「網頁從背景被喚醒」的瞬間 ★★★
       document.addEventListener("visibilitychange", function() {
           if (document.visibilityState === 'visible') {
               checkIdleTime(); // 手機一解鎖/切回畫面，立刻查水表！
           }
       });
-
-      function resetTimer() { idleTime = 0; }
 
       // ==========================================
       // window.onload (程式入口)
