@@ -435,9 +435,19 @@
           if(d) lastSafeFilters.day = d.value;
       }
 
-      // ★ 超級攔截器：統一處理所有下拉選單的切換防呆
+      // ★ 超級攔截器：統一處理所有下拉選單的切換防呆 (大師級快照還原版)
       async function handleFilterChange(el, filterType) {
           if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
+              
+              // 1. 記住店長「想去」的目的地 (例如點了 C 員工)
+              const targetValue = el.value; 
+
+              // 2. ★ 瞬間退回：在防呆警告窗跳出前，先把選單的字眼「強制退回」原本的狀態！
+              // 這樣畫面就不會發生「明明還沒存檔，名字卻已經變成 C 員工」的錯亂。
+              if (filterType === 'name' && lastSafeFilters.name) el.value = lastSafeFilters.name;
+              if (filterType === 'week' && lastSafeFilters.week) el.value = lastSafeFilters.week;
+              if (filterType === 'day'  && lastSafeFilters.day)  el.value = lastSafeFilters.day;
+
               const result = await Swal.fire({
                   title: '⚠️ 尚未儲存！',
                   text: '您有修改的排班資料尚未儲存。請問要先儲存目前的修改，還是要放棄修改並離開？',
@@ -451,19 +461,27 @@
               });
 
               if (result.isConfirmed) {
-                  // 按下儲存：存檔成功後系統會自動更新
+                  // 按下儲存：把選單真正切過去目的地，然後執行存檔
+                  el.value = targetValue;
+                  if (filterType === 'name') window.tempFilterName = targetValue;
+                  if (filterType === 'week') window.tempFilterWeek = targetValue;
                   await saveData(); 
               } else if (result.isDenied) {
-                  // ★ 修復 Bug 2 (放棄修改)：洗掉髒記憶體，重新向後端拿乾淨資料！
+                  // ★★★ 大師級優雅還原 (0 流量！瞬間讀取無損快照！) ★★★
                   pendingUnsaved = false;
-                  showLoading(true, "捨棄修改，還原資料中...");
-                  loadData(); 
+                  if (window.cleanSnapshot) {
+                      // 把當初 loadData 偷藏的純淨快照，完美覆蓋掉改髒的記憶體
+                      currentData = JSON.parse(JSON.stringify(window.cleanSnapshot)); 
+                  }
+                  
+                  // 記憶體洗乾淨後，把選單切去目的地 (C 員工)
+                  el.value = targetValue;
+                  updateSafeFilters(); // 記錄新的安全存檔點
+                  renderTable();       // 瞬間重繪畫面，不需要轉圈圈！
               } else {
-                  // ★ 修復 Bug 1 (返回)：把選單「強制退回」到剛剛的安全狀態！
-                  if (filterType === 'name') el.value = lastSafeFilters.name;
-                  if (filterType === 'week') el.value = lastSafeFilters.week;
-                  if (filterType === 'day')  el.value = lastSafeFilters.day;
-                  return; // 直接中斷，絕對不重繪畫面
+                  // 按下返回：什麼都不用做！
+                  // 因為我們在上面的「步驟 2」已經把選單退回原狀了，店長可以繼續留在原畫面修改。
+                  return; 
               }
           } else {
               // 沒有未存檔的髒資料，正常執行切換
@@ -984,6 +1002,8 @@
              showLoading(false);
              if (res.success) {
                  currentData = res.data || []; 
+                 // ★★★ 終極無損快照：在拿到最新資料的瞬間，立刻備份一份最乾淨的狀態！★★★
+                 window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                  monthlyTargets = res.targets || {}; 
                  currentParams = res.params || {};
                  
@@ -1066,19 +1086,22 @@
               if (result.isConfirmed) {
                   // 點擊儲存：強制存檔，(存檔成功後 saveData 裡面會自動 loadData 並重繪)
                   await saveData(false);
+                  return; // 存檔後會自動重載，不再往下執行
               } else if (result.isDenied) {
-                  // ★ 終極修復：點擊放棄，不再只改標籤，而是「徹底洗掉髒記憶體」！
+                  // ★★★ 大師級優雅還原：瞬間讀取快照 (0 流量！) ★★★
                   pendingUnsaved = false;
-                  currentMode = mode; // 允許切換模式
-                  showLoading(true, "捨棄修改，還原資料中...");
-                  loadData(); // 重新向後端拿最乾淨的資料
+                  if (window.cleanSnapshot) {
+                      currentData = JSON.parse(JSON.stringify(window.cleanSnapshot));
+                  }
+                  // 這裡不 return，讓系統洗乾淨記憶體後，繼續往下執行正常的 UI 切換！
+              } else {
+                  // 點擊返回：直接中斷，什麼都不做，留在原畫面
+                  return; 
               }
-              // 點擊返回：直接中斷，什麼都不做，留在原畫面
-              return; 
           }
 
           // ==========================================
-          // 以下為正常切換模式的 UI 處理 (無未存檔資料時)
+          // 以下為正常切換模式的 UI 處理 (無未存檔資料時，或已放棄修改後)
           // ==========================================
           currentMode = mode;
           
@@ -1119,38 +1142,6 @@
           }
           renderTable();
       }
-        // ★★★ 新增：下拉選單切換時的防呆攔截 ★★★
-      function handleFilterChange(selectElement) {
-          if (pendingUnsaved) {
-              // 如果有未存檔，把選單的值「偷偷退回」到切換前的值，然後跳警告
-              let oldVal = selectElement.getAttribute('data-old-val') || selectElement.options[0].value;
-              selectElement.value = oldVal; 
-              
-              Swal.fire({
-                  title: '⚠️ 您有尚未儲存的排班資料！',
-                  html: '請問要先儲存目前的修改，還是要放棄修改並離開？',
-                  icon: 'warning',
-                  showDenyButton: true,
-                  showCancelButton: true,
-                  confirmButtonText: '💾 儲存並切換',
-                  denyButtonText: '❌ 放棄修改',
-                  cancelButtonText: '返回'
-              }).then((result) => {
-                  if (result.isConfirmed) {
-                      saveData(false);
-                  } else if (result.isDenied) {
-                      currentData.forEach(r => r.isModified = false);
-                      pendingUnsaved = false;
-                      // 放棄修改後，真正執行切換動作
-                      renderTable(); 
-                  }
-              });
-          } else {
-              // 沒有未存檔，直接安全渲染
-              renderTable();
-          }
-      }
-
       function getWeeklyUsage(name, dateStr) {
          let currDate = new Date(dateStr);
          let startDayParam = monthlyTargets.weekStart || 1; 
@@ -1347,6 +1338,12 @@
         }
 
         if (currentMode === 'name' && !isErrorFilterActive) updateLiveSummary(targetName);
+          // ★ 狀態定錨：記錄畫面上最真實的狀態 (加在 renderTable 結尾的 } 之前)
+          window.lastRenderedState = {
+              name: document.getElementById('selectName') ? document.getElementById('selectName').value : "",
+              week: document.getElementById('selectWeek') ? document.getElementById('selectWeek').value : "",
+              day:  document.getElementById('selectDay')  ? document.getElementById('selectDay').value : ""
+          };
       }
       // ==========================================
       // ★ 狀態或時間修改時觸發 (完美補回時/月薪下拉連動防呆)
