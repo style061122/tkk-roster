@@ -1150,7 +1150,29 @@
           let originalIndex = currentData.indexOf(row);
           let tr = document.createElement('tr');
           tr.setAttribute('data-index', originalIndex); tr.setAttribute('data-salary', row.salaryType); tr.setAttribute('data-name', row.name); tr.setAttribute('data-date', row.date);
-          let col1Content = (currentMode === 'date') ? `<div class="fw-bold fs-5">${row.name}</div><span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill">${row.salaryType}</span>` : `<div class="fw-bold fs-5">${row.date.split('/')[2]} 日 <small class="text-muted fs-6">(${new Date(row.date).toLocaleDateString('zh-TW', {weekday: 'short'})})</small></div><span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill">${row.salaryType}</span>`;
+          // ==========================================
+          // ★ 畫面優化：根據不同模式，決定第一欄要顯示什麼
+          // ==========================================
+          let col1Content = "";
+          let rowDateObj = new Date(row.date);
+          let dayStr = rowDateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
+          let badgeHtml = `<span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill mt-1">${row.salaryType}</span>`;
+          
+          if (isErrorFilterActive) {
+              // 1. 異常模式：必須同時顯示「姓名 + 日期」才不會搞混
+              col1Content = `
+                  <div class="fw-bold fs-5 text-dark">${row.name}</div>
+                  <div class="fw-bold text-secondary mb-1" style="font-size:0.95rem;">${rowDateObj.getMonth()+1}/${rowDateObj.getDate()} (${dayStr})</div>
+                  ${badgeHtml}
+              `;
+          } else if (currentMode === 'date') {
+              // 2. 日期排班模式：上方已有日期，這裡只顯示「姓名」
+              col1Content = `<div class="fw-bold fs-5 mb-1">${row.name}</div>${badgeHtml}`;
+          } else {
+              // 3. 人名排班模式：上方已有人名，這裡只顯示「日期」
+              col1Content = `<div class="fw-bold fs-5 mb-1">${rowDateObj.getDate()} 日 <small class="text-muted fs-6">(${dayStr})</small></div>${badgeHtml}`;
+          }
+          
           tr.innerHTML += `<td>${col1Content}</td>`;
           let statusHtml = `<select class="form-select status-select fw-bold border-dark" onchange="handleRowChange(this)">`;
           let currentDay = parseInt(row.date.split('/')[2]);
