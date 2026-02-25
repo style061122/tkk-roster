@@ -272,16 +272,16 @@
                 <div id="filterContainer" class="w-100-mobile bg-light p-2 rounded border">
                     <div id="filterDateGroup" class="filter-group m-0 d-flex justify-content-between align-items-center">
                         <label class="fw-bold mx-2 text-nowrap">日期：</label>
-                        <select id="selectDay" class="form-select fw-bold border-primary flex-grow-1" onchange="renderTable()"></select>
+                        <select id="selectDay" class="form-select fw-bold border-primary flex-grow-1" onchange="handleFilterChange(this)"></select>
                     </div>
                     <div id="filterNameGroup" class="filter-group m-0 d-none flex-column flex-md-row gap-2">
                         <div class="d-flex align-items-center flex-grow-1 w-100">
                             <label class="fw-bold me-2 text-nowrap">人員:</label>
-                            <select id="selectName" class="form-select fw-bold border-primary w-100" onchange="renderTable()"></select>
+                            <select id="selectName" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this)"></select>
                         </div>
                         <div class="d-flex align-items-center flex-grow-1 w-100 mt-2 mt-md-0">
                             <label class="fw-bold ms-md-2 me-2 text-nowrap">週別:</label>
-                            <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="renderTable()"></select>
+                            <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this)"></select>
                         </div>
                     </div>
                 </div>
@@ -932,8 +932,60 @@
         names.forEach(n => select.innerHTML += `<option value="${n}">${n}</option>`);
       }
 
+      // ★★★ 新增：異常過濾按鈕的切換邏輯 ★★★
+      function toggleErrorFilter() {
+          if (pendingUnsaved) {
+              Swal.fire('⚠️ 尚未儲存', '請先儲存或放棄目前的修改，再進行過濾。', 'warning');
+              return;
+          }
+          isErrorFilterActive = !isErrorFilterActive;
+          const btn = document.getElementById('btnErrorFilter');
+          if (isErrorFilterActive) {
+              btn.classList.remove('btn-outline-danger');
+              btn.classList.add('btn-danger', 'text-white');
+          } else {
+              btn.classList.remove('btn-danger', 'text-white');
+              btn.classList.add('btn-outline-danger');
+          }
+          renderTable();
+      }
+
       function switchMode(mode) {
+          // ★★★ 實踐共識 5：防呆攔截 (未存檔切換) ★★★
+          if (pendingUnsaved) {
+              Swal.fire({
+                  title: '⚠️ 您有尚未儲存的排班資料！',
+                  html: '請問要先儲存目前的修改，還是要放棄修改並離開？',
+                  icon: 'warning',
+                  showDenyButton: true,
+                  showCancelButton: true,
+                  confirmButtonText: '💾 儲存並切換',
+                  denyButtonText: '❌ 放棄修改',
+                  cancelButtonText: '返回'
+              }).then((result) => {
+                  if (result.isConfirmed) {
+                      // 點擊儲存：強制存檔，存完後再切換
+                      saveData(false);
+                  } else if (result.isDenied) {
+                      // 點擊放棄：清空記憶體標記，強制切換
+                      currentData.forEach(r => r.isModified = false);
+                      pendingUnsaved = false;
+                      switchMode(mode); // 重新呼叫自己
+                  }
+                  // 點擊返回：什麼都不做，留在原畫面
+              });
+              return; // 攔截！不往下執行切換
+          }
+
           currentMode = mode;
+          // 切換模式時，自動關閉異常過濾，避免畫面混亂
+          isErrorFilterActive = false;
+          const btnErr = document.getElementById('btnErrorFilter');
+          if (btnErr) {
+              btnErr.classList.remove('btn-danger', 'text-white');
+              btnErr.classList.add('btn-outline-danger');
+          }
+
           const btnDate = document.getElementById('btnModeDate');
           const btnName = document.getElementById('btnModeName');
           const grpDate = document.getElementById('filterDateGroup');
@@ -959,6 +1011,37 @@
               grpName.classList.add('d-flex', 'flex-column', 'flex-md-row');
           }
           renderTable();
+      }
+        // ★★★ 新增：下拉選單切換時的防呆攔截 ★★★
+      function handleFilterChange(selectElement) {
+          if (pendingUnsaved) {
+              // 如果有未存檔，把選單的值「偷偷退回」到切換前的值，然後跳警告
+              let oldVal = selectElement.getAttribute('data-old-val') || selectElement.options[0].value;
+              selectElement.value = oldVal; 
+              
+              Swal.fire({
+                  title: '⚠️ 您有尚未儲存的排班資料！',
+                  html: '請問要先儲存目前的修改，還是要放棄修改並離開？',
+                  icon: 'warning',
+                  showDenyButton: true,
+                  showCancelButton: true,
+                  confirmButtonText: '💾 儲存並切換',
+                  denyButtonText: '❌ 放棄修改',
+                  cancelButtonText: '返回'
+              }).then((result) => {
+                  if (result.isConfirmed) {
+                      saveData(false);
+                  } else if (result.isDenied) {
+                      currentData.forEach(r => r.isModified = false);
+                      pendingUnsaved = false;
+                      // 放棄修改後，真正執行切換動作
+                      renderTable(); 
+                  }
+              });
+          } else {
+              // 沒有未存檔，直接安全渲染
+              renderTable();
+          }
       }
 
       function getWeeklyUsage(name, dateStr) {
