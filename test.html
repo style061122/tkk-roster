@@ -1076,9 +1076,9 @@
          let weekStart = new Date(currDate); weekStart.setDate(currDate.getDate() - adjDay);
          let weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
-         if (currentMode === 'name') {
-             const rows = document.querySelectorAll('#staffTable tr');
-             rows.forEach(tr => {
+          if (currentMode === 'name' || (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive)) {
+              const rows = document.querySelectorAll('#staffTable tr');
+              rows.forEach(tr => {
                  let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
                  let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
              });
@@ -1091,9 +1091,9 @@
 
       function getRangeUsage(name, type, startDay, endDay) {
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
-         if (currentMode === 'name') {
-             const rows = document.querySelectorAll('#staffTable tr');
-             rows.forEach(tr => {
+          if (currentMode === 'name' || (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive)) {
+              const rows = document.querySelectorAll('#staffTable tr');
+              rows.forEach(tr => {
                  let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
                  let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
              });
@@ -1306,14 +1306,14 @@
           // 2. 光速啟動「全月連動」 (新功能)
           if (typeof cascadeFullMonth === 'function') cascadeFullMonth(name, date);
 
-          // 3. ★★★ 鄭重補回：依人名模式下的「動態下拉選單」與「統計小卡」更新 ★★★
-          if (currentMode === 'name') { 
+          // 3. ★★★ 鄭重補回：依人名模式或「異常過濾模式」下的動態下拉選單更新 ★★★
+          if (currentMode === 'name' || (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive)) { 
               if (salary.includes("時薪") && typeof refreshHourlyDropdowns === 'function') {
                   refreshHourlyDropdowns(name);
               } else if (salary.includes("月薪") && typeof refreshMonthlyDropdowns === 'function') {
                   refreshMonthlyDropdowns(name);
               }
-              updateLiveSummary(name); 
+              if (!isErrorFilterActive) updateLiveSummary(name); // 小卡只在純人名模式更新
           }
           
           // 4. 預算警告與存檔按鈕鎖定
