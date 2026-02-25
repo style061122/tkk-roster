@@ -1577,9 +1577,15 @@
          if (!name) return;
          let pData = currentData.filter(r => r.name === name);
          let hrs = 0, rest = 0, reg = 0, nat = 0, empty = 0;
-         pData.forEach(r => { let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h; if (r.input_status === '休') rest++; else if (r.input_status === '例') reg++; else if (r.input_status === '國') nat++; else if (r.input_status === '空班') empty++; });
+         pData.forEach(r => { 
+             let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h; 
+             let s = r.input_status;
+             if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++; 
+         });
          const bar = document.getElementById('liveSummaryBar');
-         bar.innerHTML = `<span class="me-3">目前累計 (${name})：</span> 應有 <span class="${getDiffClass(hrs, monthlyTargets.hrs)}">${hrs.toFixed(1)}</span> / 休 <span class="${getDiffClass(rest, monthlyTargets.rest)}">${rest}</span> / 例 <span class="${getDiffClass(reg, monthlyTargets.reg)}">${reg}</span> / 國 <span class="${getDiffClass(nat, monthlyTargets.nat)}">${nat}</span> / 空班 ${empty}`;
+         if (bar) {
+             bar.innerHTML = `<span class="me-3">目前累計 (${name})：</span> 應有 <span class="${getDiffClass(hrs, monthlyTargets.hrs)}">${hrs.toFixed(1)}</span> / 休 <span class="${getDiffClass(rest, monthlyTargets.rest)}">${rest}</span> / 例 <span class="${getDiffClass(reg, monthlyTargets.reg)}">${reg}</span> / 國 <span class="${getDiffClass(nat, monthlyTargets.nat)}">${nat}</span> / 空班 ${empty}`;
+         }
       }
 
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
@@ -1592,31 +1598,10 @@
         const s = tr.querySelector('.start-select').value; const e = tr.querySelector('.end-select').value; const r = tr.querySelector('.rest-select').value; const hInput = tr.querySelector('.hours-input');
         if (s && e && r !== "") { let start = timeToFloat(s), end = timeToFloat(e), rest = parseFloat(r); if (end < start) end += 24; let total = end - start - rest; hInput.value = (total > 0) ? total.toFixed(1) : "0.0"; } else { hInput.value = ""; }
       }
+      // ★ 實踐共識 4：安靜排班，廢除打字當下的超額警告，交給存檔後一次性報告
       function checkRealTimeBudget(tr) {
-        if (!currentData.length) return; 
-        const name = tr.getAttribute('data-name'); 
-        let pData = currentData.filter(r => r.name === name);
-        
-        // ★★★ 核心修改：如果是時薪制，直接結束，不檢查也不跳提示 ★★★
-        if (pData.length > 0 && pData[0].salaryType && pData[0].salaryType.includes("時薪")) {
-            return;
-        }
-
-        let totalHours = 0, cnt = { rest:0, reg:0, nat:0 }; 
-        pData.forEach(r => { 
-            let h = parseFloat(r.calc_hours); if(!isNaN(h)) totalHours += h; 
-            if (r.input_status === '休') cnt.rest++; 
-            else if (r.input_status === '例') cnt.reg++; 
-            else if (r.input_status === '國') cnt.nat++; 
-        });
-
-        let msg = ""; 
-        if (monthlyTargets.hrs > 0 && totalHours > monthlyTargets.hrs) msg += `• 應有 ${totalHours.toFixed(1)} > ${monthlyTargets.hrs}<br>`; 
-        if (monthlyTargets.rest > 0 && cnt.rest > monthlyTargets.rest) msg += `• 休息日 ${cnt.rest} > ${monthlyTargets.rest}<br>`; 
-        if (monthlyTargets.reg > 0 && cnt.reg > monthlyTargets.reg) msg += `• 例假日 ${cnt.reg} > ${monthlyTargets.reg}<br>`; 
-        if (monthlyTargets.nat > 0 && cnt.nat > monthlyTargets.nat) msg += `• 國定假日 ${cnt.nat} > ${monthlyTargets.nat}<br>`;
-        
-        if (msg !== "") Swal.fire({ title: '⚠️ 目標超標提醒', html: `人員：${name}<br>${msg}`, icon: 'warning', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        // 這個函數其實已經不需要跳通知了，為了保留原本您可能需要的預留架構，我們直接 return 即可。
+        return; 
       }
       function validateAll() {
         const errors = document.querySelectorAll('.row-error'); const btn = document.getElementById('btnSave');
@@ -2106,21 +2091,8 @@
               }
           });
 
-          // ★ 新增：掃描完畢後，如果有連動，統一跳出右下角綠色通知！
-          if (affectedDates.length > 0) {
-              const Toast = Swal.mixin({
-                  toast: true, 
-                  position: 'top-end', 
-                  showConfirmButton: false, 
-                  timer: 5000, 
-                  timerProgressBar: true
-              });
-              Toast.fire({
-                  icon: 'info',
-                  title: '✨ 系統連動通知',
-                  text: `已自動優化 ${empName} 於 ${affectedDates.join(', ')} 的超時與加班分配。`
-              });
-          }
+          // ★ 實踐共識 4 (安靜排班)：徹底拔除右下角綠色 Toast 通知小卡
+          // 讓系統在背景默默算完就好，不再打擾店長打字！
       }
 
       // ==========================================
@@ -2171,13 +2143,10 @@
           let finalZ = (status === "上班" && zInputVal > availableZ) ? Math.floor(availableZ * 2) / 2 : (status !== "上班" ? outZ : zInputVal);
 
           // ==========================================
-          // ★ 4. 您漏掉的關鍵：比對差異並打上「髒標記」！
+          // ★ 實踐共識 3：只保留合法的「自動優化額度」，刪除不可能發生的「排擠超時」
           // ==========================================
           if (finalZ > oldZ && outAA < oldAA) {
               r.cascade_log = "[自動優化額度]";
-              r.isModified = true; // ★ 讓 saveData 知道它被偷改了，必須打包送出！
-          } else if (finalZ < oldZ && outAA > oldAA) {
-              r.cascade_log = "[自動排擠超時]";
               r.isModified = true; // ★ 讓 saveData 知道它被偷改了，必須打包送出！
           } else {
               r.cascade_log = ""; // 沒變動就清空註記
@@ -2501,7 +2470,8 @@
 
         // 若無錯誤，存入全域變數
         currentData[currentSupportRowIndex].supports = tempSupports;
-        currentData[currentSupportRowIndex].isModified = true; // ★ 補上這行，讓系統知道這天有被修改！
+        currentData[currentSupportRowIndex].isModified = true; 
+        pendingUnsaved = true; // ★★★ 開啟全域防呆：跨店支援修改也視為未存檔 (共識5) ★★★
         const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
         if (tr) {
             const btn = tr.querySelector('.support-btn');
