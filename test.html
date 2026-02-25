@@ -272,16 +272,16 @@
                 <div id="filterContainer" class="w-100-mobile bg-light p-2 rounded border">
                     <div id="filterDateGroup" class="filter-group m-0 d-flex justify-content-between align-items-center">
                         <label class="fw-bold mx-2 text-nowrap">日期：</label>
-                        <select id="selectDay" class="form-select fw-bold border-primary flex-grow-1" onchange="handleFilterChange(this)"></select>
+                        <select id="selectDay" class="form-select fw-bold border-primary flex-grow-1" onchange="handleFilterChange(this, 'day')"></select>
                     </div>
                     <div id="filterNameGroup" class="filter-group m-0 d-none flex-column flex-md-row gap-2">
                         <div class="d-flex align-items-center flex-grow-1 w-100">
                             <label class="fw-bold me-2 text-nowrap">人員:</label>
-                            <select id="selectName" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this)"></select>
+                            <select id="selectName" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this, 'name')"></select>
                         </div>
                         <div class="d-flex align-items-center flex-grow-1 w-100 mt-2 mt-md-0">
                             <label class="fw-bold ms-md-2 me-2 text-nowrap">週別:</label>
-                            <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this)"></select>
+                            <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this, 'week')"></select>
                         </div>
                     </div>
                 </div>
@@ -421,6 +421,56 @@
       // ★★★ 新增：狀態控制變數 ★★★
       let isErrorFilterActive = false; // 是否正在過濾異常
       let pendingUnsaved = false;      // 是否有未存檔的修改 (用來觸發防呆)
+        // ==========================================
+      // ★ 狀態時光機：紀錄上一次安全的下拉選單狀態
+      // ==========================================
+      let lastSafeFilters = { name: "", week: "ALL", day: "" };
+
+      function updateSafeFilters() {
+          const n = document.getElementById('selectName');
+          const w = document.getElementById('selectWeek');
+          const d = document.getElementById('selectDay');
+          if(n) lastSafeFilters.name = n.value;
+          if(w) lastSafeFilters.week = w.value;
+          if(d) lastSafeFilters.day = d.value;
+      }
+
+      // ★ 超級攔截器：統一處理所有下拉選單的切換防呆
+      async function handleFilterChange(el, filterType) {
+          if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
+              const result = await Swal.fire({
+                  title: '⚠️ 尚未儲存！',
+                  text: '您有修改的排班資料尚未儲存。請問要先儲存目前的修改，還是要放棄修改並離開？',
+                  icon: 'warning',
+                  showDenyButton: true,
+                  showCancelButton: true,
+                  confirmButtonText: '💾 儲存並切換',
+                  denyButtonText: '❌ 放棄修改',
+                  cancelButtonText: '返回',
+                  allowOutsideClick: false
+              });
+
+              if (result.isConfirmed) {
+                  // 按下儲存：存檔成功後系統會自動更新
+                  await saveData(); 
+              } else if (result.isDenied) {
+                  // ★ 修復 Bug 2 (放棄修改)：洗掉髒記憶體，重新向後端拿乾淨資料！
+                  pendingUnsaved = false;
+                  showLoading(true, "捨棄修改，還原資料中...");
+                  loadData(); 
+              } else {
+                  // ★ 修復 Bug 1 (返回)：把選單「強制退回」到剛剛的安全狀態！
+                  if (filterType === 'name') el.value = lastSafeFilters.name;
+                  if (filterType === 'week') el.value = lastSafeFilters.week;
+                  if (filterType === 'day')  el.value = lastSafeFilters.day;
+                  return; // 直接中斷，絕對不重繪畫面
+              }
+          } else {
+              // 沒有未存檔的髒資料，正常執行切換
+              updateSafeFilters();
+              renderTable();
+          }
+      }
 
       const statusOpts = ["", "上班", "休", "例", "國", "空班"];
       const timeOptions = generateTimeOptions(), restOptions = generateRestOptions();
@@ -995,10 +1045,13 @@
           renderTable();
       }
 
-      function switchMode(mode) {
+      async function switchMode(mode) {
+          // 防止重複點擊當前模式
+          if (currentMode === mode) return;
+
           // ★★★ 實踐共識 5：防呆攔截 (未存檔切換) ★★★
-          if (pendingUnsaved) {
-              Swal.fire({
+          if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
+              const result = await Swal.fire({
                   title: '⚠️ 您有尚未儲存的排班資料！',
                   html: '請問要先儲存目前的修改，還是要放棄修改並離開？',
                   icon: 'warning',
@@ -1006,25 +1059,34 @@
                   showCancelButton: true,
                   confirmButtonText: '💾 儲存並切換',
                   denyButtonText: '❌ 放棄修改',
-                  cancelButtonText: '返回'
-              }).then((result) => {
-                  if (result.isConfirmed) {
-                      // 點擊儲存：強制存檔，存完後再切換
-                      saveData(false);
-                  } else if (result.isDenied) {
-                      // 點擊放棄：清空記憶體標記，強制切換
-                      currentData.forEach(r => r.isModified = false);
-                      pendingUnsaved = false;
-                      switchMode(mode); // 重新呼叫自己
-                  }
-                  // 點擊返回：什麼都不做，留在原畫面
+                  cancelButtonText: '返回',
+                  allowOutsideClick: false
               });
-              return; // 攔截！不往下執行切換
+
+              if (result.isConfirmed) {
+                  // 點擊儲存：強制存檔，(存檔成功後 saveData 裡面會自動 loadData 並重繪)
+                  await saveData(false);
+              } else if (result.isDenied) {
+                  // ★ 終極修復：點擊放棄，不再只改標籤，而是「徹底洗掉髒記憶體」！
+                  pendingUnsaved = false;
+                  currentMode = mode; // 允許切換模式
+                  showLoading(true, "捨棄修改，還原資料中...");
+                  loadData(); // 重新向後端拿最乾淨的資料
+              }
+              // 點擊返回：直接中斷，什麼都不做，留在原畫面
+              return; 
           }
 
+          // ==========================================
+          // 以下為正常切換模式的 UI 處理 (無未存檔資料時)
+          // ==========================================
           currentMode = mode;
+          
+          // ★ 觸發狀態時光機：紀錄安全的選單狀態
+          if (typeof updateSafeFilters === 'function') updateSafeFilters();
+
           // 切換模式時，自動關閉異常過濾，避免畫面混亂
-          isErrorFilterActive = false;
+          if (typeof isErrorFilterActive !== 'undefined') isErrorFilterActive = false;
           const btnErr = document.getElementById('btnErrorFilter');
           if (btnErr) {
               btnErr.classList.remove('btn-danger', 'text-white');
