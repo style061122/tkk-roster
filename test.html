@@ -275,6 +275,7 @@
                 <div class="btn-group w-100-mobile">
                     <button class="btn btn-outline-primary view-btn active" id="btnModeDate" onclick="switchMode('date')">📅 日期排班</button>
                     <button class="btn btn-outline-primary view-btn" id="btnModeName" onclick="switchMode('name')">👤 人名排班</button>
+                    <button class="btn btn-outline-danger view-btn d-none" id="btnModeError" onclick="switchMode('error')">⚠️ 異常 <span id="errorBadge" class="badge bg-danger rounded-circle">0</span></button>
                 </div>
                 
                 <div id="filterContainer" class="w-100-mobile bg-light p-2 rounded border">
@@ -296,9 +297,6 @@
             </div>
 
             <div class="action-btn-group w-100">
-                <button id="btnErrorFilter" class="btn btn-outline-danger fw-bold btn-error-filter d-none" onclick="toggleErrorFilter()">
-                    ⚠️ 異常與退件 <span id="errorBadge" class="badge">0</span>
-                </button>
                 <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
                 <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
                 <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
@@ -774,7 +772,7 @@
             let isRowOnScreen = false;
 
             // ★ 新增：如果現在是「異常過濾模式」，只要這筆資料有失敗註記，它就在畫面上！
-            if (isErrorFilterActive) {
+            if (currentMode === 'error') {
                 let logStr = String(row.log || "");
                 if (logStr.includes("失敗") || logStr.includes("退件") || logStr.includes("錯誤")) {
                     isRowOnScreen = true;
@@ -1085,25 +1083,6 @@
         const names = [...new Set(currentData.map(r => r.name))];
         names.forEach(n => select.innerHTML += `<option value="${n}">${n}</option>`);
       }
-
-      // ★★★ 新增：異常過濾按鈕的切換邏輯 ★★★
-      function toggleErrorFilter() {
-          if (pendingUnsaved) {
-              Swal.fire('⚠️ 尚未儲存', '請先儲存或放棄目前的修改，再進行過濾。', 'warning');
-              return;
-          }
-          isErrorFilterActive = !isErrorFilterActive;
-          const btn = document.getElementById('btnErrorFilter');
-          if (isErrorFilterActive) {
-              btn.classList.remove('btn-outline-danger');
-              btn.classList.add('btn-danger', 'text-white');
-          } else {
-              btn.classList.remove('btn-danger', 'text-white');
-              btn.classList.add('btn-outline-danger');
-          }
-          renderTable();
-      }
-
       async function switchMode(mode) {
           // 防止重複點擊當前模式
           if (currentMode === mode) return;
@@ -1147,38 +1126,42 @@
           // ★ 觸發狀態時光機：紀錄安全的選單狀態
           if (typeof updateSafeFilters === 'function') updateSafeFilters();
 
-          // 切換模式時，自動關閉異常過濾，避免畫面混亂
-          if (typeof isErrorFilterActive !== 'undefined') isErrorFilterActive = false;
-          const btnErr = document.getElementById('btnErrorFilter');
-          if (btnErr) {
-              btnErr.classList.remove('btn-danger', 'text-white');
-              btnErr.classList.add('btn-outline-danger');
-          }
-
+          // 取得所有 UI 元素
           const btnDate = document.getElementById('btnModeDate');
           const btnName = document.getElementById('btnModeName');
+          const btnError = document.getElementById('btnModeError');
+          const filterContainer = document.getElementById('filterContainer');
           const grpDate = document.getElementById('filterDateGroup');
           const grpName = document.getElementById('filterNameGroup');
 
-          if (mode === 'date') {
-              btnDate.classList.add('active');
-              btnName.classList.remove('active');
-              
-              // 顯示日期，隱藏人名週別
-              grpDate.classList.remove('d-none');
-              grpDate.classList.add('d-flex');
-              grpName.classList.remove('d-flex', 'flex-column', 'flex-md-row');
-              grpName.classList.add('d-none');
-          } else {
-              btnDate.classList.remove('active');
-              btnName.classList.add('active');
-              
-              // 顯示人名週別，隱藏日期
-              grpDate.classList.remove('d-flex');
-              grpDate.classList.add('d-none');
-              grpName.classList.remove('d-none');
-              grpName.classList.add('d-flex', 'flex-column', 'flex-md-row');
+          // 1. 先重置所有模式按鈕的樣式
+          if (btnDate) { btnDate.classList.remove('active', 'btn-primary', 'text-white'); btnDate.classList.add('btn-outline-primary'); }
+          if (btnName) { btnName.classList.remove('active', 'btn-primary', 'text-white'); btnName.classList.add('btn-outline-primary'); }
+          if (btnError) { btnError.classList.remove('active', 'btn-danger', 'text-white'); btnError.classList.add('btn-outline-danger'); }
+
+          // 2. 根據模式決定 UI 顯示邏輯
+          if (mode === 'error') {
+              // --- 異常模式 ---
+              if (btnError) { btnError.classList.add('active', 'btn-danger', 'text-white'); btnError.classList.remove('btn-outline-danger'); }
+              // 隱藏整個選單區域，達到最乾淨的視覺體驗
+              if (filterContainer) filterContainer.classList.add('d-none');
+          } 
+          else if (mode === 'date') {
+              // --- 日期模式 ---
+              if (btnDate) { btnDate.classList.add('active', 'btn-primary', 'text-white'); btnDate.classList.remove('btn-outline-primary'); }
+              if (filterContainer) filterContainer.classList.remove('d-none');
+              if (grpDate) { grpDate.classList.remove('d-none'); grpDate.classList.add('d-flex'); }
+              if (grpName) { grpName.classList.remove('d-flex', 'flex-column', 'flex-md-row'); grpName.classList.add('d-none'); }
+          } 
+          else if (mode === 'name') {
+              // --- 人名模式 ---
+              if (btnName) { btnName.classList.add('active', 'btn-primary', 'text-white'); btnName.classList.remove('btn-outline-primary'); }
+              if (filterContainer) filterContainer.classList.remove('d-none');
+              if (grpDate) { grpDate.classList.remove('d-flex'); grpDate.classList.add('d-none'); }
+              if (grpName) { grpName.classList.remove('d-none'); grpName.classList.add('d-flex', 'flex-column', 'flex-md-row'); }
           }
+
+          // 3. 最後執行畫面重繪
           renderTable();
       }
       function getWeeklyUsage(name, dateStr) {
@@ -1234,7 +1217,7 @@
         let targetData = [], targetName = "";
           
         // ★★★ 實踐共識 6：異常與退件過濾模式 ★★★
-        if (isErrorFilterActive) {
+        if (currentMode === 'error') {
             // 如果開啟了過濾器，無視日期/人名模式，直接抓出全月有「失敗、退件」等字眼的資料
             targetData = currentData.filter(row => {
                 let logStr = String(row.log || "");
@@ -1361,18 +1344,20 @@
         });
         
         // 更新異常按鈕的數字 (每次重繪表格時偷偷計算一次)
-        const btnErr = document.getElementById('btnErrorFilter');
+        const btnErr = document.getElementById('btnModeError'); // 改抓新 ID
         const badgeErr = document.getElementById('errorBadge');
         if (btnErr && badgeErr) {
             let errCount = currentData.filter(r => {
                 let l = String(r.log || ""); return l.includes("失敗") || l.includes("退件") || l.includes("錯誤");
             }).length;
             badgeErr.innerText = errCount;
-            if (errCount > 0 && !isErrorFilterActive) {
-                btnErr.classList.remove('d-none'); // 顯示按鈕
-            } else if (errCount === 0) {
+            
+            if (errCount > 0) {
+                btnErr.classList.remove('d-none'); // 有異常才顯示這顆按鈕
+            } else {
                 btnErr.classList.add('d-none'); // 沒錯誤就藏起來
-                if (isErrorFilterActive) toggleErrorFilter(); // 如果剛好修完最後一個，自動關閉過濾
+                // ★ 神級 UX 2：如果店長剛好把最後一個異常修好了，系統自動幫他跳回「日期模式」！
+                if (currentMode === 'error') setTimeout(() => switchMode('date'), 100); 
             }
         }
 
