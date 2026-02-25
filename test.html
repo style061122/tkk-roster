@@ -499,26 +499,37 @@
       const timeOptions = generateTimeOptions(), restOptions = generateRestOptions();
 
       // ==========================================
-      // ★★★ 閒置自動登出機制 (完美支援 iPhone 與背景休眠) ★★★
+      // ★ 閒置登出系統 (上帝視角全平台相容版)
       // ==========================================
       let lastActivityTime = Date.now();
-      const IDLE_LIMIT_MS = 20 * 60 * 1000; // 20 分鐘轉成毫秒 (20 * 60 * 1000)
+      const IDLE_LIMIT_MS = 20 * 60 * 1000; // 20 分鐘
 
-      function resetTimer() { 
-          lastActivityTime = Date.now(); 
+      // 強制碼表歸零函數
+      function resetTimer() {
+          lastActivityTime = Date.now();
       }
 
+      // ★ 上帝視角監聽：同時支援電腦(滑鼠/鍵盤)與手機(觸控/滾動)
+      // 使用 { capture: true, passive: true } 確保事件絕對不會被其他元素吃掉，且不卡頓！
+      const userActivityEvents = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'];
+      userActivityEvents.forEach(eventName => {
+          window.addEventListener(eventName, resetTimer, { capture: true, passive: true });
+      });
+
+      // 每 30 秒檢查一次是否超時
+      setInterval(checkIdleTime, 30000); 
+
       function checkIdleTime() {
-          // 只有在「已登入」且「在操作畫面」才檢查
-          if (currentStore && document.getElementById('appSection').style.display !== 'none') {
+          // 只有在「有登入」且「停留在操作畫面」時才檢查
+          if (typeof currentStore !== 'undefined' && currentStore !== "" && document.getElementById('appSection').style.display !== 'none') {
               let currentTime = Date.now();
-              // 絕對時間比對：現在時間 - 最後動作時間
               if (currentTime - lastActivityTime >= IDLE_LIMIT_MS) {
                   
-                  // ★★★ 關鍵修復：資安優先！強制解除「未存檔防呆」攔截 ★★★
+                  // ★★★ 資安優先：強制解除所有未存檔防呆，準備踢人 ★★★
                   if (typeof pendingUnsaved !== 'undefined') pendingUnsaved = false;
-                  window.onbeforeunload = null; // 同時解除瀏覽器原生的離開警告
+                  window.onbeforeunload = null; 
 
+                  // 跳出警告並立刻登出
                   Swal.fire({
                       icon: 'warning',
                       title: '閒置過久',
@@ -528,6 +539,8 @@
                   }).then(() => {
                       logout(); 
                   });
+                  
+                  // ★ 破除無限輪迴的關鍵 1：跳出視窗的瞬間，先強制歸零一次碼表！
                   resetTimer(); 
               }
           }
@@ -615,15 +628,18 @@
              showLoading(false);
              if (res.success) {
                 currentStore = store;
-                currentToken = res.token; // ★ 存下 Token
+                currentToken = res.token; 
                 
-                // ★ 寫入 SessionStorage
                 sessionStorage.setItem('tkk_store', store);
                 sessionStorage.setItem('tkk_token', res.token);
 
                 document.getElementById('displayStoreName').innerText = store;
                 document.getElementById('loginSection').style.display = 'none';
                 document.getElementById('appSection').style.display = 'block';
+                
+                // ★ 破除無限輪迴的關鍵 2：登入成功瞬間，強制歸零碼表！
+                resetTimer(); 
+                
                 loadData();
              } else { Swal.fire('登入失敗', res.message, 'error'); }
         }).catch(err => errorHandler(err));
@@ -633,7 +649,8 @@
         currentStore = ""; currentData = []; currentToken = "";
         sessionStorage.removeItem('tkk_store'); // ★ 清除 Session
         sessionStorage.removeItem('tkk_token'); 
-        idleTime = 0; 
+        // ★ 破除無限輪迴的關鍵 3：登出瞬間，強制歸零碼表！
+        resetTimer();
         
         document.getElementById('loginPassword').value = "";
         document.getElementById('selectName').innerHTML = ""; 
