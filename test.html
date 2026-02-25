@@ -38,6 +38,21 @@
       .badge-abnormal { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       .badge-leave { background-color: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
       #personalStats { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #495057; font-size: 1.1rem; }
+        /* ★ 修正：消除左側巨大閃爍游標與容器焦點外框 */
+      #scheduleForm, .table-responsive {
+          outline: none !important;
+          -webkit-tap-highlight-color: transparent;
+      }
+      
+      /* 確保表格容器不會觸發文字輸入游標 */
+      .table-responsive {
+          cursor: default;
+      }
+      
+      /* 只有真正的 input 欄位才顯示輸入游標 */
+      .table-responsive input {
+          cursor: text;
+      }
       
       /* --- 整月檢視日曆專用樣式 --- */
       .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
