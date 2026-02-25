@@ -441,6 +441,11 @@
               let currentTime = Date.now();
               // 絕對時間比對：現在時間 - 最後動作時間
               if (currentTime - lastActivityTime >= IDLE_LIMIT_MS) {
+                  
+                  // ★★★ 關鍵修復：資安優先！強制解除「未存檔防呆」攔截 ★★★
+                  if (typeof pendingUnsaved !== 'undefined') pendingUnsaved = false;
+                  window.onbeforeunload = null; // 同時解除瀏覽器原生的離開警告
+
                   Swal.fire({
                       icon: 'warning',
                       title: '閒置過久',
@@ -450,7 +455,6 @@
                   }).then(() => {
                       logout(); 
                   });
-                  // 觸發登出後重置時間，避免重複狂跳
                   resetTimer(); 
               }
           }
