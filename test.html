@@ -1269,7 +1269,7 @@
           let dayStr = rowDateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
           let badgeHtml = `<span class="badge bg-${row.salaryType.includes("月薪") ? "primary" : "success"} rounded-pill mt-1">${row.salaryType}</span>`;
           
-          if (isErrorFilterActive) {
+          if (currentMode === 'error') {
               // 1. 異常模式：必須同時顯示「姓名 + 日期」才不會搞混
               col1Content = `
                   <div class="fw-bold fs-5 text-dark">${row.name}</div>
