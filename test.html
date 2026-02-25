@@ -745,26 +745,39 @@
                  // ★★★ 實踐共識 3：精確的存檔文案與超額報告 ★★★
                  let cascadeItems = inputData.filter(i => i.cascadeLog !== "");
                  
-                 // 1. 判斷目前的模式，產生「主標題」
+                 // 1. 判斷目前的模式，產生「主標題」與「待檢查超額的人名清單」
                  let modeTitle = "";
-                 if (currentMode === 'date') {
+                 let namesToCheck = []; 
+                 
+                 if (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive) {
+                     // 異常模式：找出這次存檔動到了哪些人
+                     let uniqueNames = [...new Set(inputData.map(i => i.verifyName))];
+                     if (uniqueNames.length > 1) {
+                         modeTitle = `異常班表 ${inputData.length} 筆`; // 多人同時改
+                     } else if (uniqueNames.length === 1) {
+                         modeTitle = `${uniqueNames[0]} ${inputData.length} 筆`; // 剛好只改到一個人
+                     }
+                     namesToCheck = uniqueNames; // 異常模式下，檢查所有被動到的人的額度！
+                 } else if (currentMode === 'date') {
                      let currentDayStr = document.getElementById('selectDay').value;
                      modeTitle = `${currentDayStr}號 ${inputData.length}筆`;
+                     // 日期模式通常不檢查個人超額，避免跳出太多警告，保持為空陣列
                  } else {
                      let currentName = document.getElementById('selectName').value;
                      modeTitle = `${currentName} ${inputData.length}筆`;
+                     namesToCheck = [currentName];
                  }
 
                  let htmlMsg = `<div style="text-align: left; font-size: 1rem; line-height: 1.6;">`;
                  htmlMsg += `✅ 成功存檔 <strong>${modeTitle}</strong>。<br>`;
                  
-                 // 2. 結算超額警告 (在存檔成功時一次性檢查)
-                 if (currentMode === 'name') {
-                     let currentName = document.getElementById('selectName').value;
-                     let stats = getAccumulatedStats(currentName, ""); 
+                 // 2. 結算超額警告 (支援多人同時檢查)
+                 let quotaWarningsHTML = "";
+                 namesToCheck.forEach(checkName => {
+                     let stats = getAccumulatedStats(checkName, ""); 
                      // 計算當下畫面所有的休/例/國
                      let restCount = 0, regCount = 0, natCount = 0;
-                     currentData.filter(r => r.name === currentName).forEach(r => {
+                     currentData.filter(r => r.name === checkName).forEach(r => {
                          if(r.input_status === '休') restCount++;
                          if(r.input_status === '例') regCount++;
                          if(r.input_status === '國') natCount++;
@@ -777,13 +790,15 @@
                      if (monthlyTargets.nat > 0 && natCount > monthlyTargets.nat) quotaWarnings.push(`國定 已超過 (目前 ${natCount}天)`);
                      
                      if (quotaWarnings.length > 0) {
-                         htmlMsg += `<div style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffe69c; border-radius: 6px; color: #664d03;">`;
-                         htmlMsg += `⚠️ <strong>注意！${currentName}</strong> 額度已超標：<br>`;
-                         htmlMsg += `<ul style="margin-bottom: 0; padding-left: 20px; font-size: 0.9rem;">`;
-                         quotaWarnings.forEach(w => htmlMsg += `<li>${w}</li>`);
-                         htmlMsg += `</ul><div style="margin-top: 5px; font-weight: bold; color: #dc3545;">請務必調整班表！</div></div>`;
+                         quotaWarningsHTML += `<div style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffe69c; border-radius: 6px; color: #664d03;">`;
+                         quotaWarningsHTML += `⚠️ <strong>注意！${checkName}</strong> 額度已超標：<br>`;
+                         quotaWarningsHTML += `<ul style="margin-bottom: 0; padding-left: 20px; font-size: 0.9rem;">`;
+                         quotaWarnings.forEach(w => quotaWarningsHTML += `<li>${w}</li>`);
+                         quotaWarningsHTML += `</ul><div style="margin-top: 5px; font-weight: bold; color: #dc3545;">請務必調整班表！</div></div>`;
                      }
-                 }
+                 });
+                 
+                 htmlMsg += quotaWarningsHTML; // 將所有警告合併進主要訊息中
 
                  // 3. 連動結果報告
                  if (cascadeItems.length > 0) {
