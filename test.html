@@ -1067,9 +1067,6 @@
               hInput.value = ""; aaInput.value = ""; msgBox.innerHTML = "";
               tr.classList.remove('row-error', 'row-warning'); // ★ 確保移除黃色背景
               
-              let originalIndex = parseInt(tr.getAttribute('data-index'));
-              currentData[originalIndex].input_status = "";
-              
               // ★ 新增：確實將空白寫入記憶體，避免漏存
               let originalIndex = parseInt(tr.getAttribute('data-index'));
               currentData[originalIndex].input_status = "";
