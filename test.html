@@ -748,6 +748,9 @@
         // ★ 核心升級：優先讀取記憶體安全鎖！若無安全鎖，才讀取當下畫面的值
         const currentName = window.lockedSaveState ? window.lockedSaveState.name : document.getElementById('selectName').value;
         const currentWeekVal = window.lockedSaveState ? window.lockedSaveState.week : document.getElementById('selectWeek').value;
+        // ★ 新增：把日期 (Day) 也加入安全鎖，確保日期模式下也絕對存不錯天！
+        const currentDayVal = window.lockedSaveState ? window.lockedSaveState.day : document.getElementById('selectDay').value;
+        
         let sD = 1, eD = 31;
         if (currentWeekVal && currentWeekVal !== "ALL") {
             let parts = currentWeekVal.split('-');
@@ -777,7 +780,8 @@
                         isRowOnScreen = true;
                     }
                 } else if (currentMode === 'date') {
-                    let currentDayStr = document.getElementById('selectDay').value.padStart(2, '0');
+                    // ★ 修改：這裡改用被鎖定的 currentDayVal，絕對不去看畫面的 selectDay
+                    let currentDayStr = currentDayVal.padStart(2, '0');
                     let targetDateStr = `${document.getElementById('displayYear').innerText}/${document.getElementById('displayMonth').innerText.padStart(2, '0')}/${currentDayStr}`;
                     if (row.date === targetDateStr) isRowOnScreen = true;
                 }
@@ -869,11 +873,10 @@
                      }
                      namesToCheck = uniqueNames; // 異常模式下，檢查所有被動到的人的額度！
                  } else if (currentMode === 'date') {
-                     let currentDayStr = document.getElementById('selectDay').value;
-                     modeTitle = `${currentDayStr}號 ${inputData.length}筆`;
-                     // 日期模式通常不檢查個人超額，避免跳出太多警告，保持為空陣列
+                     // ★ 修正：直接使用上面已經被安全鎖定好的 currentDayVal
+                     modeTitle = `${currentDayVal}號 ${inputData.length}筆`;
                  } else {
-                     let currentName = document.getElementById('selectName').value;
+                     // ★ 修正：直接使用上面已經被安全鎖定好的 currentName
                      modeTitle = `${currentName} ${inputData.length}筆`;
                      namesToCheck = [currentName];
                  }
