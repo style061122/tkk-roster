@@ -1460,32 +1460,35 @@
           let oldZ = parseFloat(currentData[originalIndex].input_est_overtime) || 0;
           let oldAA = parseFloat(currentData[originalIndex].calc_excess) || 0;
 
-          // 組裝文字訊息 (完全保留)
+          // ==========================================
+          // ★ 畫面壓縮優化：極簡時段格式 (8:00 -> 8) + 保留文字標籤
+          // ==========================================
           let msgs = []; let currTime = sF;
           const ft = (t) => {
-              if (isNaN(t)) return "00:00";
+              if (isNaN(t)) return "0";
               let h = Math.floor(t); let m = Math.round((t - h) * 60);
               if (h >= 24) h -= 24;
-              return String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0');
+              return m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`;
           };
 
           if (outH > 0) {
               let endT = currTime + outH + restVal;
-              msgs.push(`<span class="text-primary fw-bold">應有 ${ft(currTime)}~${ft(endT)} (含休${restVal})</span>`);
+              let restTag = restVal > 0 ? `(休${restVal})` : ""; // 沒休就不顯示
+              msgs.push(`<span class="text-primary fw-bold">應有 ${ft(currTime)}-${ft(endT)} ${restTag}</span>`);
               currTime = endT;
           }
           if (outZ > 0) {
               let zRest = (outH === 0) ? restVal : 0; 
               let endT = currTime + outZ + zRest;
-              let tag = (outH > 0 || zRest === 0) ? "(請打下班卡)" : `(含休${restVal}，請打下班卡)`;
-              msgs.push(`<span class="text-warning fw-bold" style="color: #d39e00 !important;">加班 ${ft(currTime)}~${ft(endT)} ${tag}</span>`);
+              let restStr = (zRest > 0) ? `休${restVal},` : "";
+              msgs.push(`<span class="text-warning fw-bold" style="color: #d39e00 !important;">加班 ${ft(currTime)}-${ft(endT)} (${restStr}請打下班)</span>`);
               currTime = endT;
           }
           if (outAA > 0) {
               let aaRest = (outH === 0 && outZ === 0) ? restVal : 0;
               let endT = currTime + outAA + aaRest;
-              let tag = (aaRest > 0) ? `(含休${restVal}，不可打卡)` : "(不可打卡)";
-              msgs.push(`<span class="text-danger fw-bold">超時 ${ft(currTime)}~${ft(endT)} ${tag}</span>`);
+              let restStr = (aaRest > 0) ? `休${restVal},` : "";
+              msgs.push(`<span class="text-danger fw-bold">超時 ${ft(currTime)}-${ft(endT)} (${restStr}不可打卡)</span>`);
           }
 
           // ==========================================
