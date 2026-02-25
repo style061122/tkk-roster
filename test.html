@@ -170,6 +170,32 @@
           min-width: 100px !important; max-width: 180px !important;
           line-height: 1.4; font-size: 0.85rem; vertical-align: top !important;
       }
+        /* ★ 系統狀態表：非卡片模式下的通用樣式 */
+      table:not(.mobile-card-mode) #indivTableBody td, 
+      table:not(.mobile-card-mode) #personalTableBody td {
+          vertical-align: middle !important; white-space: nowrap; font-size: 0.9rem; padding: 6px 4px;
+      }
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(12), 
+      table:not(.mobile-card-mode) #indivTableBody td:nth-child(13),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(11),
+      table:not(.mobile-card-mode) #personalTableBody td:nth-child(12) {
+          white-space: normal !important; word-break: break-all !important; 
+          min-width: 100px !important; max-width: 180px !important;
+          line-height: 1.4; font-size: 0.85rem; vertical-align: top !important;
+      }
+
+      /* ========================================= */
+      /* ★ 系統註記 (Q欄) 與 異常退件專用樣式 ★ */
+      /* ========================================= */
+      .q-log-box { 
+          font-size: 0.8rem; line-height: 1.4; color: #495057; background-color: #f8f9fa; 
+          padding: 6px; border-radius: 6px; border: 1px dashed #dee2e6; text-align: left;
+          min-height: 38px; display: flex; align-items: center; justify-content: center;
+      }
+      .row-reject { background-color: #ffebee !important; }
+      .row-reject .q-log-box { background-color: #fff5f5; border-color: #dc3545; color: #dc3545; font-weight: bold; }
+      .btn-error-filter { position: relative; }
+      .btn-error-filter .badge { position: absolute; top: -5px; right: -5px; background: red; border-radius: 50%; padding: 3px 6px; font-size: 0.7rem; }
 
       /* ★ 第一階段優化：新增欄位與支援視窗專用樣式 */
       .bg-z-col { background-color: #fff9c4 !important; } 
@@ -262,6 +288,9 @@
             </div>
 
             <div class="action-btn-group w-100">
+                <button id="btnErrorFilter" class="btn btn-outline-danger fw-bold btn-error-filter d-none" onclick="toggleErrorFilter()">
+                    ⚠️ 異常與退件 <span id="errorBadge" class="badge">0</span>
+                </button>
                 <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
                 <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
                 <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
@@ -271,18 +300,18 @@
             </div>
         </div>
       </div>
-      <form id="scheduleForm">
+      <<form id="scheduleForm">
         <div class="table-responsive"><table class="table table-bordered table-hover align-middle"><thead><tr id="tableHeaderRow">
-  <th style="width:11%">姓名/日期</th>
+  <th style="width:10%">姓名/日期</th>
   <th style="width:12%">狀態 (D)</th>
-  <th style="width:11%">上班 (E)</th>
-  <th style="width:11%">下班 (F)</th>
-  <th style="width:9%">休息 (G)</th>
-  <th style="width:10%">預計加班(Z)</th>
-  <th style="width:7%">應有(H)</th>
-  <th style="width:7%">超時(AA)</th>
-  <th style="width:22%">檢核訊息</th>
-</tr></thead><tbody id="staffTable"></tbody></table></div>
+  <th style="width:10%">上班 (E)</th>
+  <th style="width:10%">下班 (F)</th>
+  <th style="width:8%">休息 (G)</th>
+  <th style="width:9%">預計加班(Z)</th>
+  <th style="width:6%">應有(H)</th>
+  <th style="width:6%">超時(AA)</th>
+  <th style="width:14%">檢核訊息</th>
+  <th style="width:15%">系統註記 (Q)</th> </tr></thead><tbody id="staffTable"></tbody></table></div>
         <div id="liveSummaryBar"></div>
         <div class="d-grid gap-2 mt-3"><button type="button" id="btnSave" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="saveData(false)">💾 確認儲存班表</button></div>
       </form>
@@ -388,6 +417,10 @@
       
       // ★ Token 變數 (防多開關鍵)
       let currentToken = ""; 
+
+      // ★★★ 新增：狀態控制變數 ★★★
+      let isErrorFilterActive = false; // 是否正在過濾異常
+      let pendingUnsaved = false;      // 是否有未存檔的修改 (用來觸發防呆)
 
       const statusOpts = ["", "上班", "休", "例", "國", "空班"];
       const timeOptions = generateTimeOptions(), restOptions = generateRestOptions();
@@ -598,14 +631,46 @@
         let incomplete = false;
         
         // ==========================================
-        // ★ 核心升級：放棄掃描 DOM，改為直接掃描 currentData 記憶體
-        // 且只打包「被修改過 (isModified)」的資料，大幅節省流量
+        /// ==========================================
+        // ★ 核心升級：只打包「當下畫面顯示的」+「被系統連動的」
         // ==========================================
+        
+        // 取得目前畫面上顯示的人名與週別 (用來過濾)
+        const currentName = document.getElementById('selectName').value;
+        const currentWeekVal = document.getElementById('selectWeek').value;
+        let sD = 1, eD = 31;
+        if (currentWeekVal && currentWeekVal !== "ALL") {
+            let parts = currentWeekVal.split('-');
+            if (parts.length === 2) { sD = parseInt(parts[0]); eD = parseInt(parts[1]); }
+        }
+
         currentData.forEach((row, idx) => {
             // 如果這筆資料根本沒動過，而且不是被強制存檔，就直接跳過不處理！
             if (!row.isModified && !force) return; 
 
-            // 直接從記憶體讀取最新狀態，不再從 tr.querySelector 抓取
+            // ★★★ 防呆守門員：判斷這筆修改是否該被放棄 ★★★
+            // 如果不是連動產生的，且「不在目前的畫面上」，代表是店長切換前忘記存的幽靈資料，一律拋棄！
+            let isAutoCascade = (row.cascade_log && row.cascade_log !== "");
+            let isRowOnScreen = false;
+
+            if (currentMode === 'name') {
+                let rowDay = parseInt(row.date.split('/')[2]);
+                if (row.name === currentName && rowDay >= sD && rowDay <= eD) {
+                    isRowOnScreen = true;
+                }
+            } else if (currentMode === 'date') {
+                let currentDayStr = document.getElementById('selectDay').value.padStart(2, '0');
+                let targetDateStr = `${document.getElementById('displayYear').innerText}/${document.getElementById('displayMonth').innerText.padStart(2, '0')}/${currentDayStr}`;
+                if (row.date === targetDateStr) isRowOnScreen = true;
+            }
+
+            if (!isAutoCascade && !isRowOnScreen && !force) {
+                // 不在畫面上，且不是自動連動的，視為切換時放棄的資料，不打包！
+                row.isModified = false; 
+                return; 
+            }
+
+            // 直接從記憶體讀取最新狀態
             let s = row.input_status || ""; 
             let start = row.input_start || ""; 
             let end = row.input_end || ""; 
@@ -614,13 +679,13 @@
             let zVal = row.input_est_overtime || "0";
             let aaVal = row.calc_excess || "";
             
-            // ★★★ 您最關心的：抓取該員工身上的「支援紀錄」 (完全保留) ★★★
+            // 抓取該員工身上的「支援紀錄」
             const rowSupports = row.supports || []; 
 
-            // ★ 新增：抓取系統連動時打上的註記
+            // 抓取系統連動時打上的註記
             let cascadeLog = row.cascade_log || ""; 
 
-            // ★ 必填與傳送邏輯 (與舊版 100% 一致)
+            // 必填與傳送邏輯
             let hasTimeInput = (start !== "" || end !== "");
             if (s === '上班' || hasTimeInput) {
                if (start === "" || end === "" || rest === "") { incomplete = true; }
@@ -628,26 +693,29 @@
                    rowIndex: idx, verifyName: row.name, verifyDate: row.date, 
                    d: s, e: start, f: end, g: rest, 
                    h: hVal, z: zVal, aa: aaVal,
-                   supports: rowSupports,   // ★ 支援紀錄完美上車
-                   cascadeLog: cascadeLog   // ★ 連動註記上車
+                   supports: rowSupports,   
+                   cascadeLog: cascadeLog  
                });
             } else { 
                inputData.push({ 
                    rowIndex: idx, verifyName: row.name, verifyDate: row.date, 
                    d: s, e: "", f: "", g: "", 
                    h: "", z: "", aa: "",
-                   supports: rowSupports,   // ★ 支援紀錄完美上車
-                   cascadeLog: cascadeLog 
+                   supports: rowSupports,   
+                   cascadeLog: cascadeLog  
                }); 
             }
         });
         
+        // 重置未存檔標記
+        pendingUnsaved = false;
+
         // ★ 保留您原本的警告文字
         if (incomplete) { Swal.fire('錯誤', '已選擇上班或有出勤紀錄，請填寫完整(起/迄/休)', 'warning'); return; }
 
         // ★ 極速防呆：如果完全沒有修改任何東西，擋下並提示
         if (inputData.length === 0) {
-            Swal.fire('系統訊息', '您尚未修改任何班表資料。', 'info');
+            Swal.fire('系統訊息', '當前畫面尚未修改任何班表資料。', 'info');
             return;
         }
         
@@ -664,25 +732,76 @@
           .then(res => {
              showLoading(false); 
              if (res.status === 'SUCCESS') { 
-                 let cascadeCount = inputData.filter(i => i.cascadeLog !== "").length;
-                 let msgText = `共更新了 ${inputData.length} 筆班表資料`;
-                 if (cascadeCount > 0) msgText += `\n(包含 ${cascadeCount} 筆系統自動連動優化)`;
+                 
+                 // ★★★ 實踐共識 3：精確的存檔文案與超額報告 ★★★
+                 let cascadeItems = inputData.filter(i => i.cascadeLog !== "");
+                 
+                 // 1. 判斷目前的模式，產生「主標題」
+                 let modeTitle = "";
+                 if (currentMode === 'date') {
+                     let currentDayStr = document.getElementById('selectDay').value;
+                     modeTitle = `${currentDayStr}號 ${inputData.length}筆`;
+                 } else {
+                     let currentName = document.getElementById('selectName').value;
+                     modeTitle = `${currentName} ${inputData.length}筆`;
+                 }
+
+                 let htmlMsg = `<div style="text-align: left; font-size: 1rem; line-height: 1.6;">`;
+                 htmlMsg += `✅ 成功存檔 <strong>${modeTitle}</strong>。<br>`;
+                 
+                 // 2. 結算超額警告 (在存檔成功時一次性檢查)
+                 if (currentMode === 'name') {
+                     let currentName = document.getElementById('selectName').value;
+                     let stats = getAccumulatedStats(currentName, ""); 
+                     // 計算當下畫面所有的休/例/國
+                     let restCount = 0, regCount = 0, natCount = 0;
+                     currentData.filter(r => r.name === currentName).forEach(r => {
+                         if(r.input_status === '休') restCount++;
+                         if(r.input_status === '例') regCount++;
+                         if(r.input_status === '國') natCount++;
+                     });
+
+                     let quotaWarnings = [];
+                     if (monthlyTargets.hrs > 0 && stats.h > monthlyTargets.hrs) quotaWarnings.push(`應有工時 已超過 (目前 ${stats.h.toFixed(1)}H)`);
+                     if (monthlyTargets.rest > 0 && restCount > monthlyTargets.rest) quotaWarnings.push(`休假 已超過 (目前 ${restCount}天)`);
+                     if (monthlyTargets.reg > 0 && regCount > monthlyTargets.reg) quotaWarnings.push(`例假 已超過 (目前 ${regCount}天)`);
+                     if (monthlyTargets.nat > 0 && natCount > monthlyTargets.nat) quotaWarnings.push(`國定 已超過 (目前 ${natCount}天)`);
+                     
+                     if (quotaWarnings.length > 0) {
+                         htmlMsg += `<div style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffe69c; border-radius: 6px; color: #664d03;">`;
+                         htmlMsg += `⚠️ <strong>注意！${currentName}</strong> 額度已超標：<br>`;
+                         htmlMsg += `<ul style="margin-bottom: 0; padding-left: 20px; font-size: 0.9rem;">`;
+                         quotaWarnings.forEach(w => htmlMsg += `<li>${w}</li>`);
+                         htmlMsg += `</ul><div style="margin-top: 5px; font-weight: bold; color: #dc3545;">請務必調整班表！</div></div>`;
+                     }
+                 }
+
+                 // 3. 連動結果報告
+                 if (cascadeItems.length > 0) {
+                     htmlMsg += `<hr style="margin: 15px 0;">`;
+                     htmlMsg += `<span style="color: #198754; font-weight: bold;">✨ 系統連動明細：</span><br>`;
+                     htmlMsg += `<ul style="margin-bottom: 0; padding-left: 20px; font-size: 0.95rem;">`;
+                     cascadeItems.forEach(c => {
+                         let dateDay = parseInt(c.verifyDate.split('/')[2]);
+                         let logText = c.cascadeLog.replace('[','').replace(']','');
+                         htmlMsg += `<li>${c.verifyName} ${dateDay}號：${logText}</li>`;
+                     });
+                     htmlMsg += `</ul>`;
+                 }
+                 htmlMsg += `</div>`;
 
                  Swal.fire({ 
-                     icon: 'success', title: '✅ 儲存成功', text: msgText, confirmButtonText: '確認', allowOutsideClick: false 
+                     icon: 'success', title: '儲存成功', html: htmlMsg, confirmButtonText: '確認', allowOutsideClick: false 
                  }).then((result) => { 
                      if (result.isConfirmed) {
-                         // ★ 紀錄當下的選項
                          window.tempFilterName = document.getElementById('selectName').value;
                          window.tempFilterWeek = document.getElementById('selectWeek').value;
-                         
                          currentData.forEach(r => r.isModified = false);
                          loadData(); 
                      }
                  }); 
              }
              else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
-                 // ★ 保留原版：搶旗失敗，被強制登出
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
              }
              else if (res.status === 'PARTIAL') { 
@@ -692,7 +811,6 @@
                  Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
              }
              else { 
-                 // ★ 保留原版：未知錯誤處理
                  Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); 
              }
           })
