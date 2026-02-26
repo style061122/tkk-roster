@@ -868,12 +868,9 @@
                         let rowDay = parseInt(row.date.split('/')[2]);
                         if (row.name === currentName && rowDay >= sD && rowDay <= eD) isRowOnScreen = true;
                     } else {
-                        // ★ 新增：狀態過濾模式下的存檔識別
-                        let filterVal = document.getElementById('selectStatusFilter').value;
+                        // ★ 修正 3：狀態模式下，只要這筆資料屬於當前人員(且有髒標記)，就代表它絕對是在畫面上被編輯過的，無條件打包！
                         if (row.name === currentName) {
-                            if (filterVal === "EMPTY" && row.input_status === "") isRowOnScreen = true;
-                            else if (filterVal === "SUPPORT" && row.supports && row.supports.length > 0) isRowOnScreen = true;
-                            else if (row.input_status === filterVal) isRowOnScreen = true;
+                            isRowOnScreen = true;
                         }
                     }
                 }else if (currentMode === 'date') {
