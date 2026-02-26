@@ -1162,6 +1162,10 @@
                  if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
                  initNameSelect(); 
                  
+                 // ★ 修正 2：網頁初次載入時，立刻幫第一位員工產出對應的狀態選單
+                 let defaultName = document.getElementById('selectName').value;
+                 if (defaultName) updateStatusFilterMenu(defaultName);
+                 
                  // ★ 恢復剛剛紀錄的選項 (升級版：含狀態篩選恢復與自動跳轉)
                  if (window.tempFilterName) {
                      document.getElementById('selectName').value = window.tempFilterName;
