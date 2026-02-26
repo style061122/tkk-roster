@@ -1151,13 +1151,36 @@
                  if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
                  initNameSelect(); 
                  
-                 // ★ 恢復剛剛紀錄的選項
-                 if (window.tempFilterName) {
-                     document.getElementById('selectName').value = window.tempFilterName;
-                     document.getElementById('selectWeek').value = window.tempFilterWeek;
-                     window.tempFilterName = null;
-                     window.tempFilterWeek = null;
-                 }
+                 // ★ 恢復剛剛紀錄的選項 (升級版：含狀態篩選恢復與自動跳轉)
+                 if (window.tempFilterName) {
+                     document.getElementById('selectName').value = window.tempFilterName;
+                     
+                     // 1. 【關鍵新增】先更新該員工當下的狀態清單 (這步沒做，跳轉會失效)
+                     updateStatusFilterMenu(window.tempFilterName);
+                     
+                     // 2. 【關鍵新增】恢復子模式 (週別/狀態) 與 隱藏切換
+                     if (window.tempSubMode) {
+                         document.getElementById('selectSubMode').value = window.tempSubMode;
+                         const isStatusMode = (window.tempSubMode === 'status');
+                         document.getElementById('selectWeek').classList.toggle('d-none', isStatusMode);
+                         document.getElementById('selectStatusFilter').classList.toggle('d-none', !isStatusMode);
+                         
+                         // 3. 【關鍵新增】恢復狀態值 (若排完了則自動跳選選單第一筆)
+                         if (isStatusMode && window.tempStatusFilter) {
+                             const statusMenu = document.getElementById('selectStatusFilter');
+                             const exists = Array.from(statusMenu.options).some(opt => opt.value === window.tempStatusFilter);
+                             statusMenu.value = exists ? window.tempStatusFilter : (statusMenu.options[0] ? statusMenu.options[0].value : "");
+                         }
+                     }
+
+                     if (window.tempFilterWeek) document.getElementById('selectWeek').value = window.tempFilterWeek;
+
+                     // 清除所有臨時記號
+                     window.tempFilterName = null;
+                     window.tempFilterWeek = null;
+                     window.tempSubMode = null;
+                     window.tempStatusFilter = null;
+                 }
                  renderTable();
              } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
         }).catch(err => errorHandler(err));
