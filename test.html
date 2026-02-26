@@ -624,7 +624,11 @@
                   
                   // ★★★ 資安優先：強制解除所有未存檔防呆，準備踢人 ★★★
                   if (typeof pendingUnsaved !== 'undefined') pendingUnsaved = false;
-                  window.onbeforeunload = null; 
+                  window.onbeforeunload = null;
+                  
+                  // ★★★ 終極防護：在跳出視窗的瞬間，直接銷毀登入金鑰！(防 F5 破解) ★★★
+                  sessionStorage.removeItem('tkk_store');
+                  sessionStorage.removeItem('tkk_token');
 
                   // 跳出警告並立刻登出
                   Swal.fire({
