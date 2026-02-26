@@ -204,9 +204,12 @@
       /* ★ 系統註記 (Q欄) 與 異常退件專用樣式 ★ */
       /* ========================================= */
       .q-log-box { 
-          font-size: 0.8rem; line-height: 1.4; color: #495057; background-color: #f8f9fa; 
-          padding: 6px; border-radius: 6px; border: 1px dashed #dee2e6; text-align: left;
+          font-size: 0.85rem; line-height: 1.4; color: #495057; background-color: #f8f9fa; 
+          padding: 8px; border-radius: 6px; border: 1px dashed #dee2e6; text-align: center;
           min-height: 38px; display: flex; align-items: center; justify-content: center;
+          width: 100%; /* ★ 強制填滿寬度 */
+          box-sizing: border-box; /* 確保內距不會撐破版面 */
+          margin-top: 4px;
       }
       .row-reject { background-color: #ffebee !important; }
       .row-reject .q-log-box { background-color: #fff5f5; border-color: #dc3545; color: #dc3545; font-weight: bold; }
