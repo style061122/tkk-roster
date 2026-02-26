@@ -258,9 +258,20 @@
           }
           .top-controls-wrapper { display: flex; flex-direction: column; align-items: flex-end; }
       }
-        /* ★ 狀態篩選專用樣式：讓選單看起來更有任務感 */
-      #selectSubMode { background-color: #e3f2fd; color: #0d6efd; border-color: #90caf9; }
-      #selectStatusFilter { background-color: #fff9c4; color: #856404; border-color: #ffe082; }
+        //* ★ 狀態篩選專用樣式：讓選單寬度自動撐開，避免遮字 */
+      #selectSubMode { 
+          background-color: #e3f2fd; 
+          color: #0d6efd; 
+          border-color: #90caf9; 
+          width: auto !important; /* 強制寬度自動 */
+          min-width: 95px;         /* 設定最小寬度確保美觀 */
+      }
+      #selectStatusFilter { 
+          background-color: #fff9c4; 
+          color: #856404; 
+          border-color: #ffe082; 
+          width: auto !important; /* 強制寬度自動 */
+      }
       
       /* 讓兩個子選單在切換時更滑順 */
       .sub-filter-active { animation: fadeIn 0.3s ease; }
