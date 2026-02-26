@@ -316,19 +316,19 @@
                         <label class="fw-bold mx-2 text-nowrap">日期：</label>
                         <select id="selectDay" class="form-select fw-bold border-primary flex-grow-1" onchange="handleFilterChange(this, 'day')"></select>
                     </div>
-                    <div id="filterNameGroup" class="filter-group m-0 d-none flex-column flex-md-row gap-2">
-                        <div class="d-flex align-items-center flex-grow-1 w-100">
+                    <div id="filterNameGroup" class="filter-group m-0 d-none flex-column flex-md-row gap-2 w-100">
+                        <div class="d-flex align-items-center" style="flex: 1; min-width: 140px;">
                             <label class="fw-bold me-2 text-nowrap">人員:</label>
                             <select id="selectName" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this, 'name')"></select>
                         </div>
                         
-                        <div class="d-flex align-items-center flex-grow-1 w-100 mt-2 mt-md-0">
-                            <select id="selectSubMode" class="form-select fw-bold border-info me-1 shadow-sm" style="width: 100px;" onchange="handleFilterChange(this, 'subMode')">
-                                <option value="week">按週別</option>
-                                <option value="status">按狀態</option>
+                        <div class="d-flex align-items-center mt-2 mt-md-0" style="flex: 2; min-width: 0;">
+                            <select id="selectSubMode" class="form-select fw-bold border-info me-1 shadow-sm" style="width: auto; min-width: 95px;" onchange="handleFilterChange(this, 'subMode')">
+                                <option value="week">依週別</option>
+                                <option value="status">依狀態</option>
                             </select>
                             
-                            <div class="flex-grow-1">
+                            <div class="flex-grow-1" style="min-width: 0;">
                                 <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this, 'week')"></select>
                                 <select id="selectStatusFilter" class="form-select fw-bold border-success w-100 d-none shadow-sm" onchange="handleFilterChange(this, 'status')"></select>
                             </div>
