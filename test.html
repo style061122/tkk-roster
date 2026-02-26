@@ -258,6 +258,13 @@
           }
           .top-controls-wrapper { display: flex; flex-direction: column; align-items: flex-end; }
       }
+        /* ★ 狀態篩選專用樣式：讓選單看起來更有任務感 */
+      #selectSubMode { background-color: #e3f2fd; color: #0d6efd; border-color: #90caf9; }
+      #selectStatusFilter { background-color: #fff9c4; color: #856404; border-color: #ffe082; }
+      
+      /* 讓兩個子選單在切換時更滑順 */
+      .sub-filter-active { animation: fadeIn 0.3s ease; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
   <body>
@@ -303,9 +310,17 @@
                             <label class="fw-bold me-2 text-nowrap">人員:</label>
                             <select id="selectName" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this, 'name')"></select>
                         </div>
+                        
                         <div class="d-flex align-items-center flex-grow-1 w-100 mt-2 mt-md-0">
-                            <label class="fw-bold ms-md-2 me-2 text-nowrap">週別:</label>
-                            <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this, 'week')"></select>
+                            <select id="selectSubMode" class="form-select fw-bold border-info me-1 shadow-sm" style="width: 100px;" onchange="handleFilterChange(this, 'subMode')">
+                                <option value="week">按週別</option>
+                                <option value="status">按狀態</option>
+                            </select>
+                            
+                            <div class="flex-grow-1">
+                                <select id="selectWeek" class="form-select fw-bold border-primary w-100" onchange="handleFilterChange(this, 'week')"></select>
+                                <select id="selectStatusFilter" class="form-select fw-bold border-success w-100 d-none shadow-sm" onchange="handleFilterChange(this, 'status')"></select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -455,8 +470,30 @@
           if(w) lastSafeFilters.week = w.value;
           if(d) lastSafeFilters.day = d.value;
       }
+        // ★ 動態產生狀態選單：只顯示「目前有排」的狀態，加上「未排班 ★」
+      function updateStatusFilterMenu(empName) {
+          const pData = currentData.filter(r => r.name === empName);
+          const usedStatus = [...new Set(pData.map(r => r.input_status))];
+          const hasSupport = pData.some(r => r.supports && r.supports.length > 0);
+          
+          let options = "";
+          // 邏輯：如果有空值，就把「未排班 ★」放在第一位
+          if (usedStatus.includes("")) {
+              options += '<option value="EMPTY">未排班 ★</option>';
+          }
+          
+          const normalStatus = ["上班", "休", "例", "國", "空班"];
+          normalStatus.forEach(s => {
+              if (usedStatus.includes(s)) options += `<option value="${s}">${s}</option>`;
+          });
+          
+          if (hasSupport) options += '<option value="SUPPORT">跨店支援</option>';
+          
+          const menu = document.getElementById('selectStatusFilter');
+          if (menu) menu.innerHTML = options;
+      }
 
-      // ★ 超級攔截器：統一處理所有下拉選單的切換防呆 (全平台極速完美版)
+      // ★ 超級攔截器：統一處理所有下拉選單的切換防呆 (全平台極速完美版 - 狀態篩選整合版)
       async function handleFilterChange(el, filterType) {
           if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
               
@@ -501,8 +538,12 @@
                       currentData = JSON.parse(JSON.stringify(window.cleanSnapshot)); 
                   }
                   
-                  // 因為一開始手機已經把選單變成 C 了，所以我們只要確保它依然是 C，然後重繪畫面即可
+                  // 因為一開始手機已經把選單變成 C 了，所以我們只要確保它依然是 C
                   el.value = targetValue;
+
+                  // ★ 狀態篩選聯動：即使放棄修改，切換人名時也要更新對應的狀態清單
+                  if (filterType === 'name') updateStatusFilterMenu(targetValue);
+
                   updateSafeFilters(); // 記錄新的安全存檔點
                   renderTable();       // 瞬間重繪畫面，不需要轉圈圈！
                   
@@ -512,10 +553,25 @@
                   if (filterType === 'name' && lastSafeFilters.name) el.value = lastSafeFilters.name;
                   if (filterType === 'week' && lastSafeFilters.week) el.value = lastSafeFilters.week;
                   if (filterType === 'day'  && lastSafeFilters.day)  el.value = lastSafeFilters.day;
+                  // 補回：子模式與狀態篩選的返回邏輯
+                  if (filterType === 'subMode') el.value = (document.getElementById('selectStatusFilter').classList.contains('d-none') ? 'week' : 'status');
+                  if (filterType === 'status' && lastSafeFilters.status) el.value = lastSafeFilters.status;
                   return; 
               }
           } else {
-              // 沒有未存檔的髒資料，正常執行切換
+              // --- 沒有未存檔的髒資料，正常執行切換 ---
+              
+              if (filterType === 'name') {
+                  // 正常切換人名：更新該員專屬的狀態選單
+                  updateStatusFilterMenu(el.value);
+              } 
+              else if (filterType === 'subMode') {
+                  // 正常切換子模式：連動「週別」與「狀態」選單的顯示/隱藏
+                  const isStatusMode = (el.value === 'status');
+                  document.getElementById('selectWeek').classList.toggle('d-none', isStatusMode);
+                  document.getElementById('selectStatusFilter').classList.toggle('d-none', !isStatusMode);
+              }
+
               updateSafeFilters();
               renderTable();
           }
@@ -796,11 +852,21 @@
             // 正常的 日期/人名 模式判斷
             else {
                 if (currentMode === 'name') {
-                    let rowDay = parseInt(row.date.split('/')[2]);
-                    if (row.name === currentName && rowDay >= sD && rowDay <= eD) {
-                        isRowOnScreen = true;
+                    const subMode = document.getElementById('selectSubMode').value;
+                    if (subMode === 'week') {
+                        // 原本的週別過濾
+                        let rowDay = parseInt(row.date.split('/')[2]);
+                        if (row.name === currentName && rowDay >= sD && rowDay <= eD) isRowOnScreen = true;
+                    } else {
+                        // ★ 新增：狀態過濾模式下的存檔識別
+                        let filterVal = document.getElementById('selectStatusFilter').value;
+                        if (row.name === currentName) {
+                            if (filterVal === "EMPTY" && row.input_status === "") isRowOnScreen = true;
+                            else if (filterVal === "SUPPORT" && row.supports && row.supports.length > 0) isRowOnScreen = true;
+                            else if (row.input_status === filterVal) isRowOnScreen = true;
+                        }
                     }
-                } else if (currentMode === 'date') {
+                }else if (currentMode === 'date') {
                     // ★ 修改：這裡改用被鎖定的 currentDayVal，絕對不去看畫面的 selectDay
                     let currentDayStr = currentDayVal.padStart(2, '0');
                     let targetDateStr = `${document.getElementById('displayYear').innerText}/${document.getElementById('displayMonth').innerText.padStart(2, '0')}/${currentDayStr}`;
@@ -968,8 +1034,12 @@
                              window.tempFilterWeek = document.getElementById('selectWeek').value;
                          }
                          
+                         // ★ 新增：記住目前的子模式 (週別或狀態) 與 篩選值
+                         window.tempSubMode = document.getElementById('selectSubMode').value;
+                         window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+
                          currentData.forEach(r => r.isModified = false);
-                         loadData(); // 存檔完畢，系統會自動飛往 tempFilterName 指定的人！
+                         loadData();
                      }
                  });
              }
