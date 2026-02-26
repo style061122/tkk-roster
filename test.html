@@ -1348,15 +1348,28 @@
                targetData = currentData.filter(row => row.date === targetDateStr);
             } else {
                targetName = document.getElementById('selectName').value; 
-               let weekVal = weekSelect.value; 
+               // ★ 關鍵：抓取目前是「週別」還是「狀態」模式
+               const subMode = document.getElementById('selectSubMode').value;
+               
                targetData = currentData.filter(row => {
                    if (row.name !== targetName) return false;
-                   if (weekVal === "ALL") return true; 
-                   let parts = weekVal.split('-');
-                   if (parts.length < 2) return true; 
-                   let sD = parseInt(parts[0]); let eD = parseInt(parts[1]);
-                   let rowDay = parseInt(row.date.split('/')[2]);
-                   return (rowDay >= sD && rowDay <= eD); 
+                   
+                   if (subMode === 'week') {
+                       // --- 原有的週別過濾邏輯 ---
+                       let weekVal = weekSelect.value; 
+                       if (weekVal === "ALL") return true; 
+                       let parts = weekVal.split('-');
+                       if (parts.length < 2) return true; 
+                       let sD = parseInt(parts[0]); let eD = parseInt(parts[1]);
+                       let rowDay = parseInt(row.date.split('/')[2]);
+                       return (rowDay >= sD && rowDay <= eD); 
+                   } else {
+                       // --- ★ 新增：狀態過濾邏輯 ★ ---
+                       let filterVal = document.getElementById('selectStatusFilter').value;
+                       if (filterVal === "EMPTY") return row.input_status === ""; // 顯示未排班
+                       if (filterVal === "SUPPORT") return row.supports && row.supports.length > 0; // 顯示支援
+                       return row.input_status === filterVal; // 顯示其餘如：上班、休...
+                   }
                });
                targetData.sort((a,b) => a.date.localeCompare(b.date)); 
                summaryBar.style.display = 'block'; 
@@ -1365,8 +1378,14 @@
         
         // 欄位數變成 10 (加了 Q 欄)
         if (targetData.length === 0) { 
-            // 改為判斷 currentMode 是否等於 'error'
-            let emptyMsg = (currentMode === 'error') ? "🎉 太棒了！本月目前沒有任何異常或被退件的班表。" : "無資料";
+            let emptyMsg = "無資料";
+            if (currentMode === 'error') {
+                emptyMsg = "🎉 太棒了！本月目前沒有任何異常或被退件的班表。";
+            } else if (currentMode === 'name' && document.getElementById('selectSubMode').value === 'status') {
+                // 如果在狀態篩選模式下沒資料，顯示該狀態已清空
+                let sName = document.getElementById('selectStatusFilter').options[document.getElementById('selectStatusFilter').selectedIndex].text;
+                emptyMsg = `目前已無「${sName}」的日期。`;
+            }
             tbody.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-muted fw-bold">${emptyMsg}</td></tr>`; 
             if(currentMode === 'name') updateLiveSummary(targetName); 
             return; 
@@ -1483,7 +1502,10 @@
           window.lastRenderedState = {
               name: document.getElementById('selectName') ? document.getElementById('selectName').value : "",
               week: document.getElementById('selectWeek') ? document.getElementById('selectWeek').value : "",
-              day:  document.getElementById('selectDay')  ? document.getElementById('selectDay').value : ""
+              day:  document.getElementById('selectDay')  ? document.getElementById('selectDay').value : "",
+              // ★ 新增鎖定
+              subMode: document.getElementById('selectSubMode') ? document.getElementById('selectSubMode').value : "week",
+              status: document.getElementById('selectStatusFilter') ? document.getElementById('selectStatusFilter').value : ""
           };
       }
       // ==========================================
