@@ -535,6 +535,9 @@
                   // ★ 2. 預約目的地：先告訴系統，等一下存檔完重新載入時，要降落在哪個員工
                   if (filterType === 'name') window.tempFilterName = targetValue;
                   if (filterType === 'week') window.tempFilterWeek = targetValue;
+                  // ★★★ 補上這兩行：確保切換「按狀態」或「狀態選項」時，能正確記住目的地 ★★★
+                  if (filterType === 'subMode') window.tempSubMode = targetValue;
+                  if (filterType === 'status') window.tempStatusFilter = targetValue;
                   
                   // ★ 3. 在「絕對安全鎖」保護下直接呼叫存檔，這樣就能完美抓到原本的資料！
                   await saveData(false); 
@@ -1046,8 +1049,13 @@
                          }
                          
                          // ★ 新增：記住目前的子模式 (週別或狀態) 與 篩選值
-                         window.tempSubMode = document.getElementById('selectSubMode').value;
-                         window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                         // ★ 修正：加上保護機制！如果防護網已經指定了目的地，就不要去抓畫面的舊值把它蓋掉
+                         if (!window.tempSubMode) {
+                             window.tempSubMode = document.getElementById('selectSubMode').value;
+                         }
+                         if (!window.tempStatusFilter) {
+                             window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                         }
 
                          currentData.forEach(r => r.isModified = false);
                          loadData();
