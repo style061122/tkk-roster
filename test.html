@@ -1376,7 +1376,9 @@
             }
         }
 
-        if (currentMode === 'name' && !isErrorFilterActive) updateLiveSummary(targetName);
+        if (currentMode === 'name') {
+            updateLiveSummary(targetName);
+        }
           // ★ 狀態定錨：記錄畫面上最真實的狀態 (加在 renderTable 結尾的 } 之前)
           window.lastRenderedState = {
               name: document.getElementById('selectName') ? document.getElementById('selectName').value : "",
