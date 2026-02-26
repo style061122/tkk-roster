@@ -1214,7 +1214,8 @@
                      window.pendingSwitchMode = null;
                      switchMode(m); // 交給 switchMode 切換按鈕樣式與重繪
                  } else {
-                 renderTable();
+                     renderTable();
+                 }
              } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
         }).catch(err => errorHandler(err));
       }
