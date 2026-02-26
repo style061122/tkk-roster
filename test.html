@@ -455,7 +455,6 @@
       let currentToken = ""; 
 
       // ★★★ 新增：狀態控制變數 ★★★
-      let isErrorFilterActive = false; // 是否正在過濾異常
       let pendingUnsaved = false;      // 是否有未存檔的修改 (用來觸發防呆)
         // ==========================================
       // ★ 狀態時光機：紀錄上一次安全的下拉選單狀態
@@ -1264,7 +1263,7 @@
          let weekStart = new Date(currDate); weekStart.setDate(currDate.getDate() - adjDay);
          let weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
-          if (currentMode === 'name' || (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive)) {
+          if (currentMode === 'name' || currentMode === 'error') {
               const rows = document.querySelectorAll('#staffTable tr');
               rows.forEach(tr => {
                  let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
@@ -1279,7 +1278,7 @@
 
       function getRangeUsage(name, type, startDay, endDay) {
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
-          if (currentMode === 'name' || (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive)) {
+          if (currentMode === 'name' || currentMode === 'error') {
               const rows = document.querySelectorAll('#staffTable tr');
               rows.forEach(tr => {
                  let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
@@ -1343,9 +1342,10 @@
         
         // 欄位數變成 10 (加了 Q 欄)
         if (targetData.length === 0) { 
-            let emptyMsg = isErrorFilterActive ? "🎉 太棒了！本月目前沒有任何異常或被退件的班表。" : "無資料";
+            // 改為判斷 currentMode 是否等於 'error'
+            let emptyMsg = (currentMode === 'error') ? "🎉 太棒了！本月目前沒有任何異常或被退件的班表。" : "無資料";
             tbody.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-muted fw-bold">${emptyMsg}</td></tr>`; 
-            if(currentMode === 'name' && !isErrorFilterActive) updateLiveSummary(targetName); 
+            if(currentMode === 'name') updateLiveSummary(targetName); 
             return; 
         }
         
@@ -1505,13 +1505,13 @@
           if (typeof cascadeFullMonth === 'function') cascadeFullMonth(name, date);
 
           // 3. ★★★ 鄭重補回：依人名模式或「異常過濾模式」下的動態下拉選單更新 ★★★
-          if (currentMode === 'name' || (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive)) { 
+          if (currentMode === 'name' || currentMode === 'error') { 
               if (salary.includes("時薪") && typeof refreshHourlyDropdowns === 'function') {
                   refreshHourlyDropdowns(name);
               } else if (salary.includes("月薪") && typeof refreshMonthlyDropdowns === 'function') {
                   refreshMonthlyDropdowns(name);
               }
-              if (!isErrorFilterActive) updateLiveSummary(name); // 小卡只在純人名模式更新
+              if (currentMode === 'name') updateLiveSummary(name);
           }
           
           // 4. 預算警告與存檔按鈕鎖定
