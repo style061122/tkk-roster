@@ -1050,11 +1050,14 @@
                          
                          // ★ 新增：記住目前的子模式 (週別或狀態) 與 篩選值
                          // ★ 修正：加上保護機制！如果防護網已經指定了目的地，就不要去抓畫面的舊值把它蓋掉
-                         if (!window.tempSubMode) {
-                             window.tempSubMode = document.getElementById('selectSubMode').value;
-                         }
                          if (!window.tempStatusFilter) {
                              window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                         }
+                         
+                         // ★ 核心修復：如果剛才是大分類切換，把目的地交接給 loadData 準備跳轉
+                         if (window.tempMode) {
+                             window.pendingSwitchMode = window.tempMode;
+                             window.tempMode = null;
                          }
 
                          currentData.forEach(r => r.isModified = false);
@@ -1205,6 +1208,12 @@
                      window.tempSubMode = null;
                      window.tempStatusFilter = null;
                  }
+                 // ★ 執行大分類跳轉：如果剛才有跨模式的任務，現在立刻飛過去！
+                 if (window.pendingSwitchMode) {
+                     let m = window.pendingSwitchMode;
+                     window.pendingSwitchMode = null;
+                     switchMode(m); // 交給 switchMode 切換按鈕樣式與重繪
+                 } else {
                  renderTable();
              } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
         }).catch(err => errorHandler(err));
@@ -1240,8 +1249,17 @@
               });
 
               if (result.isConfirmed) {
+                  // ★ 1. 啟動安全鎖：強制綁定存檔對象為當下畫面的狀態
+                  window.lockedSaveState = lastSafeFilters;
+                  
+                  // ★ 2. 預約目的地：記住店長想去的大分類 (例如 date 或 error)
+                  window.tempMode = mode; 
+
                   // 點擊儲存：強制存檔，(存檔成功後 saveData 裡面會自動 loadData 並重繪)
                   await saveData(false);
+                  
+                  // 存完解除安全鎖
+                  window.lockedSaveState = null;
                   return; // 存檔後會自動重載，不再往下執行
               } else if (result.isDenied) {
                   // ★★★ 大師級優雅還原：瞬間讀取快照 (0 流量！) ★★★
