@@ -2347,9 +2347,10 @@
           const isCurrentMonth = (today.getFullYear() === Number(y) && (today.getMonth() + 1) === Number(m));
           const todayD = today.getDate();
           
+          // ★ 修改：週別文字去掉 0，改為 1, 2, 3 格式
           chunks.forEach(c => {
-              let displayM = parseInt(m);
-              let text = (c.start === c.end) ? `${m}/${c.start}` : `${m}/${c.start}~${m}/${c.end}`;
+              let displayM = parseInt(m); // 轉為整數，自動去掉 0
+              let text = (c.start === c.end) ? `${displayM}/${c.start}` : `${displayM}/${c.start}~${displayM}/${c.end}`;
               let val = `${c.start}-${c.end}`;
               let selected = (isCurrentMonth && todayD >= c.start && todayD <= c.end) ? "selected" : "";
               weekSelect.innerHTML += `<option value="${val}" ${selected}>${text}</option>`;
