@@ -884,7 +884,7 @@
                  let modeTitle = "";
                  let namesToCheck = []; 
                  
-                 if (typeof isErrorFilterActive !== 'undefined' && isErrorFilterActive) {
+                 if (currentMode === 'error') {
                      // 異常模式：找出這次存檔動到了哪些人
                      let uniqueNames = [...new Set(inputData.map(i => i.verifyName))];
                      if (uniqueNames.length > 1) {
