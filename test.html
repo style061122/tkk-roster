@@ -476,9 +476,11 @@
           const n = document.getElementById('selectName');
           const w = document.getElementById('selectWeek');
           const d = document.getElementById('selectDay');
+          const sm = document.getElementById('selectSubMode'); // ★ 新增抓取子模式
           if(n) lastSafeFilters.name = n.value;
           if(w) lastSafeFilters.week = w.value;
           if(d) lastSafeFilters.day = d.value;
+          if(sm) lastSafeFilters.subMode = sm.value; // ★ 存入時光機
       }
         // ★ 動態產生狀態選單：只顯示「目前有排」的狀態，加上「未排班 ★」
       function updateStatusFilterMenu(empName) {
@@ -837,6 +839,8 @@
         const currentWeekVal = window.lockedSaveState ? window.lockedSaveState.week : document.getElementById('selectWeek').value;
         // ★ 新增：把日期 (Day) 也加入安全鎖，確保日期模式下也絕對存不錯天！
         const currentDayVal = window.lockedSaveState ? window.lockedSaveState.day : document.getElementById('selectDay').value;
+        // ★★★ 核心解法：在這裡加入安全鎖定的 subMode！★★★
+        const currentSubMode = (window.lockedSaveState && window.lockedSaveState.subMode) ? window.lockedSaveState.subMode : (document.getElementById('selectSubMode') ? document.getElementById('selectSubMode').value : 'week');
         
         let sD = 1, eD = 31;
         if (currentWeekVal && currentWeekVal !== "ALL") {
@@ -862,18 +866,18 @@
             // 正常的 日期/人名 模式判斷
             else {
                 if (currentMode === 'name') {
-                    const subMode = document.getElementById('selectSubMode').value;
-                    if (subMode === 'week') {
+                    // ★ 這裡不再抓畫面的變數，改用上方安全鎖定的 currentSubMode
+                    if (currentSubMode === 'week') {
                         // 原本的週別過濾
                         let rowDay = parseInt(row.date.split('/')[2]);
                         if (row.name === currentName && rowDay >= sD && rowDay <= eD) isRowOnScreen = true;
                     } else {
-                        // ★ 修正 3：狀態模式下，只要這筆資料屬於當前人員(且有髒標記)，就代表它絕對是在畫面上被編輯過的，無條件打包！
+                        // 狀態模式下，只要這筆資料屬於當前人員，無條件打包！
                         if (row.name === currentName) {
                             isRowOnScreen = true;
                         }
                     }
-                }else if (currentMode === 'date') {
+                } else if (currentMode === 'date') {
                     // ★ 修改：這裡改用被鎖定的 currentDayVal，絕對不去看畫面的 selectDay
                     let currentDayStr = currentDayVal.padStart(2, '0');
                     let targetDateStr = `${document.getElementById('displayYear').innerText}/${document.getElementById('displayMonth').innerText.padStart(2, '0')}/${currentDayStr}`;
