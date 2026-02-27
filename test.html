@@ -1797,75 +1797,74 @@
           let maxDailyH = isMonthly ? 10 : 8;
 
           if (status === "上班") {
-              // ★ 終極防護：加入 Math.round(val * 10) / 10 徹底消滅 JS 浮點數幽靈誤差
               let safeStatsH = Math.round(stats.h * 10) / 10;
-              
-              if (isMonthly && (safeStatsH >= maxMonthH)) errMsg = `❌ 本月累計應有時數已達上限，不可再排上班，請改為休/例/空班`;
-              outAA = Math.round(Math.max(0, totalWork - 12) * 10) / 10; 
-              let effectiveZ = Math.round(Math.min(zInputVal, availableZ) * 10) / 10;
-              if (zInputVal > availableZ) outAA += Math.round((zInputVal - availableZ) * 10) / 10; 
-              
-              outH = Math.round((totalWork - effectiveZ - outAA) * 10) / 10;
+              let effectiveZ = 0;
 
-              // ==========================================
-              // ★ 智慧溢流閥：當 H 超標 (單日或整月)，檢查剩餘 Z 額度自動洩壓
-              // ==========================================
-              let remainingZ = Math.round((availableZ - effectiveZ) * 10) / 10; // 算出店長還剩下多少 Z 額度可以填
-
-              // 1. 單日上限溢流 (超過 8H 或 10H)
-              if (outH > maxDailyH) {
-                  let dailyOverflow = Math.round((outH - maxDailyH) * 10) / 10;
-                  if (remainingZ <= 0) { // 沒 Z 額度了，自動轉超時
-                      outH = Math.round((outH - dailyOverflow) * 10) / 10;
-                      outAA = Math.round((outAA + dailyOverflow) * 10) / 10;
-                  }
-              }
-
-              // 2. ★ 新增：整月上限溢流 (狀況 B：無額度時自動灌入 AA)
-              if (isMonthly && (Math.round((safeStatsH + outH) * 10) / 10 > maxMonthH)) {
-                  let monthlyOverflow = Math.round(((safeStatsH + outH) - maxMonthH) * 10) / 10;
-                  if (remainingZ <= 0) { // 沒 Z 額度了，店長已無法手動填寫
-                      outH = Math.round((outH - monthlyOverflow) * 10) / 10; // 系統代勞：扣除爆掉的應有時數
-                      outAA = Math.round((outAA + monthlyOverflow) * 10) / 10; // 系統代勞：直接灌入超時 AA
-                  }
-              }
-              // ==========================================
-              // ★ 終極神聖禁區：背景連動時，絕對不允許系統偷偷把「H」變大！
-              // ==========================================
               if (isCascade) {
-                  // 抓出系統連動前，店長原本留在這天的 H 是多少
-                  let oldH = parseFloat(currentData[originalIndex].calc_hours) || 0;
+                  // ==========================================
+                  // ★ 狀況 A：系統背景連動時 (H 神聖不動，Z 自動吃 AA)
+                  // ==========================================
+                  let oldH_mem = parseFloat(currentData[originalIndex].calc_hours) || 0;
+                  outH = oldH_mem; // 鐵律 2：絕對鎖定 H
                   
-                  // 如果系統這次算出來的 H，居然比店長原本留下的 H 還大？
-                  if (outH > oldH) { 
-                      // 絕對不准！強制把它壓回原本的 oldH，多出來的時數全部踢給超時 (AA)！
-                      let protectOverflow = Math.round((outH - oldH) * 10) / 10;
-                      outH = oldH;
-                      outAA = Math.round((outAA + protectOverflow) * 10) / 10;
+                  let maxZ_physical = Math.round(Math.max(0, 12 - outH) * 10) / 10; 
+                  let maxZ_needed = Math.round(Math.max(0, totalWork - outH) * 10) / 10; 
+                  
+                  effectiveZ = Math.min(maxZ_needed, maxZ_physical, availableZ);
+                  outAA = Math.round(Math.max(0, totalWork - outH - effectiveZ) * 10) / 10;
+                  
+              } else {
+                  // ==========================================
+                  // ★ 狀況 B：店長前景手動修改時 (前景專屬智慧溢流閥)
+                  // ==========================================
+                  if (isMonthly && (safeStatsH >= maxMonthH)) errMsg = `❌ 本月累計應有時數已達上限，不可再排上班，請改為休/例/空班`;
+                  
+                  outAA = Math.round(Math.max(0, totalWork - 12) * 10) / 10; // 物理超過12必為AA
+                  effectiveZ = Math.round(Math.min(zInputVal, availableZ) * 10) / 10;
+                  if (zInputVal > availableZ) outAA += Math.round((zInputVal - availableZ) * 10) / 10; 
+                  
+                  // 初步算出 H
+                  let initialH = Math.round((totalWork - effectiveZ - outAA) * 10) / 10;
+
+                  // ★ 前景智慧溢流：算出本月還剩多少 H，多的自動幫店長灌入 AA
+                  let remainingHQuota = Math.round(Math.max(0, maxMonthH - safeStatsH) * 10) / 10;
+                  if (isMonthly && initialH > remainingHQuota) {
+                      let overflowToAA = Math.round((initialH - remainingHQuota) * 10) / 10;
+                      outH = remainingHQuota;
+                      outAA = Math.round((outAA + overflowToAA) * 10) / 10;
+                  } else {
+                      outH = initialH;
+                  }
+
+                  // 單日上限溢流 (超過 8H 或 10H)
+                  let remainingZ = Math.round((availableZ - effectiveZ) * 10) / 10;
+                  if (outH > maxDailyH) {
+                      let dailyOverflow = Math.round((outH - maxDailyH) * 10) / 10;
+                      if (remainingZ <= 0) { // 沒 Z 額度了，自動轉超時
+                          outH = Math.round((outH - dailyOverflow) * 10) / 10;
+                          outAA = Math.round((outAA + dailyOverflow) * 10) / 10;
+                      }
                   }
               }
 
               // ==========================================
-              // ★ 完美防線：依序過濾各種法規與實務衝突
+              // ★ 完美防線：紅燈報錯區 (移除舊版背景 H 排擠，超標直接亮紅燈)
               // ==========================================
               if (errMsg !== "") {
-                  // ★ 保護機制：如果最上方的「已達上限」紅燈已經亮了，就保留原訊息，不作覆蓋
-              } else if (isMonthly && (Math.round((safeStatsH + outH) * 10) / 10 > maxMonthH)) {
-                  // 狀況 A：會掉到這裡，代表上面的溢流閥沒幫他轉 (因為 remainingZ > 0)
-                  // 也就是他明明「還有加班額度」卻偷懶沒填，此時才跳紅燈逼他手動填寫！
+                  // 保留上方已觸發的訊息
+              } else if (isMonthly && !isCascade && (Math.round((safeStatsH + outH) * 10) / 10 > maxMonthH)) {
+                  // H 爆表時 (例如 H 額度已負數)，不再幫轉 AA，直接亮紅燈擋死！
                   let finalCalcH = Math.round((safeStatsH + outH) * 10) / 10;
-                  errMsg = `❌ 本月應有將達 ${finalCalcH}H (超出上限 ${maxMonthH}H)。請手動增加「預計加班(Z)」，或縮短上班時間`;
-              } else if (outH < 0.5) {
-                  // ★ 新增 2：狀態為上班，H 絕對不能被 Z 扣到低於 0.5
+                  errMsg = `❌ 本月應有將達 ${finalCalcH}H (超出上限 ${maxMonthH}H)。請調降上班時間或不排班`;
+              } else if (outH < 0.5 && outH > 0) {
                   errMsg = `❌ 狀態為「上班」時，應有時數(H)至少需保留 0.5 小時，請調降預計加班(Z)`;
               } else if (outH >= 8 && restVal < 1) {
                   errMsg = `❌ 應有時數達 8 小時以上，休息時間至少需 1 小時 (目前休 ${restVal})`;
               } else if (outH >= 4 && restVal < 0.5) {
                   errMsg = `❌ 應有時數達 4 小時以上，休息時間至少需 0.5 小時 (目前休 ${restVal})`;
-              } else if (outH > maxDailyH) {
-                  // 因為沒額度的情況上面已經自動轉超時了，會掉到這行的，絕對是還有 Z 額度但沒填的人
+              } else if (!isCascade && outH > maxDailyH) {
                   errMsg = `❌ 單日應有時數不可超過 ${maxDailyH} 小時，請增加預計加班(Z)`;
-              } else if (outH < 0) {
+              } else if (!isCascade && outH < 0) {
                   errMsg = `❌ 預計加班時數(Z) 大於實際工作時間，請調降 Z`;
               }
               
@@ -1953,11 +1952,14 @@
           // ==========================================
           let cascadeText = "";
           if (isCascade) {
-              if (outZ > oldZ && outAA < oldAA) {
+              let oldZ_mem = parseFloat(currentData[originalIndex].input_est_overtime) || 0;
+              let oldAA_mem = parseFloat(currentData[originalIndex].calc_excess) || 0;
+
+              if (outZ > oldZ_mem && outAA < oldAA_mem) {
                   msgs.push(`<span class="text-success small fw-bold">✨ 已自動優化 (存檔後顯示明細)</span>`);
                   cascadeText = "[自動優化加班]";
                   currentData[originalIndex].isModified = true; 
-                  // ★ 同步更新下拉選單的值，讓畫面呈現系統剛剛吃掉 AA 的結果！
+                  // ★ 同步更新畫面上的下拉選單，讓店長看見 Z 吃掉 AA 的結果！
                   zSelect.value = outZ;
               }
           }
