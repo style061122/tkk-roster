@@ -1207,40 +1207,51 @@
                  if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
                  initNameSelect(); 
                  
-                 // ★ 修正 2：網頁初次載入時，立刻幫第一位員工產出對應的狀態選單
-                 let defaultName = document.getElementById('selectName').value;
-                 if (defaultName) updateStatusFilterMenu(defaultName);
+                 // ==========================================
+                 // ★ 恢復紀錄的選項 (終極版：解決正常存檔會跳回預設值的問題)
+                 // ==========================================
+                 // 1. 捕捉目的地：若是防護網跳轉就用 temp，若是正常存檔就抓當下畫面的值
+                 let targetName = window.tempFilterName || document.getElementById('selectName').value;
+                 let targetSubMode = window.tempSubMode || document.getElementById('selectSubMode').value;
+                 let targetWeek = window.tempFilterWeek || document.getElementById('selectWeek').value;
                  
-                 // ★ 恢復剛剛紀錄的選項 (升級版：含狀態篩選恢復與自動跳轉)
-                 if (window.tempFilterName) {
-                     document.getElementById('selectName').value = window.tempFilterName;
+                 // 【最關鍵的一步】必須在「更新狀態選單」前，先把目前的狀態死死記下來！
+                 let statusMenu = document.getElementById('selectStatusFilter');
+                 let currentDOMStatus = statusMenu ? statusMenu.value : "";
+                 let targetStatus = window.tempStatusFilter || currentDOMStatus;
+
+                 // 2. 寫回人員，並「重新產生」該員的狀態選單
+                 document.getElementById('selectName').value = targetName;
+                 updateStatusFilterMenu(targetName);
+
+                 // 3. 恢復子模式 (週別/狀態) 與 切換顯示
+                 document.getElementById('selectSubMode').value = targetSubMode;
+                 const isStatusMode = (targetSubMode === 'status');
+                 document.getElementById('selectWeek').classList.toggle('d-none', isStatusMode);
+                 
+                 if (statusMenu) {
+                     statusMenu.classList.toggle('d-none', !isStatusMode);
                      
-                     // 1. 【關鍵新增】先更新該員工當下的狀態清單 (這步沒做，跳轉會失效)
-                     updateStatusFilterMenu(window.tempFilterName);
-                     
-                     // 2. 【關鍵新增】恢復子模式 (週別/狀態) 與 隱藏切換
-                     if (window.tempSubMode) {
-                         document.getElementById('selectSubMode').value = window.tempSubMode;
-                         const isStatusMode = (window.tempSubMode === 'status');
-                         document.getElementById('selectWeek').classList.toggle('d-none', isStatusMode);
-                         document.getElementById('selectStatusFilter').classList.toggle('d-none', !isStatusMode);
-                         
-                         // 3. 【關鍵新增】恢復狀態值 (若排完了則自動跳選選單第一筆)
-                         if (isStatusMode && window.tempStatusFilter) {
-                             const statusMenu = document.getElementById('selectStatusFilter');
-                             const exists = Array.from(statusMenu.options).some(opt => opt.value === window.tempStatusFilter);
-                             statusMenu.value = exists ? window.tempStatusFilter : (statusMenu.options[0] ? statusMenu.options[0].value : "");
+                     // 4. 【核心修正】判斷剛才的狀態是否還在新的選單中
+                     if (isStatusMode) {
+                         const exists = Array.from(statusMenu.options).some(opt => opt.value === targetStatus);
+                         if (exists) {
+                             statusMenu.value = targetStatus; // 還有資料，留在原地
+                         } else {
+                             statusMenu.selectedIndex = 0;    // 沒資料了，去預設值
                          }
                      }
+                 }
 
-                     if (window.tempFilterWeek) document.getElementById('selectWeek').value = window.tempFilterWeek;
+                 // 5. 恢復週別
+                 document.getElementById('selectWeek').value = targetWeek;
 
-                     // 清除所有臨時記號
-                     window.tempFilterName = null;
-                     window.tempFilterWeek = null;
-                     window.tempSubMode = null;
-                     window.tempStatusFilter = null;
-                 }
+                 // 6. 清除所有臨時記號
+                 window.tempFilterName = null;
+                 window.tempFilterWeek = null;
+                 window.tempSubMode = null;
+                 window.tempStatusFilter = null;
+                 
                  // ★ 執行大分類跳轉：如果剛才有跨模式的任務，現在立刻飛過去！
                  if (window.pendingSwitchMode) {
                      let m = window.pendingSwitchMode;
