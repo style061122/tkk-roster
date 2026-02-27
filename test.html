@@ -1829,6 +1829,21 @@
                       outAA = Math.round((outAA + monthlyOverflow) * 10) / 10; // 系統代勞：直接灌入超時 AA
                   }
               }
+              // ==========================================
+              // ★ 終極神聖禁區：背景連動時，絕對不允許系統偷偷把「H」變大！
+              // ==========================================
+              if (isCascade) {
+                  // 抓出系統連動前，店長原本留在這天的 H 是多少
+                  let oldH = parseFloat(currentData[originalIndex].calc_hours) || 0;
+                  
+                  // 如果系統這次算出來的 H，居然比店長原本留下的 H 還大？
+                  if (outH > oldH) { 
+                      // 絕對不准！強制把它壓回原本的 oldH，多出來的時數全部踢給超時 (AA)！
+                      let protectOverflow = Math.round((outH - oldH) * 10) / 10;
+                      outH = oldH;
+                      outAA = Math.round((outAA + protectOverflow) * 10) / 10;
+                  }
+              }
 
               // ==========================================
               // ★ 完美防線：依序過濾各種法規與實務衝突
@@ -1934,20 +1949,30 @@
           }
 
           // ==========================================
-          // ★ 升級 3 (共識 4 靜音版)：判斷是否為系統連動，並打上記憶體註記
+          // ★ 升級 3 (靜音版)：判斷是否為系統連動，並打上記憶體註記
           // ==========================================
           let cascadeText = "";
           if (isCascade) {
               let newZ = outZ; 
               let newAA = outAA; 
+              let newH = outH; 
+              // 注意：此處的 oldZ/oldAA/oldH 是從記憶體抓的當下真實狀態
+              let oldH_mem = parseFloat(currentData[originalIndex].calc_hours) || 0;
               
+              // 狀況 1: 系統成功用釋放的 Z 額度，洗白了 AA
               if (newZ > oldZ && newAA < oldAA) {
-                  // ★ 靜音：不再推入 msgs 顯示在畫面上，只留個極簡文字，主力交給存檔後報告
                   msgs.push(`<span class="text-success small fw-bold">✨ 已自動優化 (存檔後顯示明細)</span>`);
-                  cascadeText = "[自動優化額度]";
+                  cascadeText = "[自動優化加班]";
                   currentData[originalIndex].isModified = true; 
               }
-              // (已確認不會發生排擠超時，故拔除該段邏輯)
+              
+              // 狀況 2: 店長在別天加了 H，導致這天的 H 額度被吃掉，被迫縮水轉 AA
+              if (newH < oldH_mem) {
+                  msgs.push(`<span class="text-danger small fw-bold">⚠️ 應有遭排擠 (存檔後顯示明細)</span>`);
+                  // 如果已經有優化文字，就空一格接在後面
+                  cascadeText = cascadeText ? cascadeText + " [應有遭排擠]" : "[應有遭排擠]";
+                  currentData[originalIndex].isModified = true; 
+              }
           }
 
           let sups = currentData[originalIndex].supports || [];
@@ -2500,17 +2525,28 @@
           return { h: totalH, z: totalZ };
       }
       // ==========================================
-      // ★ 瀑布式整月連動引擎 (背景自動掃描 1~31 號) + 右下角通知
+      // ★ 瀑布式整月連動引擎 (三階層優先權智慧分配版)
       // ==========================================
       function cascadeFullMonth(empName, triggerDateStr) {
-          // 抓出該員工本月的所有資料，並確保按照日期「順序」排列
           let empRows = currentData.filter(r => r.name === empName);
-          empRows.sort((a, b) => a.date.localeCompare(b.date));
+          
+          // ★ 核心升級：將全月資料分流，建立 Z 額度自動洗白的「優先權」
+          // 優先權 1：休、國 (安全區，絕對不會擠壓到 H)
+          let priority1Rows = empRows.filter(r => r.input_status === "休" || r.input_status === "國");
+          // 優先權 2：其他狀態 (深水區，如上班、例)
+          let priority2Rows = empRows.filter(r => r.input_status !== "休" && r.input_status !== "國");
+
+          // 確保各區塊內部依然按照日期順序
+          priority1Rows.sort((a, b) => a.date.localeCompare(b.date));
+          priority2Rows.sort((a, b) => a.date.localeCompare(b.date));
+
+          // 合併成最終的掃描順序：先跑完所有休/國，再跑上班日
+          let processingOrder = [...priority1Rows, ...priority2Rows];
 
           // ★ 新增：用來記錄被系統自動更改的日期
           let affectedDates = []; 
 
-          empRows.forEach(r => {
+          processingOrder.forEach(r => {
               // 略過剛剛才由店長「手動」修改並已經算好的那一天
               if (r.date === triggerDateStr) return; 
 
