@@ -1953,25 +1953,12 @@
           // ==========================================
           let cascadeText = "";
           if (isCascade) {
-              let newZ = outZ; 
-              let newAA = outAA; 
-              let newH = outH; 
-              // 注意：此處的 oldZ/oldAA/oldH 是從記憶體抓的當下真實狀態
-              let oldH_mem = parseFloat(currentData[originalIndex].calc_hours) || 0;
-              
-              // 狀況 1: 系統成功用釋放的 Z 額度，洗白了 AA
-              if (newZ > oldZ && newAA < oldAA) {
+              if (outZ > oldZ && outAA < oldAA) {
                   msgs.push(`<span class="text-success small fw-bold">✨ 已自動優化 (存檔後顯示明細)</span>`);
                   cascadeText = "[自動優化加班]";
                   currentData[originalIndex].isModified = true; 
-              }
-              
-              // 狀況 2: 店長在別天加了 H，導致這天的 H 額度被吃掉，被迫縮水轉 AA
-              if (newH < oldH_mem) {
-                  msgs.push(`<span class="text-danger small fw-bold">⚠️ 應有遭排擠 (存檔後顯示明細)</span>`);
-                  // 如果已經有優化文字，就空一格接在後面
-                  cascadeText = cascadeText ? cascadeText + " [應有遭排擠]" : "[應有遭排擠]";
-                  currentData[originalIndex].isModified = true; 
+                  // ★ 同步更新下拉選單的值，讓畫面呈現系統剛剛吃掉 AA 的結果！
+                  zSelect.value = outZ;
               }
           }
 
@@ -2579,66 +2566,80 @@
       }
 
       // ==========================================
-      // ★ 無頭計算機 (專門處理不在畫面上的排班)
+      // ★ 無頭計算機 (H神聖不動 + Z自動洗白版)
       // ==========================================
       function headlessValidate(r) {
           const isMonthly = r.salaryType.includes("月薪");
           let startVal = r.input_start || ""; let endVal = r.input_end || "";
           let restVal = parseFloat(r.input_rest) || 0;
-          let zInputVal = parseFloat(r.input_est_overtime) || 0;
           let status = r.input_status || "";
           
-          // 1. 記錄舊數值，用來比對是否發生連動
           let oldZ = parseFloat(r.input_est_overtime) || 0;
           let oldAA = parseFloat(r.calc_excess) || 0;
+          let oldH = parseFloat(r.calc_hours) || 0; // ★ 鐵律 2：記下神聖的 H
 
-          // 2. 防呆與空值排除
           if (status === "" || (status === "國" && !isMonthly) || (startVal === "" && endVal === "" && status !== "上班" && status !== "休" && status !== "例" && status !== "國" && status !== "空班")) {
-              r.calc_hours = 0; r.calc_excess = 0; if(status !== "上班") r.input_est_overtime = 0; return;
+              r.calc_hours = 0; r.calc_excess = 0; if(status !== "上班") r.input_est_overtime = 0; r.cascade_log = ""; return;
           }
 
           let sF = String(startVal).includes(':') ? timeToFloat(startVal) : parseFloat(startVal);
           let eF = String(endVal).includes(':') ? timeToFloat(endVal) : parseFloat(endVal);
           if (isNaN(sF)) sF = 0; if (isNaN(eF)) eF = 0;
-          if (eF < sF) eF += 24; let totalWork = Math.max(0, eF - sF - restVal);
+          if (eF < sF) eF += 24; 
+          let totalWork = Math.round(Math.max(0, eF - sF - restVal) * 10) / 10; 
 
-          // 3. 抓取「當下」的最新額度
           let stats = getAccumulatedStats(r.name, r.date);
-          let availableZ = Math.max(0, 46 - stats.z);
+          let availableZ = Math.round(Math.max(0, 46 - stats.z) * 10) / 10;
           let outH = 0, outZ = 0, outAA = 0;
 
           if (status === "上班") {
-              let effectiveZ = Math.min(zInputVal, availableZ);
-              outAA = Math.max(0, totalWork - 12);
-              if (zInputVal > availableZ) { outAA += (zInputVal - availableZ); }
-              outH = Math.max(0, totalWork - effectiveZ - outAA);
+              // ★ 鐵律實踐：上班日的背景優化 (H 不動，Z 盡情吃 AA)
+              outH = oldH; // H 絕對鎖定
+              
+              // 算出這個班「物理上」最多還能塞多少 Z (鐵律 3：H+Z<=12)
+              let maxZ_physical = Math.round(Math.max(0, 12 - outH) * 10) / 10; 
+              // 算出這個班「需要」多少 Z 來吃光剩下的時數
+              let maxZ_needed = Math.round(Math.max(0, totalWork - outH) * 10) / 10; 
+              
+              // Z 的極限，就是取「需要量、物理極限、剩餘額度」三者中最小的
+              outZ = Math.min(maxZ_needed, maxZ_physical, availableZ);
+              
+              // 剩下的全部踢給物理超時 (AA)
+              outAA = Math.round(Math.max(0, totalWork - outH - outZ) * 10) / 10;
+
           } else if (status === "休") {
-              outH = 0; outZ = Math.min(Math.min(totalWork, 12), availableZ); outAA = totalWork - outZ; 
+              outH = 0; 
+              outZ = Math.round(Math.min(Math.min(totalWork, 12), availableZ) * 10) / 10; 
+              outAA = Math.round((totalWork - outZ) * 10) / 10; 
           } else if (status === "例" || status === "空班") {
               outH = 0; outZ = 0; outAA = totalWork; 
           } else if (status === "國" && isMonthly) {
-              outH = 0; outZ = Math.min(totalWork, 12);
-              if (outZ > 8) { let overtimePortion = outZ - 8; if (overtimePortion > availableZ) { let excess = overtimePortion - availableZ; outZ -= excess; outAA += excess; } }
-              outAA += (totalWork - Math.min(totalWork, 12)); 
+              outH = 0; 
+              outZ = Math.round(Math.min(totalWork, 12) * 10) / 10;
+              if (outZ > 8) { 
+                  let overtimePortion = Math.round((outZ - 8) * 10) / 10; 
+                  if (overtimePortion > availableZ) { 
+                      let excess = Math.round((overtimePortion - availableZ) * 10) / 10; 
+                      outZ = Math.round((outZ - excess) * 10) / 10; 
+                      outAA = Math.round((outAA + excess) * 10) / 10; 
+                  } 
+              }
+              outAA = Math.round((outAA + Math.max(0, totalWork - 12)) * 10) / 10; 
           }
 
-          // 決定最終的 Z 數值
-          let finalZ = (status === "上班" && zInputVal > availableZ) ? Math.floor(availableZ * 2) / 2 : (status !== "上班" ? outZ : zInputVal);
-
           // ==========================================
-          // ★ 實踐共識 3：只保留合法的「自動優化額度」，刪除不可能發生的「排擠超時」
+          // ★ 極簡註記：因為 H 絕對不會被系統縮水，所以世上再無「應有遭排擠」！
           // ==========================================
-          if (finalZ > oldZ && outAA < oldAA) {
-              r.cascade_log = "[自動優化額度]";
-              r.isModified = true; // ★ 讓 saveData 知道它被偷改了，必須打包送出！
+          if (outZ > oldZ && outAA < oldAA) {
+              r.cascade_log = "[自動優化加班]";
+              r.isModified = true; 
           } else {
-              r.cascade_log = ""; // 沒變動就清空註記
+              r.cascade_log = ""; 
           }
 
-          // 5. 最終統一寫入記憶體
           r.calc_hours = outH; 
           r.calc_excess = outAA;
-          r.input_est_overtime = finalZ;
+          r.input_est_overtime = outZ;
       }
       function formatTime(v) { if(!v) return ""; if(v instanceof Date) return ("0"+v.getHours()).slice(-2) + ":" + ("0"+v.getMinutes()).slice(-2); let s = String(v).trim(); if (s.includes("T")) return s.substr(11, 5); return s; }
       function formatDiff(val) { let n = parseFloat(val).toFixed(1); if (Math.abs(val) < 0.1) return `<span class="text-muted">0</span>`; if (val < 0) return `<span class="diff-neg">${n}</span>`; return `<span class="diff-pos">+${n}</span>`; }
