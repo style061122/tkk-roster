@@ -1797,32 +1797,36 @@
           let maxDailyH = isMonthly ? 10 : 8;
 
           if (status === "上班") {
-              if (isMonthly && (stats.h >= maxMonthH)) errMsg = `❌ 本月累計應有時數已達上限，不可再排上班，請改為休/例/空班`;
-              outAA = Math.max(0, totalWork - 12); 
-              let effectiveZ = Math.min(zInputVal, availableZ);
-              if (zInputVal > availableZ) outAA += (zInputVal - availableZ); 
-              outH = totalWork - effectiveZ - outAA;
+              // ★ 終極防護：加入 Math.round(val * 10) / 10 徹底消滅 JS 浮點數幽靈誤差
+              let safeStatsH = Math.round(stats.h * 10) / 10;
+              
+              if (isMonthly && (safeStatsH >= maxMonthH)) errMsg = `❌ 本月累計應有時數已達上限，不可再排上班，請改為休/例/空班`;
+              outAA = Math.round(Math.max(0, totalWork - 12) * 10) / 10; 
+              let effectiveZ = Math.round(Math.min(zInputVal, availableZ) * 10) / 10;
+              if (zInputVal > availableZ) outAA += Math.round((zInputVal - availableZ) * 10) / 10; 
+              
+              outH = Math.round((totalWork - effectiveZ - outAA) * 10) / 10;
 
               // ==========================================
               // ★ 智慧溢流閥：當 H 超標 (單日或整月)，檢查剩餘 Z 額度自動洩壓
               // ==========================================
-              let remainingZ = availableZ - effectiveZ; // 算出店長還剩下多少 Z 額度可以填
+              let remainingZ = Math.round((availableZ - effectiveZ) * 10) / 10; // 算出店長還剩下多少 Z 額度可以填
 
               // 1. 單日上限溢流 (超過 8H 或 10H)
               if (outH > maxDailyH) {
-                  let dailyOverflow = outH - maxDailyH;
+                  let dailyOverflow = Math.round((outH - maxDailyH) * 10) / 10;
                   if (remainingZ <= 0) { // 沒 Z 額度了，自動轉超時
-                      outH -= dailyOverflow;
-                      outAA += dailyOverflow;
+                      outH = Math.round((outH - dailyOverflow) * 10) / 10;
+                      outAA = Math.round((outAA + dailyOverflow) * 10) / 10;
                   }
               }
 
               // 2. ★ 新增：整月上限溢流 (狀況 B：無額度時自動灌入 AA)
-              if (isMonthly && (stats.h + outH > maxMonthH)) {
-                  let monthlyOverflow = (stats.h + outH) - maxMonthH;
+              if (isMonthly && (Math.round((safeStatsH + outH) * 10) / 10 > maxMonthH)) {
+                  let monthlyOverflow = Math.round(((safeStatsH + outH) - maxMonthH) * 10) / 10;
                   if (remainingZ <= 0) { // 沒 Z 額度了，店長已無法手動填寫
-                      outH -= monthlyOverflow; // 系統代勞：扣除爆掉的應有時數 (例如退回 1)
-                      outAA += monthlyOverflow; // 系統代勞：直接灌入超時 AA (例如灌入 7)
+                      outH = Math.round((outH - monthlyOverflow) * 10) / 10; // 系統代勞：扣除爆掉的應有時數
+                      outAA = Math.round((outAA + monthlyOverflow) * 10) / 10; // 系統代勞：直接灌入超時 AA
                   }
               }
 
@@ -1831,10 +1835,11 @@
               // ==========================================
               if (errMsg !== "") {
                   // ★ 保護機制：如果最上方的「已達上限」紅燈已經亮了，就保留原訊息，不作覆蓋
-              } else if (isMonthly && (stats.h + outH > maxMonthH)) {
+              } else if (isMonthly && (Math.round((safeStatsH + outH) * 10) / 10 > maxMonthH)) {
                   // 狀況 A：會掉到這裡，代表上面的溢流閥沒幫他轉 (因為 remainingZ > 0)
                   // 也就是他明明「還有加班額度」卻偷懶沒填，此時才跳紅燈逼他手動填寫！
-                  errMsg = `❌ 本月應有將達 ${stats.h + outH}H (超出上限 ${maxMonthH}H)。請手動增加「預計加班(Z)」，或縮短上班時間`;
+                  let finalCalcH = Math.round((safeStatsH + outH) * 10) / 10;
+                  errMsg = `❌ 本月應有將達 ${finalCalcH}H (超出上限 ${maxMonthH}H)。請手動增加「預計加班(Z)」，或縮短上班時間`;
               } else if (outH < 0.5) {
                   // ★ 新增 2：狀態為上班，H 絕對不能被 Z 扣到低於 0.5
                   errMsg = `❌ 狀態為「上班」時，應有時數(H)至少需保留 0.5 小時，請調降預計加班(Z)`;
