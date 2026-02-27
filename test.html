@@ -1747,7 +1747,7 @@
 
           if (status === "上班") {
               // ★ 改為動態修改輸入框的 max 屬性 (取代舊版的下拉選單掃描)
-              let maxAllowedZ = Math.min(4, availableZ);
+              let maxAllowedZ = Math.min(12, availableZ);
               zSelect.setAttribute('max', maxAllowedZ);
               
               if (zInputVal > availableZ) {
@@ -1768,23 +1768,41 @@
               outH = totalWork - effectiveZ - outAA;
 
               // ==========================================
-              // ★ 智慧溢流閥：當 H 超標，檢查還有沒有 Z 額度
+              // ★ 智慧溢流閥：當 H 超標 (單日或整月)，檢查剩餘 Z 額度自動洩壓
               // ==========================================
-              if (outH > maxDailyH) {
-                  let overflow = outH - maxDailyH; // 算出超過 10H 的部分
-                  let remainingZ = availableZ - effectiveZ; // 檢查 Z 還有沒有剩餘額度
+              let remainingZ = availableZ - effectiveZ; // 算出店長還剩下多少 Z 額度可以填
 
-                  if (remainingZ <= 0) {
-                      // 狀況 A：Z 額度已經乾了！直接把多出來的 H 轉交給 AA (超時)
-                      outH -= overflow;
-                      outAA += overflow;
+              // 1. 單日上限溢流 (超過 8H 或 10H)
+              if (outH > maxDailyH) {
+                  let dailyOverflow = outH - maxDailyH;
+                  if (remainingZ <= 0) { // 沒 Z 額度了，自動轉超時
+                      outH -= dailyOverflow;
+                      outAA += dailyOverflow;
                   }
-                  // 狀況 B：如果 remainingZ > 0，代表還有額度，系統就不幫忙轉，
-                  // 而是留給下面的 errMsg 去警告店長：「你明明還有額度，趕快手動填 Z！」
               }
 
-              // 【問題1】休息時間防呆 (完全保留)
-              if (outH >= 8 && restVal < 1) {
+              // 2. ★ 新增：整月上限溢流 (狀況 B：無額度時自動灌入 AA)
+              if (isMonthly && (stats.h + outH > maxMonthH)) {
+                  let monthlyOverflow = (stats.h + outH) - maxMonthH;
+                  if (remainingZ <= 0) { // 沒 Z 額度了，店長已無法手動填寫
+                      outH -= monthlyOverflow; // 系統代勞：扣除爆掉的應有時數 (例如退回 1)
+                      outAA += monthlyOverflow; // 系統代勞：直接灌入超時 AA (例如灌入 7)
+                  }
+              }
+
+              // ==========================================
+              // ★ 完美防線：依序過濾各種法規與實務衝突
+              // ==========================================
+              if (errMsg !== "") {
+                  // ★ 保護機制：如果最上方的「已達上限」紅燈已經亮了，就保留原訊息，不作覆蓋
+              } else if (isMonthly && (stats.h + outH > maxMonthH)) {
+                  // 狀況 A：會掉到這裡，代表上面的溢流閥沒幫他轉 (因為 remainingZ > 0)
+                  // 也就是他明明「還有加班額度」卻偷懶沒填，此時才跳紅燈逼他手動填寫！
+                  errMsg = `❌ 本月應有將達 ${stats.h + outH}H (超出上限 ${maxMonthH}H)。請手動增加「預計加班(Z)」，或縮短上班時間`;
+              } else if (outH < 0.5) {
+                  // ★ 新增 2：狀態為上班，H 絕對不能被 Z 扣到低於 0.5
+                  errMsg = `❌ 狀態為「上班」時，應有時數(H)至少需保留 0.5 小時，請調降預計加班(Z)`;
+              } else if (outH >= 8 && restVal < 1) {
                   errMsg = `❌ 應有時數達 8 小時以上，休息時間至少需 1 小時 (目前休 ${restVal})`;
               } else if (outH >= 4 && restVal < 0.5) {
                   errMsg = `❌ 應有時數達 4 小時以上，休息時間至少需 0.5 小時 (目前休 ${restVal})`;
@@ -1794,6 +1812,7 @@
               } else if (outH < 0) {
                   errMsg = `❌ 預計加班時數(Z) 大於實際工作時間，請調降 Z`;
               }
+              
               outZ = effectiveZ;
 
           } else if (status === "休") {
@@ -2360,7 +2379,7 @@
 
       function createZInput(v) {
           let val = (v !== "" && v !== null && v !== undefined) ? v : "0";
-          return `<input type="number" class="form-control z-select bg-z-col fw-bold text-center" step="0.5" min="0" max="4" value="${val}" onchange="checkNumFormat(this, 4); handleRowChange(this)">`;
+          return `<input type="number" class="form-control z-select bg-z-col fw-bold text-center" step="0.5" min="0" max="12" value="${val}" onchange="checkNumFormat(this, 12); handleRowChange(this)">`;
       }
 
       // ==========================================
