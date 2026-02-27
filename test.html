@@ -2075,9 +2075,8 @@
               let z = parseFloat(r.input_est_overtime) || 0;
               let aa = parseFloat(r.calc_excess) || 0;
               
-              // ★ 注意：這裡假設您後端傳來的 O 欄變數名為 'applied_overtime'、'o' 或 'O'
-              // 如果您的變數名稱不同，請修改這裡！
-              let appliedO = parseFloat(r.applied_overtime || r.o || r.O || 0);
+              // ★ 完美對接：使用您剛剛找到的 sys_overtimeHrs！
+              let appliedO = parseFloat(r.sys_overtimeHrs) || 0;
 
               sumH += h;
               sumAA += aa;
