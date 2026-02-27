@@ -491,6 +491,12 @@
           const pData = currentData.filter(r => r.name === empName);
           const usedStatus = [...new Set(pData.map(r => r.input_status))];
           const hasSupport = pData.some(r => r.supports && r.supports.length > 0);
+          // ★ 新增：檢查該員工的資料庫舊註記或當下新註記，是否有被系統自動優化過
+          const hasAutoZ = pData.some(r => {
+              let lStr = String(r.log || "");
+              let cStr = String(r.cascade_log || "");
+              return lStr.includes("自動優化加班") || cStr.includes("自動優化加班");
+          });
           
           let options = "";
           // 邏輯：如果有空值，就把「未排班 ★」放在第一位
@@ -504,6 +510,10 @@
           });
           
           if (hasSupport) options += '<option value="SUPPORT">跨店支援</option>';
+          // ★ 新增：如果有被自動優化加班，就在最後加上這顆專屬捷徑選項 (加上顯眼顏色)
+          if (hasAutoZ) {
+              options += '<option value="AUTO_Z" style="color: #198754; font-weight: bold;">✨ 自動調整加班</option>';
+          }
           
           const menu = document.getElementById('selectStatusFilter');
           if (menu) menu.innerHTML = options;
@@ -1461,6 +1471,12 @@
                         let filterVal = statusSelect.value;
                         if (filterVal === "EMPTY") return row.input_status === ""; 
                         if (filterVal === "SUPPORT") return row.supports && row.supports.length > 0;
+                        // ★ 新增：當選擇「自動調整加班」時，撈出包含該關鍵字的行！
+                        if (filterVal === "AUTO_Z") {
+                            let lStr = String(row.log || "");
+                            let cStr = String(row.cascade_log || "");
+                            return lStr.includes("自動優化加班") || cStr.includes("自動優化加班");
+                        }
                         return row.input_status === filterVal;
                     }
                 });
