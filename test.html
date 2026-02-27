@@ -2055,19 +2055,106 @@
          });
       }
 
-      function updateLiveSummary(name) {
-         if (!name) return;
-         let pData = currentData.filter(r => r.name === name);
-         let hrs = 0, rest = 0, reg = 0, nat = 0, empty = 0;
-         pData.forEach(r => { 
-             let h = parseFloat(r.calc_hours); if(!isNaN(h)) hrs += h; 
-             let s = r.input_status;
-             if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++; 
-         });
-         const bar = document.getElementById('liveSummaryBar');
-         if (bar) {
-             bar.innerHTML = `<span class="me-3">目前累計 (${name})：</span> 應有 <span class="${getDiffClass(hrs, monthlyTargets.hrs)}">${hrs.toFixed(1)}</span> / 休 <span class="${getDiffClass(rest, monthlyTargets.rest)}">${rest}</span> / 例 <span class="${getDiffClass(reg, monthlyTargets.reg)}">${reg}</span> / 國 <span class="${getDiffClass(nat, monthlyTargets.nat)}">${nat}</span> / 空班 ${empty}`;
-         }
+      // ==========================================
+      // ★ 人名模式下的即時統計儀表板 (極速無損 UI 升級版)
+      // ==========================================
+      function updateLiveSummary(empName) {
+          const summaryBar = document.getElementById('liveSummaryBar');
+          if (!summaryBar) return;
+
+          let targetData = currentData.filter(r => r.name === empName);
+
+          // 準備所有的統計變數
+          let sumH = 0, sumAA = 0, sumZ_normal = 0, sumZ_national = 0;
+          let sumAppliedO = 0, sumSupport = 0;
+          let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
+
+          targetData.forEach(r => {
+              let s = r.input_status || "";
+              let h = parseFloat(r.calc_hours) || 0;
+              let z = parseFloat(r.input_est_overtime) || 0;
+              let aa = parseFloat(r.calc_excess) || 0;
+              
+              // ★ 注意：這裡假設您後端傳來的 O 欄變數名為 'applied_overtime'、'o' 或 'O'
+              // 如果您的變數名稱不同，請修改這裡！
+              let appliedO = parseFloat(r.applied_overtime || r.o || r.O || 0);
+
+              sumH += h;
+              sumAA += aa;
+              sumAppliedO += appliedO;
+
+              // 1. 計算支援總時數
+              if (r.supports && r.supports.length > 0) {
+                  r.supports.forEach(sup => {
+                      sumSupport += (parseFloat(sup.hrs) || 0);
+                  });
+              }
+
+              // 2. 統計假別天數
+              if (s === '休') countRest++;
+              else if (s === '例') countReg++;
+              else if (s === '國') countNat++;
+              else if (s === '空班') countEmpty++;
+
+              // 3. ★ 智慧切割 Z (預計加班)：分離「國定前8」與「常態Z」
+              if (s === '國' && z > 0) {
+                  let natZ = Math.min(z, 8); // 國定前 8 小時 (免計入 46)
+                  let normZ = Math.max(0, z - 8); // 超過 8 小時的部分，算回常態 Z
+                  sumZ_national += natZ;
+                  sumZ_normal += normZ;
+              } else {
+                  sumZ_normal += z; // 非國定假日，全部算常態 Z
+              }
+          });
+
+          // ==========================================
+          // ★ 產生 3x2 (或自動換行) 的現代化網格 UI
+          // 完全使用內建樣式，零流量、不卡頓！
+          // ==========================================
+          let html = `
+          <div class="d-flex flex-wrap gap-2 align-items-stretch justify-content-center p-2 rounded-3 mt-2 mb-3" style="background: #fdfdfd; border: 1px solid #dee2e6; box-shadow: inset 0 1px 3px rgba(0,0,0,.05);">
+              
+              <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #e3f2fd; border-bottom: 4px solid #0d6efd; min-width: 90px;">
+                  <div style="font-size: 0.75rem; color: #084298; font-weight: 800; letter-spacing: 1px;">應有 (H)</div>
+                  <div class="fs-4 fw-bolder text-dark lh-1 mt-1">${sumH.toFixed(1)}</div>
+              </div>
+
+              <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #f8f9fa; border-bottom: 4px solid #6c757d; min-width: 140px;">
+                  <div style="font-size: 0.75rem; color: #495057; font-weight: 800; letter-spacing: 1px;">排休狀態</div>
+                  <div class="fw-bolder text-dark lh-1 mt-2" style="font-size: 0.95rem;">
+                      休 <span class="text-primary">${countRest}</span> <span class="text-muted mx-1">|</span>
+                      例 <span class="text-success">${countReg}</span> <span class="text-muted mx-1">|</span>
+                      國 <span class="text-danger">${countNat}</span> <span class="text-muted mx-1">|</span>
+                      空 <span class="text-secondary">${countEmpty}</span>
+                  </div>
+              </div>
+
+              <div class="px-3 py-2 rounded shadow-sm text-center flex-fill position-relative" style="background: #fff3cd; border-bottom: 4px solid #ffc107; min-width: 110px;">
+                  <div style="font-size: 0.75rem; color: #997404; font-weight: 800; letter-spacing: 1px;">預計加班 (Z)</div>
+                  <div class="fs-4 fw-bolder text-dark lh-1 mt-1">
+                      ${sumZ_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumZ_national.toFixed(1)}</span>
+                  </div>
+              </div>
+
+              <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #f8d7da; border-bottom: 4px solid #dc3545; min-width: 90px;">
+                  <div style="font-size: 0.75rem; color: #842029; font-weight: 800; letter-spacing: 1px;">超時 (AA)</div>
+                  <div class="fs-4 fw-bolder text-danger lh-1 mt-1">${sumAA.toFixed(1)}</div>
+              </div>
+
+              <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #d1e7dd; border-bottom: 4px solid #198754; min-width: 100px;">
+                  <div style="font-size: 0.75rem; color: #0f5132; font-weight: 800; letter-spacing: 1px;">已申請 (O)</div>
+                  <div class="fs-4 fw-bolder text-success lh-1 mt-1">${sumAppliedO.toFixed(1)}</div>
+              </div>
+
+              <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #e0cffc; border-bottom: 4px solid #6f42c1; min-width: 100px;">
+                  <div style="font-size: 0.75rem; color: #3d1a87; font-weight: 800; letter-spacing: 1px;">支援總時數</div>
+                  <div class="fs-4 fw-bolder text-dark lh-1 mt-1">${sumSupport.toFixed(1)}</div>
+              </div>
+
+          </div>
+          `;
+
+          summaryBar.innerHTML = html;
       }
 
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
