@@ -1058,27 +1058,20 @@
                      icon: 'success', title: '儲存成功', html: htmlMsg, confirmButtonText: '確認', allowOutsideClick: false 
                  }).then((result) => { 
                      if (result.isConfirmed) {
-                         // ★★★ 核心修復：尊重防護網指定的目的地！★★★
-                         // 只有在「沒有指定目的地」(一般存檔) 時，才抓取當下畫面的名字
-                         if (!window.tempFilterName) {
-                             window.tempFilterName = document.getElementById('selectName').value;
-                         }
-                         if (!window.tempFilterWeek) {
-                             window.tempFilterWeek = document.getElementById('selectWeek').value;
-                         }
-                         
-                         // ★ 新增：記住目前的子模式 (週別或狀態) 與 篩選值
-                         // ★ 修正：加上保護機制！如果防護網已經指定了目的地，就不要去抓畫面的舊值把它蓋掉
-                         if (!window.tempStatusFilter) {
-                             window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
-                         }
-                         
-                         // ★ 核心修復：如果剛才是大分類切換，把目的地交接給 loadData 準備跳轉
-                         if (window.tempMode) {
-                             window.pendingSwitchMode = window.tempMode;
-                             window.tempMode = null;
-                         }
+                         // ==========================================
+                         // ★ 新增：目的地保護機制 (提取為共用函數)
+                         // ==========================================
+                         const preserveDestination = () => {
+                             if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
+                             if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
+                             if (!window.tempStatusFilter) window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                             if (window.tempMode) {
+                                 window.pendingSwitchMode = window.tempMode;
+                                 window.tempMode = null;
+                             }
+                         };
 
+                         preserveDestination(); // 成功時執行保護
                          currentData.forEach(r => r.isModified = false);
                          loadData();
                      }
@@ -1088,13 +1081,34 @@
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
              }
              else if (res.status === 'PARTIAL') { 
-                 Swal.fire({ icon: 'warning', title: '⚠️ 部分儲存成功', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
+                 Swal.fire({ icon: 'warning', title: '⚠️ 部分儲存成功', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => {
+                     // ★ 部分成功時：也要保護目的地！
+                     if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
+                     if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
+                     if (!window.tempStatusFilter) window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                     if (window.tempMode) { window.pendingSwitchMode = window.tempMode; window.tempMode = null; }
+                     loadData();
+                 }); 
              } 
              else if (res.status === 'FAILED') { 
-                 Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => loadData()); 
+                 Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => {
+                     // ★ 失敗時：也要保護目的地！
+                     if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
+                     if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
+                     if (!window.tempStatusFilter) window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                     if (window.tempMode) { window.pendingSwitchMode = window.tempMode; window.tempMode = null; }
+                     loadData();
+                 }); 
              }
              else { 
-                 Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => loadData()); 
+                 Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => {
+                     // ★ 未知狀況：也要保護目的地！
+                     if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
+                     if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
+                     if (!window.tempStatusFilter) window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                     if (window.tempMode) { window.pendingSwitchMode = window.tempMode; window.tempMode = null; }
+                     loadData();
+                 }); 
              }
           })
           .catch(err => { 
