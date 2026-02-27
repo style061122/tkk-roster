@@ -2140,8 +2140,8 @@
 
           summaryBar.innerHTML = html;
       }
-        // ==========================================
-      // ★ 終極月結算戰情室 (全螢幕卡片展開版)
+      // ==========================================
+      // ★ 終極月結算戰情室 (全螢幕卡片展開版 - 完美微調版)
       // ==========================================
       function openMonthlyReport() {
           if (!currentData || currentData.length === 0) {
@@ -2156,16 +2156,13 @@
           const reportModal = new bootstrap.Modal(document.getElementById('monthlyReportModal'));
           reportModal.show();
 
-          // 使用 setTimeout 讓畫面先顯示 Loading，再瞬間完成幾百筆運算
           setTimeout(() => {
               let htmlMonthly = '';
               let htmlHourly = '';
               let htmlExternal = '';
 
-              // 1. 分流：自家人 vs 友店支援
               let myStaffNames = [...new Set(currentData.filter(r => r.store === currentStore).map(r => r.name))];
               let externalData = currentData.filter(r => r.store !== currentStore);
-
               let targetH = parseFloat(monthlyTargets.hrs) || 0;
 
               // ==========================================
@@ -2180,17 +2177,19 @@
 
                   let workDates = [], restDates = [], regDates = [], natDates = [], emptyDates = [];
                   let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO = 0, sumSupOut = 0;
-                  let zDetails = [], oDetails = [], supOutDetails = [];
+                  let zDetails = [], oDetails = [];
+                  let supportOutGroups = {}; // ★ 新增：用來將跨店支援依店名分類
 
                   pData.forEach(r => {
-                      let dStr = parseInt(r.date.split('/')[2]); // 只要日期數字
+                      let dStr = parseInt(r.date.split('/')[2]);
                       let s = r.input_status || "";
                       let h = parseFloat(r.calc_hours) || 0;
                       let z = parseFloat(r.input_est_overtime) || 0;
-                      let o = parseFloat(r.sys_overtimeHrs) || 0; // 對接 O 欄
+                      let o = parseFloat(r.sys_overtimeHrs) || 0;
 
                       sumH += h;
-                      if (o > 0) { sumO += o; oDetails.push(`${dStr}日(${o}H)`); }
+                      // ★ 優化 3：拿掉「日」
+                      if (o > 0) { sumO += o; oDetails.push(`${dStr}(${o}H)`); }
 
                       if (s === '上班') workDates.push(dStr);
                       else if (s === '休') restDates.push(dStr);
@@ -2201,57 +2200,76 @@
                       if (s === '國' && z > 0) {
                           let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                           sumZ_nat += natZ; sumZ_norm += normZ;
-                          zDetails.push(`${dStr}日(${z}H)`);
+                          zDetails.push(`${dStr}(${z}H)`); // ★ 優化 3
                       } else if (z > 0) {
                           sumZ_norm += z;
-                          zDetails.push(`${dStr}日(${z}H)`);
+                          zDetails.push(`${dStr}(${z}H)`); // ★ 優化 3
                       }
 
+                      // ★ 優化 4：將支援外店的資料依店名進行群組分類
                       if (r.supports && r.supports.length > 0) {
                           r.supports.forEach(sup => {
                               let sh = parseFloat(sup.hrs) || 0;
                               sumSupOut += sh;
-                              supOutDetails.push(`${dStr}日 去${sup.supportStore}(${sh}H)`);
+                              let tgtStore = sup.supportStore;
+                              if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = [];
+                              supportOutGroups[tgtStore].push(`${dStr}(${sh}H)`);
                           });
                       }
                   });
 
-                  // 計算應有差額 (僅限月薪)
+                  // ★ 優化 5：把時薪制的總工時徽章加回來
                   let diffHtml = '';
-                  if (isMonthly && targetH > 0) {
-                      let diff = sumH - targetH;
-                      if (Math.abs(diff) < 0.1) diffHtml = `<span class="badge bg-success ms-2">應有 ${sumH.toFixed(1)}H (剛好)</span>`;
-                      else if (diff > 0) diffHtml = `<span class="badge bg-danger ms-2">應有 ${sumH.toFixed(1)}H (+${diff.toFixed(1)}H)</span>`;
-                      else diffHtml = `<span class="badge bg-danger ms-2">應有 ${sumH.toFixed(1)}H (${diff.toFixed(1)}H)</span>`;
-                  } else if (isMonthly) {
-                      diffHtml = `<span class="badge bg-secondary ms-2">應有 ${sumH.toFixed(1)}H</span>`;
+                  if (isMonthly) {
+                      if (targetH > 0) {
+                          let diff = sumH - targetH;
+                          if (Math.abs(diff) < 0.1) diffHtml = `<span class="badge bg-danger ms-2">應有 ${sumH.toFixed(1)}H (剛好)</span>`;
+                          else if (diff > 0) diffHtml = `<span class="badge bg-danger ms-2">應有 ${sumH.toFixed(1)}H (+${diff.toFixed(1)}H)</span>`;
+                          else diffHtml = `<span class="badge bg-danger ms-2">應有 ${sumH.toFixed(1)}H (${diff.toFixed(1)}H)</span>`;
+                      } else {
+                          diffHtml = `<span class="badge bg-secondary ms-2">應有 ${sumH.toFixed(1)}H</span>`;
+                      }
+                  } else {
+                      // 時薪制顯示綠色徽章
+                      diffHtml = `<span class="badge bg-success ms-2">累計 ${sumH.toFixed(1)}H</span>`;
                   }
 
                   // 產生卡片 HTML
                   let cardId = `acc-${idx}`;
                   let badgeType = isMonthly ? 'bg-primary' : 'bg-success';
                   
+                  // ★ 優化 4：組裝跨店支援的漂亮排版
+                  let supportOutHtml = '';
+                  if (sumSupOut > 0) {
+                      for (const [sName, details] of Object.entries(supportOutGroups)) {
+                          supportOutHtml += `<div class="mb-1"><span class="fw-bold" style="color:#0d6efd;">📍去 ${sName}：</span><span class="text-secondary">${details.join(' / ')}</span></div>`;
+                      }
+                  }
+                  
                   let cardHtml = `
-                  <div class="card mb-3 shadow-sm border-0 rounded-4" style="overflow: hidden;">
+                  <div class="card mb-3 shadow-sm border-0 rounded-4" style="overflow: hidden; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;">
                       <div class="card-header bg-white pt-3 pb-2" style="border-bottom: 2px solid #f4f6f9;">
-                          <h5 class="fw-bolder mb-0 text-dark">
-                              ${name} <span class="badge ${badgeType} rounded-pill ms-1" style="font-size:0.75rem;">${salaryType}</span> ${diffHtml}
+                          <h5 class="fw-bolder mb-0 text-dark d-flex flex-wrap align-items-center gap-1">
+                              ${name} <span class="badge ${badgeType} rounded-pill" style="font-size:0.75rem;">${salaryType}</span> ${diffHtml}
                           </h5>
                       </div>
                       <div class="card-body p-2 p-md-3">
                           
                           <div class="bg-light rounded-3 p-2 mb-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${cardId}-status">
-                              <div class="d-flex justify-content-between align-items-center">
-                                  <div class="fw-bold text-dark" style="font-size: 0.95rem;">
-                                      上班 <span class="text-primary">${workDates.length}</span> 天 | 
-                                      休 <span class="text-secondary">${restDates.length}</span> 天 | 
-                                      例 <span class="text-success">${regDates.length}</span> 天 | 
-                                      國 <span class="text-danger">${natDates.length}</span> 天
+                              <div class="d-flex justify-content-between align-items-start">
+                                  <div class="fw-bold text-dark d-flex flex-wrap gap-2" style="font-size: 0.95rem;">
+                                      <span>上班 <span class="text-primary">${workDates.length}</span> 天</span>
+                                      <span class="text-muted opacity-50">|</span>
+                                      <span>休 <span class="text-secondary">${restDates.length}</span> 天</span>
+                                      <span class="text-muted opacity-50">|</span>
+                                      <span>例 <span class="text-success">${regDates.length}</span> 天</span>
+                                      <span class="text-muted opacity-50">|</span>
+                                      <span>國 <span class="text-danger">${natDates.length}</span> 天</span>
                                   </div>
-                                  <span class="text-muted small">明細 ▾</span>
+                                  <span class="text-muted small text-nowrap ms-2 mt-1">明細 ▾</span>
                               </div>
                               <div class="collapse mt-2" id="${cardId}-status">
-                                  <div class="text-muted small ps-1 border-start border-3 border-secondary" style="line-height:1.6;">
+                                  <div class="text-muted small ps-2 border-start border-3 border-secondary" style="line-height:1.6;">
                                       ${workDates.length > 0 ? `<strong>上班:</strong> ${workDates.join(', ')}<br>` : ''}
                                       ${restDates.length > 0 ? `<strong>排休:</strong> ${restDates.join(', ')}<br>` : ''}
                                       ${regDates.length > 0 ? `<strong>例假:</strong> ${regDates.join(', ')}<br>` : ''}
@@ -2262,18 +2280,18 @@
                           </div>
 
                           <div class="bg-light rounded-3 p-2 mb-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime">
-                              <div class="d-flex justify-content-between align-items-center">
-                                  <div class="fw-bold" style="font-size: 0.95rem;">
+                              <div class="d-flex justify-content-between align-items-start">
+                                  <div class="fw-bold d-flex flex-wrap gap-2" style="font-size: 0.95rem;">
                                       <span style="color:#997404;">預計加班 ${sumZ_norm.toFixed(1)}H <small class="text-muted">+${sumZ_nat.toFixed(1)}H</small></span>
-                                      <span class="text-muted mx-1">|</span>
+                                      <span class="text-muted opacity-50">|</span>
                                       <span class="text-success">已申請 O: ${sumO.toFixed(1)}H</span>
                                   </div>
-                                  <span class="text-muted small">明細 ▾</span>
+                                  <span class="text-muted small text-nowrap ms-2 mt-1">明細 ▾</span>
                               </div>
                               <div class="collapse mt-2" id="${cardId}-overtime">
-                                  <div class="text-muted small ps-1 border-start border-3 border-warning" style="line-height:1.6;">
-                                      ${zDetails.length > 0 ? `<strong>預計加班:</strong> ${zDetails.join(' / ')}<br>` : '<span class="text-black-50">無預計加班紀錄</span><br>'}
-                                      ${oDetails.length > 0 ? `<strong class="text-success">已申請:</strong> ${oDetails.join(' / ')}` : '<span class="text-black-50">無 O 欄申請紀錄</span>'}
+                                  <div class="text-muted small ps-2 border-start border-3 border-warning" style="line-height:1.6;">
+                                      ${zDetails.length > 0 ? `🗓️ <strong style="color:#997404;">預計:</strong> ${zDetails.join(' / ')}<br>` : '<span class="text-black-50 opacity-75">無預計加班紀錄</span><br>'}
+                                      ${oDetails.length > 0 ? `🗓️ <strong class="text-success">申請:</strong> ${oDetails.join(' / ')}` : '<span class="text-black-50 opacity-75">無 O 欄申請紀錄</span>'}
                                   </div>
                               </div>
                           </div>
@@ -2287,8 +2305,8 @@
                                   <span class="text-primary small">明細 ▾</span>
                               </div>
                               <div class="collapse mt-2" id="${cardId}-support">
-                                  <div class="text-muted small ps-1" style="line-height:1.6;">
-                                      ${supOutDetails.join('<br>')}
+                                  <div class="small ps-1 pt-1" style="line-height:1.6;">
+                                      ${supportOutHtml}
                                   </div>
                               </div>
                           </div>
@@ -2333,9 +2351,9 @@
                       empsHtml += `
                       <div class="mb-2 pb-2" style="border-bottom: 1px dashed #dee2e6;">
                           <div class="fw-bold text-dark" style="font-size: 0.95rem;">
-                              ${empName} <span class="float-end text-primary fw-bolder">${empData.total.toFixed(1)}H</span>
+                              👤 ${empName} <span class="float-end text-primary fw-bolder">${empData.total.toFixed(1)}H</span>
                           </div>
-                          <div class="text-muted small mt-1 ps-2" style="line-height:1.5;">
+                          <div class="text-muted small mt-1 ps-3 border-start border-2 border-primary ms-1" style="line-height:1.5;">
                               ${empData.details.join('<br>')}
                           </div>
                       </div>
@@ -2343,7 +2361,7 @@
                   }
 
                   htmlExternal += `
-                  <div class="card mb-3 shadow-sm border-0 rounded-4" style="border-left: 5px solid #6f42c1 !important;">
+                  <div class="card mb-3 shadow-sm border-0 rounded-4" style="border-left: 5px solid #6f42c1 !important; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;">
                       <div class="card-header bg-white pt-3 pb-2">
                           <h5 class="fw-bolder mb-0" style="color:#592c9b;">
                               🤝 ${storeName} <span class="badge bg-purple rounded-pill float-end" style="background-color:#6f42c1;">共 ${storeData.total.toFixed(1)}H</span>
@@ -2362,13 +2380,13 @@
               let finalHtml = '';
               
               if (htmlMonthly) {
-                  finalHtml += `<h6 class="fw-bold text-secondary mb-2 mt-2 px-1">👑 正職月薪</h6>${htmlMonthly}`;
+                  finalHtml += `<h5 class="fw-bold mb-2 mt-2 px-1" style="color:#b8860b;">👑 正職月薪</h5>${htmlMonthly}`;
               }
               if (htmlHourly) {
-                  finalHtml += `<h6 class="fw-bold text-secondary mb-2 mt-4 px-1">🌟 兼職時薪</h6>${htmlHourly}`;
+                  finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1" style="color:#0f5132;">🌟 兼職時薪</h5>${htmlHourly}`;
               }
               if (htmlExternal) {
-                  finalHtml += `<h6 class="fw-bold text-secondary mb-2 mt-4 px-1">🤝 友店來支援</h6>${htmlExternal}`;
+                  finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1" style="color:#592c9b;">🤝 友店來支援</h5>${htmlExternal}`;
               }
 
               if (finalHtml === '') {
@@ -2377,7 +2395,7 @@
 
               modalBody.innerHTML = finalHtml;
 
-          }, 100); // 微小延遲讓 Modal 彈出動畫順暢
+          }, 100); 
       }
 
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
