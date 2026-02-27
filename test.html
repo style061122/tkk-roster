@@ -486,31 +486,38 @@
           if(d) lastSafeFilters.day = d.value;
           if(sm) lastSafeFilters.subMode = sm.value; // ★ 存入時光機
       }
-        // ★ 動態產生狀態選單：只顯示「目前有排」的狀態，加上「未排班 ★」
+        // ★ 動態產生狀態選單：全彩終極美化版 (全粗體 + 視覺化 icon)
       function updateStatusFilterMenu(empName) {
           const pData = currentData.filter(r => r.name === empName);
           const usedStatus = [...new Set(pData.map(r => r.input_status))];
           const hasSupport = pData.some(r => r.supports && r.supports.length > 0);
-          // ★ 新增：檢查該員工的資料庫舊註記或當下新註記，是否有被系統自動優化過
+          
+          // 檢查該員工的資料庫舊註記或當下新註記，是否有被系統自動優化過
           const hasAutoZ = pData.some(r => {
               let lStr = String(r.log || "");
               let cStr = String(r.cascade_log || "");
               return lStr.includes("自動優化加班") || cStr.includes("自動優化加班");
           });
-          
+
           let options = "";
-          // 邏輯：如果有空值，就把「未排班 ★」放在第一位
+          
+          // ★ 1. 未排班 (紅色警告 + 粗體，催促店長補齊)
           if (usedStatus.includes("")) {
-              options += '<option value="EMPTY">未排班 ★</option>';
+              options += '<option value="EMPTY" style="color: #dc3545; font-weight: bold;">⚠️ 未排班</option>';
           }
           
+          // ★ 2. 正常狀態 (全部加上粗體，乾淨俐落)
           const normalStatus = ["上班", "休", "例", "國", "空班"];
           normalStatus.forEach(s => {
-              if (usedStatus.includes(s)) options += `<option value="${s}">${s}</option>`;
+              if (usedStatus.includes(s)) options += `<option value="${s}" style="font-weight: bold;">${s}</option>`;
           });
           
-          if (hasSupport) options += '<option value="SUPPORT">跨店支援</option>';
-          // ★ 新增：如果有被自動優化加班，就在最後加上這顆專屬捷徑選項 (加上顯眼顏色)
+          // ★ 3. 跨店支援 (藍色醒目 + 粗體)
+          if (hasSupport) {
+              options += '<option value="SUPPORT" style="color: #0d6efd; font-weight: bold;">➕ 跨店支援</option>';
+          }
+          
+          // ★ 4. 自動調整加班 (綠色閃耀 + 粗體)
           if (hasAutoZ) {
               options += '<option value="AUTO_Z" style="color: #198754; font-weight: bold;">✨ 自動調整加班</option>';
           }
