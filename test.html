@@ -138,21 +138,6 @@
           #staffTable td:nth-child(9) { width: 100% !important; padding-top: 10px !important; border-top: 1px dashed #eee !important; margin-top: 5px; }
           #staffTable td:nth-child(10) { width: 100% !important; padding-top: 0px !important; padding-bottom: 10px !important; }
 
-          /* 月統計卡片式樣式 */
-          #statsTarget { flex-direction: column; align-items: flex-start !important; }
-          #statsModal table thead { display: none !important; }
-          #statsModal table tbody tr { display: block !important; background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
-          #statsModal table tbody td { display: flex !important; align-items: center !important; border: none !important; padding: 8px 0 !important; border-bottom: 1px dashed #eee !important; }
-          #statsModal table tbody td::before { margin-right: auto; padding-right: 10px; font-weight: bold; color: #666; }
-          #statsTableMonthly td:nth-child(1), #statsTableHourly td:nth-child(1) { justify-content: center !important; font-size: 1.2rem; color: #0d6efd; border-bottom: 2px solid #eee !important; }
-          #statsTableMonthly td:nth-child(1)::before, #statsTableHourly td:nth-child(1)::before { content: none !important; }
-          #statsTableMonthly td:nth-child(2)::before { content: '應有時數 (差):'; }
-          #statsTableMonthly td:nth-child(3)::before { content: '休假 (差):'; }
-          #statsTableMonthly td:nth-child(4)::before { content: '例假 (差):'; }
-          #statsTableMonthly td:nth-child(5)::before { content: '國定假 (差):'; }
-          #statsTableMonthly td:nth-child(6)::before { content: '空班:'; }
-          #statsTableHourly td:nth-child(2)::before { content: '累計應有:'; }
-
           /* 卡片式表格通用樣式 */
           table.mobile-card-mode thead { display: none !important; }
           table.mobile-card-mode tbody tr { display: block !important; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; position: relative; }
@@ -342,7 +327,7 @@
             </div>
 
             <div class="action-btn-group w-100">
-                <button class="btn btn-info text-white fw-bold" onclick="showMonthlyStats()">📊 月統計</button>
+                <<button type="button" class="btn btn-warning fw-bold shadow-sm" onclick="openMonthlyReport()">📊 月結算</button>
                 <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
                 <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
                 <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
@@ -2155,6 +2140,245 @@
 
           summaryBar.innerHTML = html;
       }
+        // ==========================================
+      // ★ 終極月結算戰情室 (全螢幕卡片展開版)
+      // ==========================================
+      function openMonthlyReport() {
+          if (!currentData || currentData.length === 0) {
+              Swal.fire('系統訊息', '目前尚無班表資料可供結算', 'info');
+              return;
+          }
+
+          const modalBody = document.getElementById('monthlyReportBody');
+          modalBody.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 fw-bold text-muted">資料精算中...</div></div>';
+          
+          // 喚起 Modal
+          const reportModal = new bootstrap.Modal(document.getElementById('monthlyReportModal'));
+          reportModal.show();
+
+          // 使用 setTimeout 讓畫面先顯示 Loading，再瞬間完成幾百筆運算
+          setTimeout(() => {
+              let htmlMonthly = '';
+              let htmlHourly = '';
+              let htmlExternal = '';
+
+              // 1. 分流：自家人 vs 友店支援
+              let myStaffNames = [...new Set(currentData.filter(r => r.store === currentStore).map(r => r.name))];
+              let externalData = currentData.filter(r => r.store !== currentStore);
+
+              let targetH = parseFloat(monthlyTargets.hrs) || 0;
+
+              // ==========================================
+              // ★ 處理自家人 (正職與兼職)
+              // ==========================================
+              myStaffNames.forEach((name, idx) => {
+                  let pData = currentData.filter(r => r.name === name && r.store === currentStore);
+                  if (pData.length === 0) return;
+                  
+                  let salaryType = pData[0].salaryType || "";
+                  let isMonthly = salaryType.includes("月薪");
+
+                  let workDates = [], restDates = [], regDates = [], natDates = [], emptyDates = [];
+                  let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO = 0, sumSupOut = 0;
+                  let zDetails = [], oDetails = [], supOutDetails = [];
+
+                  pData.forEach(r => {
+                      let dStr = parseInt(r.date.split('/')[2]); // 只要日期數字
+                      let s = r.input_status || "";
+                      let h = parseFloat(r.calc_hours) || 0;
+                      let z = parseFloat(r.input_est_overtime) || 0;
+                      let o = parseFloat(r.sys_overtimeHrs) || 0; // 對接 O 欄
+
+                      sumH += h;
+                      if (o > 0) { sumO += o; oDetails.push(`${dStr}日(${o}H)`); }
+
+                      if (s === '上班') workDates.push(dStr);
+                      else if (s === '休') restDates.push(dStr);
+                      else if (s === '例') regDates.push(dStr);
+                      else if (s === '國') natDates.push(dStr);
+                      else if (s === '空班') emptyDates.push(dStr);
+
+                      if (s === '國' && z > 0) {
+                          let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
+                          sumZ_nat += natZ; sumZ_norm += normZ;
+                          zDetails.push(`${dStr}日(${z}H)`);
+                      } else if (z > 0) {
+                          sumZ_norm += z;
+                          zDetails.push(`${dStr}日(${z}H)`);
+                      }
+
+                      if (r.supports && r.supports.length > 0) {
+                          r.supports.forEach(sup => {
+                              let sh = parseFloat(sup.hrs) || 0;
+                              sumSupOut += sh;
+                              supOutDetails.push(`${dStr}日 去${sup.supportStore}(${sh}H)`);
+                          });
+                      }
+                  });
+
+                  // 計算應有差額 (僅限月薪)
+                  let diffHtml = '';
+                  if (isMonthly && targetH > 0) {
+                      let diff = sumH - targetH;
+                      if (Math.abs(diff) < 0.1) diffHtml = `<span class="badge bg-success ms-2">應有 ${sumH.toFixed(1)}H (剛好)</span>`;
+                      else if (diff > 0) diffHtml = `<span class="badge bg-danger ms-2">應有 ${sumH.toFixed(1)}H (+${diff.toFixed(1)}H)</span>`;
+                      else diffHtml = `<span class="badge bg-danger ms-2">應有 ${sumH.toFixed(1)}H (${diff.toFixed(1)}H)</span>`;
+                  } else if (isMonthly) {
+                      diffHtml = `<span class="badge bg-secondary ms-2">應有 ${sumH.toFixed(1)}H</span>`;
+                  }
+
+                  // 產生卡片 HTML
+                  let cardId = `acc-${idx}`;
+                  let badgeType = isMonthly ? 'bg-primary' : 'bg-success';
+                  
+                  let cardHtml = `
+                  <div class="card mb-3 shadow-sm border-0 rounded-4" style="overflow: hidden;">
+                      <div class="card-header bg-white pt-3 pb-2" style="border-bottom: 2px solid #f4f6f9;">
+                          <h5 class="fw-bolder mb-0 text-dark">
+                              ${name} <span class="badge ${badgeType} rounded-pill ms-1" style="font-size:0.75rem;">${salaryType}</span> ${diffHtml}
+                          </h5>
+                      </div>
+                      <div class="card-body p-2 p-md-3">
+                          
+                          <div class="bg-light rounded-3 p-2 mb-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${cardId}-status">
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <div class="fw-bold text-dark" style="font-size: 0.95rem;">
+                                      上班 <span class="text-primary">${workDates.length}</span> 天 | 
+                                      休 <span class="text-secondary">${restDates.length}</span> 天 | 
+                                      例 <span class="text-success">${regDates.length}</span> 天 | 
+                                      國 <span class="text-danger">${natDates.length}</span> 天
+                                  </div>
+                                  <span class="text-muted small">明細 ▾</span>
+                              </div>
+                              <div class="collapse mt-2" id="${cardId}-status">
+                                  <div class="text-muted small ps-1 border-start border-3 border-secondary" style="line-height:1.6;">
+                                      ${workDates.length > 0 ? `<strong>上班:</strong> ${workDates.join(', ')}<br>` : ''}
+                                      ${restDates.length > 0 ? `<strong>排休:</strong> ${restDates.join(', ')}<br>` : ''}
+                                      ${regDates.length > 0 ? `<strong>例假:</strong> ${regDates.join(', ')}<br>` : ''}
+                                      ${natDates.length > 0 ? `<strong>國定:</strong> ${natDates.join(', ')}<br>` : ''}
+                                      ${emptyDates.length > 0 ? `<strong>空班:</strong> ${emptyDates.join(', ')}<br>` : ''}
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="bg-light rounded-3 p-2 mb-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime">
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <div class="fw-bold" style="font-size: 0.95rem;">
+                                      <span style="color:#997404;">預計加班 ${sumZ_norm.toFixed(1)}H <small class="text-muted">+${sumZ_nat.toFixed(1)}H</small></span>
+                                      <span class="text-muted mx-1">|</span>
+                                      <span class="text-success">已申請 O: ${sumO.toFixed(1)}H</span>
+                                  </div>
+                                  <span class="text-muted small">明細 ▾</span>
+                              </div>
+                              <div class="collapse mt-2" id="${cardId}-overtime">
+                                  <div class="text-muted small ps-1 border-start border-3 border-warning" style="line-height:1.6;">
+                                      ${zDetails.length > 0 ? `<strong>預計加班:</strong> ${zDetails.join(' / ')}<br>` : '<span class="text-black-50">無預計加班紀錄</span><br>'}
+                                      ${oDetails.length > 0 ? `<strong class="text-success">已申請:</strong> ${oDetails.join(' / ')}` : '<span class="text-black-50">無 O 欄申請紀錄</span>'}
+                                  </div>
+                              </div>
+                          </div>
+
+                          ${sumSupOut > 0 ? `
+                          <div class="rounded-3 p-2" style="background-color: #f0f4ff; border-left: 4px solid #0d6efd; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${cardId}-support">
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <div class="fw-bold text-primary" style="font-size: 0.95rem;">
+                                      跨店支援 共 ${sumSupOut.toFixed(1)}H
+                                  </div>
+                                  <span class="text-primary small">明細 ▾</span>
+                              </div>
+                              <div class="collapse mt-2" id="${cardId}-support">
+                                  <div class="text-muted small ps-1" style="line-height:1.6;">
+                                      ${supOutDetails.join('<br>')}
+                                  </div>
+                              </div>
+                          </div>
+                          ` : ''}
+                      </div>
+                  </div>
+                  `;
+
+                  if (isMonthly) htmlMonthly += cardHtml;
+                  else htmlHourly += cardHtml;
+              });
+
+              // ==========================================
+              // ★ 處理友店支援 (被支援區)
+              // ==========================================
+              let extStores = {};
+              externalData.forEach(r => {
+                  let store = String(r.store).trim();
+                  let dateObj = new Date(r.date);
+                  let monthStr = dateObj.getMonth() + 1;
+                  let dayStr = dateObj.getDate();
+                  
+                  if (r.supports && r.supports.length > 0) {
+                      r.supports.forEach(sup => {
+                          // 只抓來「本店」支援的紀錄
+                          if (sup.supportStore === currentStore) {
+                              if (!extStores[store]) extStores[store] = { total: 0, emps: {} };
+                              let sh = parseFloat(sup.hrs) || 0;
+                              extStores[store].total += sh;
+
+                              if (!extStores[store].emps[r.name]) extStores[store].emps[r.name] = { total: 0, details: [] };
+                              extStores[store].emps[r.name].total += sh;
+                              extStores[store].emps[r.name].details.push(`🗓️ ${monthStr}/${dayStr} (${sup.startEnd}) 共 ${sh}H`);
+                          }
+                      });
+                  }
+              });
+
+              for (const [storeName, storeData] of Object.entries(extStores)) {
+                  let empsHtml = '';
+                  for (const [empName, empData] of Object.entries(storeData.emps)) {
+                      empsHtml += `
+                      <div class="mb-2 pb-2" style="border-bottom: 1px dashed #dee2e6;">
+                          <div class="fw-bold text-dark" style="font-size: 0.95rem;">
+                              ${empName} <span class="float-end text-primary fw-bolder">${empData.total.toFixed(1)}H</span>
+                          </div>
+                          <div class="text-muted small mt-1 ps-2" style="line-height:1.5;">
+                              ${empData.details.join('<br>')}
+                          </div>
+                      </div>
+                      `;
+                  }
+
+                  htmlExternal += `
+                  <div class="card mb-3 shadow-sm border-0 rounded-4" style="border-left: 5px solid #6f42c1 !important;">
+                      <div class="card-header bg-white pt-3 pb-2">
+                          <h5 class="fw-bolder mb-0" style="color:#592c9b;">
+                              🤝 ${storeName} <span class="badge bg-purple rounded-pill float-end" style="background-color:#6f42c1;">共 ${storeData.total.toFixed(1)}H</span>
+                          </h5>
+                      </div>
+                      <div class="card-body p-3">
+                          ${empsHtml}
+                      </div>
+                  </div>
+                  `;
+              }
+
+              // ==========================================
+              // ★ 組裝最終畫面
+              // ==========================================
+              let finalHtml = '';
+              
+              if (htmlMonthly) {
+                  finalHtml += `<h6 class="fw-bold text-secondary mb-2 mt-2 px-1">👑 正職月薪</h6>${htmlMonthly}`;
+              }
+              if (htmlHourly) {
+                  finalHtml += `<h6 class="fw-bold text-secondary mb-2 mt-4 px-1">🌟 兼職時薪</h6>${htmlHourly}`;
+              }
+              if (htmlExternal) {
+                  finalHtml += `<h6 class="fw-bold text-secondary mb-2 mt-4 px-1">🤝 友店來支援</h6>${htmlExternal}`;
+              }
+
+              if (finalHtml === '') {
+                  finalHtml = `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">本月目前沒有任何排班與支援資料</div>`;
+              }
+
+              modalBody.innerHTML = finalHtml;
+
+          }, 100); // 微小延遲讓 Modal 彈出動畫順暢
+      }
 
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
       function updateRowState(tr) {
@@ -3095,5 +3319,17 @@
         bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
       }
     </script>
+      <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content" style="background-color: #f4f6f9;">
+          <div class="modal-header bg-dark text-white shadow-sm" style="border-bottom: 4px solid #0d6efd;">
+            <h5 class="modal-title fw-bold" id="monthlyReportModalLabel">📊 門市月結算戰情室</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-2 p-md-4" id="monthlyReportBody">
+            </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
