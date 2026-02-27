@@ -327,7 +327,7 @@
             </div>
 
             <div class="action-btn-group w-100">
-                <<button type="button" class="btn btn-warning fw-bold shadow-sm" onclick="openMonthlyReport()">📊 月結算</button>
+                <button type="button" class="btn btn-warning fw-bold shadow-sm" onclick="openMonthlyReport()">📊 月結算</button>
                 <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
                 <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
                 <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
@@ -2398,14 +2398,6 @@
       function validateAll() {
         const errors = document.querySelectorAll('.row-error'); const btn = document.getElementById('btnSave');
         btn.disabled = (errors.length > 0); btn.classList.toggle('btn-success', errors.length === 0); btn.classList.toggle('btn-secondary', errors.length > 0);
-      }
-      function showMonthlyStats() {
-         if (!currentData.length) return;
-         document.getElementById('statsTarget').innerText = `本月目標：應有 ${monthlyTargets.hrs} 小時 | 休 ${monthlyTargets.rest} | 例 ${monthlyTargets.reg} | 國 ${monthlyTargets.nat}`;
-         let stats = {}; currentData.forEach(r => { if (!stats[r.name]) stats[r.name] = { type: r.salaryType, hrs:0, rest:0, reg:0, nat:0, empty:0 }; let s = r.input_status; if (s === '休') stats[r.name].rest++; else if (s === '例') stats[r.name].reg++; else if (s === '國') stats[r.name].nat++; else if (s === '空班') stats[r.name].empty++; let h = parseFloat(r.calc_hours); if(!isNaN(h)) stats[r.name].hrs += h; });
-         const tm = document.getElementById('statsTableMonthly'); tm.innerHTML = ''; const th = document.getElementById('statsTableHourly'); th.innerHTML = '';
-         for (let n in stats) { let d = stats[n]; if (d.type.includes("月薪")) tm.innerHTML += `<tr><td class="fw-bold">${n}</td><td>${d.hrs.toFixed(1)} (${formatDiff(d.hrs - monthlyTargets.hrs)})</td><td>${d.rest} (${formatDiff(d.rest - monthlyTargets.rest)})</td><td>${d.reg} (${formatDiff(d.reg - monthlyTargets.reg)})</td><td>${d.nat} (${formatDiff(d.nat - monthlyTargets.nat)})</td><td>${d.empty}</td></tr>`; else th.innerHTML += `<tr><td class="fw-bold">${n}</td><td>${d.hrs.toFixed(1)}</td></tr>`; }
-         new bootstrap.Modal(document.getElementById('statsModal')).show();
       }
       function showIndividualStatus() {
          const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
