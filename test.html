@@ -3528,15 +3528,15 @@
                           if (hasLeave) {
                               // 【情境 B & C：有請假】
                               mainLabel += `<br><span style="color:#fd7e14; font-size:0.75rem;">(請假)</span>`;
-                              detailHtml = `打卡：${punchStr}<br>請假：${r.sys_leaveType || "請假"} (${r.sys_leave})`;
+                              detailHtml = `${punchStr}<br>${r.sys_leaveType || "請假"} (${r.sys_leave})`;
                           } else if (!hasIn && !hasOut && rDateObj < todayObj) {
                               // 【情境 D：缺勤】
                               mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(缺勤)</span>`;
-                              detailHtml = `打卡：無打卡<br>請假：無請假`;
+                              detailHtml = `無打卡<br>無請假`;
                           } else {
                               // 【情境 A：正常】
                               if (hasIn || hasOut) {
-                                  detailHtml = `打卡：${punchStr}`;
+                                  detailHtml = `${punchStr}`;
                               } else {
                                   detailHtml = `排班：${dStart}~${dEnd}`; 
                               }
@@ -3551,7 +3551,7 @@
                               bg = '#f8d7da'; color = '#842029'; border = '#f5c2c7'; 
                           }
                           // 點開一樣顯示打卡明細 (有打卡就秀時間，沒打卡就秀無打卡)
-                          detailHtml = `打卡：${punchStr}`; 
+                          detailHtml = `${punchStr}`; 
                       }
 
                       dayIn[d].push({
