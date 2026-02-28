@@ -2529,7 +2529,7 @@
          new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
       // ==========================================
-      // ★ 終極個人班表渲染函式 (完美解析 + 智慧反推引擎)
+      // ★ 終極個人班表渲染函式 (100% 原汁原味復刻店長介面)
       // ==========================================
       function renderPersonalPage(data) {
           try {
@@ -2549,7 +2549,7 @@
               let hrs=0, rest=0, reg=0, nat=0, empty=0;
               let totalZ_norm=0, totalZ_nat=0, totalO=0, totalAA=0, totalSupOut=0;
 
-              // ★ 智慧雙引擎：優先採用後端給的 stats，確保數字不為 0
+              // 讀取後端基本統計
               if (data.stats) {
                   hrs = parseFloat(data.stats.hrs) || 0;
                   rest = parseInt(data.stats.rest) || 0;
@@ -2557,24 +2557,15 @@
                   nat = parseInt(data.stats.nat) || 0;
               }
 
-              // 1. 數據統計引擎 (強效解析防呆版)
+              // 1. 數據統計引擎 (結合最新後端資料)
               if (data.data) {
                   data.data.forEach(r => { 
                       let s = String(r.input_status || "").trim();
-                      let h = parseFloat(r.calc_hours) || 0;
-                      
-                      // 防禦後端欄位名稱變更或格式錯誤
-                      let z = parseFloat(r.input_est_overtime) || parseFloat(r.est_overtime) || 0;
-                      let o = parseFloat(r.sys_overtimeHrs) || parseFloat(r.overtime) || 0; 
-                      let aa = parseFloat(r.calc_excess) || parseFloat(r.excess) || 0;
+                      let z = parseFloat(r.input_est_overtime) || 0;
+                      let o = parseFloat(r.sys_overtimeHrs) || 0; 
+                      let aa = parseFloat(r.calc_excess) || 0;
 
-                      // 若 stats 沒給，自己算
-                      if (!data.stats) {
-                          hrs += h;
-                          if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; 
-                      }
                       if (s === '空班') empty++;
-
                       totalO += o; totalAA += aa;
                       
                       if (s === '國' && z > 0) {
@@ -2582,14 +2573,23 @@
                           totalZ_nat += natZ; totalZ_norm += normZ;
                       } else { totalZ_norm += z; }
 
-                      // 強效解析 supports (對抗後端 JSON 字串)
-                      let supportsArr = [];
-                      if (r.supports) {
-                          if (typeof r.supports === 'string') {
-                              try { supportsArr = JSON.parse(r.supports); } catch(e){}
-                          } else if (Array.isArray(r.supports)) { supportsArr = r.supports; }
+                      // 解析 AE 欄跨店支援字串 (計算總時數)
+                      if (r.support_str) {
+                          let groups = String(r.support_str).split('|');
+                          groups.forEach(g => {
+                              let parts = g.trim().split(',');
+                              if (parts.length >= 3) {
+                                  let tParts = parts[1].trim().split('~');
+                                  let rVal = parseFloat(parts[2].replace('休','')) || 0;
+                                  if (tParts.length === 2) {
+                                      let st = parseFloat(tParts[0]); let en = parseFloat(tParts[1]);
+                                      if (en < st) en += 24;
+                                      let hr = en - st - rVal;
+                                      if (hr > 0) totalSupOut += hr;
+                                  }
+                              }
+                          });
                       }
-                      supportsArr.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
                   });
               }
 
@@ -2614,7 +2614,7 @@
               if(pTable) pTable.classList.remove('mobile-card-mode');
               
               // ==========================================
-              // ★ 3. 雙向凍結表頭 (移除註記欄位)
+              // ★ 3. 雙向凍結表頭 (移除最右側註記欄位)
               // ==========================================
               const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
               const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
@@ -2658,51 +2658,81 @@
               };
 
               // ==========================================
-              // ★ 4. 逐行繪製 (加入智慧反推引擎)
+              // ★ 4. 逐行繪製 (採用您指定的時段切割與翻譯邏輯)
               // ==========================================
               data.data.forEach(r => {
-                  let sVal = r.input_start; let eVal = r.input_end;     
+                  let sVal = r.input_start; 
+                  let eVal = r.input_end;     
+                  let restVal = parseFloat(r.input_rest) || 0; 
                   let hVal = parseFloat(r.calc_hours) || 0;
-                  let zVal = parseFloat(r.input_est_overtime) || parseFloat(r.est_overtime) || 0; 
-                  let aaVal = parseFloat(r.calc_excess) || parseFloat(r.excess) || 0;
+                  let zVal = parseFloat(r.input_est_overtime) || 0; 
+                  let aaVal = parseFloat(r.calc_excess) || 0;
                   let status = String(r.input_status || "").trim();
 
                   let strH = "-", strZ = "-", strAA = "-";
 
-                  let supportsArr = [];
-                  if (r.supports) {
-                      if (typeof r.supports === 'string') { try { supportsArr = JSON.parse(r.supports); } catch(e){} }
-                      else if (Array.isArray(r.supports)) { supportsArr = r.supports; }
-                  }
-
+                  // 執行您的分配邏輯
                   if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
                       let sF = String(sVal).includes(':') ? (parseInt(String(sVal).split(':')[0]) + parseInt(String(sVal).split(':')[1])/60) : parseFloat(sVal);
-                      let eF = String(eVal).includes(':') ? (parseInt(String(eVal).split(':')[0]) + parseInt(String(eVal).split(':')[1])/60) : parseFloat(eVal);
-                      if(isNaN(sF)) sF = 0; if(isNaN(eF)) eF = 0;
-                      if (eF < sF) eF += 24;
-
-                      // ★ 智慧推算休息時間魔法 (若員工 API 遺失 input_rest，自動反推)
-                      let restVal = parseFloat(r.input_rest);
-                      if (isNaN(restVal)) {
-                          let workSpan = hVal + zVal + aaVal;
-                          let totalSpan = eF - sF;
-                          restVal = (totalSpan > workSpan && workSpan > 0) ? (totalSpan - workSpan) : 0;
-                      }
-
+                      if(isNaN(sF)) sF = 0; 
                       let currTime = sF;
-                      if (hVal > 0) { let endT = currTime + hVal + restVal; strH = `${ft(currTime)}-${ft(endT)}${restVal > 0 ? `(休${restVal})` : ""}`; currTime = endT; }
-                      if (zVal > 0) { let zRest = (hVal === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
-                      if (aaVal > 0) { let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; let endT = currTime + aaVal + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
+                      
+                      // 1. 應有時段分配
+                      if (hVal > 0) { 
+                          let endT = currTime + hVal + restVal; 
+                          let restTag = restVal > 0 ? `(休${restVal})` : "";
+                          strH = `${ft(currTime)}-${ft(endT)}${restTag}`; 
+                          currTime = endT; 
+                      }
+                      // 2. 加班時段分配 (若非上班且有Z，休息加在這)
+                      if (zVal > 0) { 
+                          let zRest = (hVal === 0) ? restVal : 0; 
+                          let endT = currTime + zVal + zRest; 
+                          let restTag = zRest > 0 ? `(休${zRest})` : "";
+                          strZ = `${ft(currTime)}-${ft(endT)}${restTag}`; 
+                          currTime = endT; 
+                      }
+                      // 3. 超時時段分配 (若非上班沒Z但有AA，休息加在這)
+                      if (aaVal > 0) { 
+                          let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; 
+                          let endT = currTime + aaVal + aaRest; 
+                          let restTag = aaRest > 0 ? `(休${aaRest})` : "";
+                          strAA = `${ft(currTime)}-${ft(endT)}${restTag}`; 
+                      }
                   }
 
+                  // 解析 AE 欄並轉成店長格式 (確保不同店會換行，同店不換行)
                   let supStrs = [];
-                  supportsArr.forEach(s => { supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)</span>`); });
+                  if (r.support_str) {
+                      let groups = String(r.support_str).split('|');
+                      groups.forEach(g => {
+                          let parts = g.trim().split(',');
+                          if (parts.length >= 3) {
+                              let store = parts[0].trim();
+                              let timeRange = parts[1].trim();
+                              let restTime = parseFloat(parts[2].replace('休','')) || 0;
+                              let tParts = timeRange.split('~');
+                              let hrsVal = "";
+                              
+                              if (tParts.length === 2) {
+                                  let st = parseFloat(tParts[0]); let en = parseFloat(tParts[1]);
+                                  if (en < st) en += 24;
+                                  let hr = en - st - restTime;
+                                  if (hr > 0) hrsVal = hr.toFixed(1) + "H";
+                              }
+                              // 組裝成「忠孝旗艦店 8-22(13.0H)」格式，並包裝防止截斷
+                              supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${store} ${timeRange.replace('~','-')}(${hrsVal})</span>`);
+                          }
+                      });
+                  }
+                  // 有兩間店以上時，中間會插入 <br> 換行
                   let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
 
                   let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
                   let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
                   let sysOtRange = r.sys_overtime ? (typeof formatTime === 'function' ? formatTime(r.sys_overtime) : r.sys_overtime) : ""; 
                   let sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
+                  
                   let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
                   let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
 
@@ -2710,6 +2740,7 @@
                   const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
                   const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
 
+                  // 右側的「異常」已移除右邊線，代表它是最後一個欄位
                   tbody.innerHTML += `
                       <tr>
                           <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
