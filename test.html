@@ -3377,8 +3377,8 @@
               `;
           }
       }
-    // ==========================================
-      // ★★★ 跨店支援視窗專用邏輯 ★★★
+      // ==========================================
+      // ★★★ 跨店支援視窗專用邏輯 (終極防呆防重疊版) ★★★
       // ==========================================
       let currentSupportRowIndex = -1; // 記錄現在正在編輯哪一列
 
@@ -3393,12 +3393,12 @@
         // 如果狀態沒選，或者起迄時間有任何一個沒填，就擋下來！
         if (statusVal === "" || startVal === "" || endVal === "") {
             Swal.fire('⚠️ 無法設定支援', '請先完整填寫「狀態」以及「上班/下班時間」後，才能開啟跨店支援！', 'warning');
-            return; // 終止執行，不打開視窗
+            return; 
         }
 
         currentSupportRowIndex = idx;
         const rowData = currentData[idx];
-        document.getElementById('supportModalTitle').innerText = `設定支援：${rowData.name} (${rowData.date})`;
+        document.getElementById('supportModalTitle').innerText = `正在設定：${rowData.name} (${rowData.date})`;
         
         let dl = document.getElementById('storeDataList');
         if (dl && currentParams['support_stores']) {
@@ -3421,7 +3421,7 @@
         new bootstrap.Modal(document.getElementById('supportModal')).show();
       }
 
-      // 2. 產生一筆支援輸入框 (改用自訂搜尋選單，不用 datalist)
+      // 2. 產生一筆支援輸入框 (自訂搜尋選單)
       function addSupportEntry(store = "", timeRange = "", rest = "") {
         const area = document.getElementById('supportEntriesArea');
         let sStart = ""; let sEnd = "";
@@ -3463,8 +3463,8 @@
       // ★ 自訂門市搜尋引擎
       function filterStores(inputEl) {
           const val = inputEl.value.trim().toLowerCase();
-          const listEl = inputEl.nextElementSibling; // 找到旁邊的 <ul>
-          listEl.innerHTML = ''; // 清空舊名單
+          const listEl = inputEl.nextElementSibling; 
+          listEl.innerHTML = ''; 
           
           if (val === '') {
               listEl.style.display = 'none';
@@ -3489,10 +3489,10 @@
 
       // ★ 點擊選項帶入輸入框
       function selectStore(e, aEl, storeName) {
-          e.preventDefault(); // 防止畫面亂跳
+          e.preventDefault(); 
           const inputEl = aEl.closest('.position-relative').querySelector('.sup-store');
           inputEl.value = storeName;
-          aEl.closest('.dropdown-menu').style.display = 'none'; // 隱藏選單
+          aEl.closest('.dropdown-menu').style.display = 'none'; 
       }
 
       // ★ 點擊旁邊空白處自動收起選單
@@ -3502,12 +3502,11 @@
           }
       });
 
-      // 3. 勾選「同步上下班時間」(防呆：勾選後隱藏新增按鈕並清除多餘店鋪)
+      // 3. 勾選「同步上下班時間」
       function toggleSupportTimeSync() {
         const isChecked = document.getElementById('syncTimeCheckbox').checked;
         const addBtn = document.getElementById('addSupportBtn');
         
-        // 勾選就隱藏新增按鈕，不勾就顯示
         addBtn.style.display = isChecked ? 'none' : 'block';
 
         if (!isChecked || currentSupportRowIndex === -1) return;
@@ -3517,14 +3516,10 @@
         const mainEnd = tr.querySelector('.end-select').value;
         const mainRest = parseFloat(tr.querySelector('.rest-select').value) || 0;
 
-        // ★★★ 核心防呆修改在這裡：
-        // 因為新版時間變成 9.5 這種小數點，如果直接丟給舊版 timeToFloat 會變成 NaN
-        // 所以判斷：如果裡面有冒號 (:) 才用 timeToFloat，沒有就直接 parseFloat 取數字
         const fStart = mainStart ? (String(mainStart).includes(':') ? timeToFloat(mainStart) : parseFloat(mainStart)) : "";
         const fEnd = mainEnd ? (String(mainEnd).includes(':') ? timeToFloat(mainEnd) : parseFloat(mainEnd)) : "";
 
         const entries = document.querySelectorAll('.support-entry');
-        // 如果勾選同步，強迫只能留一筆支援紀錄 (把其他的刪掉)
         if (entries.length > 1) {
             for (let i = 1; i < entries.length; i++) entries[i].remove();
         }
@@ -3537,17 +3532,32 @@
         }
       }
 
-      // 4. 點擊「儲存」：驗證 O 欄名單與時間邏輯
+      // ==========================================
+      // ★ 4. 點擊「儲存」：驗證 O 欄名單與時間重疊邏輯 (最強防禦版)
+      // ==========================================
       function saveSupportData() {
         if (currentSupportRowIndex === -1) return;
         
         let tempSupports = [];
         const entries = document.querySelectorAll('.support-entry');
         const validStores = currentParams['support_stores'] || [];
-        let hasError = false; // 阻擋開關
+        let hasError = false; 
         
-        entries.forEach(entry => {
-            if (hasError) return; // 若有錯就跳過後續檢查
+        // ★ 取得「畫面上」最真實的主班表上下班時間
+        const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
+        const mainStartRaw = tr.querySelector('.start-select').value;
+        const mainEndRaw = tr.querySelector('.end-select').value;
+
+        // 轉換為小數點 (處理跨夜：如 9~02 變成 9~26)
+        let mS = String(mainStartRaw).includes(':') ? timeToFloat(mainStartRaw) : parseFloat(mainStartRaw);
+        let mE = String(mainEndRaw).includes(':') ? timeToFloat(mainEndRaw) : parseFloat(mainEndRaw);
+        if (mE < mS) mE += 24;
+
+        // 用來檢查「重疊」的暫存陣列
+        let validatedIntervals = [];
+
+        entries.forEach((entry, index) => {
+            if (hasError) return; 
             
             const store = entry.querySelector('.sup-store').value.trim();
             const startVal = entry.querySelector('.sup-start').value;
@@ -3558,47 +3568,60 @@
                 // 防呆 1：檢查是否為清單內門市
                 if (!validStores.includes(store)) {
                     Swal.fire('錯誤', `門市 [${store}] 不在允許清單內，請重新輸入關鍵字並從選單點選！`, 'error');
-                    hasError = true;
-                    return;
+                    hasError = true; return;
                 }
                 
                 // 防呆 2：檢查是否漏填起迄時間
                 if (startVal === "" || endVal === "") {
                     Swal.fire('錯誤', `已填寫支援門市 [${store}]，請務必填寫完整的支援上/下班時間！`, 'error');
-                    hasError = true;
-                    return;
+                    hasError = true; return;
                 }
 
-                let s = parseFloat(startVal); let e = parseFloat(endVal);
-                let startEnd = `${s}~${e}`;
+                let s = parseFloat(startVal); 
+                let e = parseFloat(endVal);
+                if (e < s) e += 24; // 處理支援時段跨夜
+
+                // ★★★ 防呆 3：邊界鎖定 (支援時間必須包覆在主班表內) ★★★
+                if (s < mS || e > mE) {
+                    // 如果原班表是 9~18，防呆會把所有的支援時間抓出來比對，如果支援起點小於9，或終點大於18，就報錯。
+                    Swal.fire('時段錯誤', `[${store}] 支援時段 (${startVal}~${endVal}) 超出了今日排班範圍 (${mainStartRaw}~${mainEndRaw})！`, 'error');
+                    hasError = true; return;
+                }
+
+                // ★★★ 防呆 4：時間重疊檢核 (Overlap Check) ★★★
+                for (let i = 0; i < validatedIntervals.length; i++) {
+                    let v = validatedIntervals[i];
+                    // 重疊條件：新時段的起點 < 舊時段的終點 且 新時段的終點 > 舊時段的起點
+                    if (s < v.end && e > v.start) {
+                        Swal.fire('時段重疊', `[${store}] 的支援時段 (${startVal}~${endVal}) 與您填寫的另一筆 [${v.store}] 重疊了！同一時間只能在一家店。`, 'error');
+                        hasError = true; return;
+                    }
+                }
                 
-                let hrs = 0;
-                if (e < s) e += 24;
-                hrs = e - s - restVal;
-                
+                // 通過重疊測試，加入已驗證陣列
+                validatedIntervals.push({ start: s, end: e, store: store });
+
+                let hrs = e - s - restVal;
                 if (hrs < 0) {
                      Swal.fire('錯誤', `[${store}] 支援休息時間大於工作時間，請重新確認！`, 'error');
-                     hasError = true;
-                     return;
+                     hasError = true; return;
                 }
 
                 tempSupports.push({
                     supportStore: store,
-                    startEnd: startEnd,
+                    startEnd: `${startVal}~${endVal}`,
                     rest: restVal > 0 ? restVal.toString() : "",
                     hrs: hrs > 0 ? hrs.toFixed(1) : ""
                 });
             }
         });
 
-        // 如果有發生任何錯誤，直接中斷，不存檔也不關視窗
         if (hasError) return;
 
-        // 若無錯誤，存入全域變數
         currentData[currentSupportRowIndex].supports = tempSupports;
         currentData[currentSupportRowIndex].isModified = true; 
-        pendingUnsaved = true; // ★★★ 開啟全域防呆：跨店支援修改也視為未存檔 (共識5) ★★★
-        const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
+        pendingUnsaved = true; 
+        
         if (tr) {
             const btn = tr.querySelector('.support-btn');
             if (tempSupports.length > 0) {
@@ -3608,7 +3631,7 @@
                 btn.className = "btn btn-outline-primary support-btn shadow-sm";
                 btn.innerHTML = `➕ 跨店支援`;
             }
-            validateRow(tr); // 觸發主表檢核更新
+            validateRow(tr); 
         }
 
         bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
