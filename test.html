@@ -2055,8 +2055,11 @@
 
           // 準備所有的統計變數
           let sumH = 0, sumAA = 0, sumZ_normal = 0, sumZ_national = 0;
-          let sumAppliedO = 0, sumSupport = 0;
+          let sumO_normal = 0, sumO_national = 0, sumSupport = 0; // ★ 修改為 O_normal 與 O_national
           let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
+
+          // ★ 新增時薪判斷
+          let isHourly = targetData.length > 0 && targetData[0].salaryType && String(targetData[0].salaryType).includes("時薪");
 
           targetData.forEach(r => {
               let s = r.input_status || "";
@@ -2066,10 +2069,10 @@
               
               // ★ 完美對接：使用您剛剛找到的 sys_overtimeHrs！
               let appliedO = parseFloat(r.sys_overtimeHrs) || 0;
+              let sysStatus = r.sys_status || ""; // ★ 抓取系統狀態
 
               sumH += h;
               sumAA += aa;
-              sumAppliedO += appliedO;
 
               // 1. 計算支援總時數
               if (r.supports && r.supports.length > 0) {
@@ -2084,17 +2087,26 @@
               else if (s === '國') countNat++;
               else if (s === '空班') countEmpty++;
 
-              // 3. ★ 智慧切割 Z (預計加班)：分離「國定前8」與「常態Z」
-              if (s === '國' && z > 0) {
-                  let natZ = Math.min(z, 8); // 國定前 8 小時 (免計入 46)
-                  let normZ = Math.max(0, z - 8); // 超過 8 小時的部分，算回常態 Z
-                  sumZ_national += natZ;
-                  sumZ_normal += normZ;
+              // 3. ★ 智慧切割 Z (預計加班)
+              if (!isHourly && s === '國' && z > 0) {
+                  sumZ_national += Math.min(z, 8); 
+                  sumZ_normal += Math.max(0, z - 8); 
               } else {
-                  sumZ_normal += z; // 非國定假日，全部算常態 Z
+                  sumZ_normal += z; 
+              }
+
+              // 4. ★ 智慧切割 已申請加班 (O)
+              if (!isHourly && sysStatus.includes('國定假日') && appliedO > 0) {
+                  sumO_national += Math.min(appliedO, 8);
+                  sumO_normal += Math.max(0, appliedO - 8);
+              } else {
+                  sumO_normal += appliedO;
               }
           });
 
+          // ★ 決定顯示字串，放在迴圈外、HTML組合前
+          let zDisplay = isHourly ? `${sumZ_normal.toFixed(1)}` : `${sumZ_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumZ_national.toFixed(1)}</span>`;
+          let oDisplay = isHourly ? `${sumO_normal.toFixed(1)}` : `${sumO_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumO_national.toFixed(1)}</span>`;
           // ==========================================
           // ★ 產生 3x2 (或自動換行) 的現代化網格 UI
           // 完全使用內建樣式，零流量、不卡頓！
@@ -2120,7 +2132,7 @@
               <div class="px-3 py-2 rounded shadow-sm text-center flex-fill position-relative" style="background: #fff3cd; border-bottom: 4px solid #ffc107; min-width: 110px;">
                   <div style="font-size: 0.75rem; color: #997404; font-weight: 800; letter-spacing: 1px;">預計加班 (Z)</div>
                   <div class="fs-4 fw-bolder text-dark lh-1 mt-1">
-                      ${sumZ_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumZ_national.toFixed(1)}</span>
+                      ${zDisplay}
                   </div>
               </div>
 
@@ -2131,7 +2143,7 @@
 
               <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #d1e7dd; border-bottom: 4px solid #198754; min-width: 100px;">
                   <div style="font-size: 0.75rem; color: #0f5132; font-weight: 800; letter-spacing: 1px;">已申請加班</div>
-                  <div class="fs-4 fw-bolder text-success lh-1 mt-1">${sumAppliedO.toFixed(1)}</div>
+                  <div class="fs-4 fw-bolder text-success lh-1 mt-1">${oDisplay}</div>
               </div>
 
               <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #e0cffc; border-bottom: 4px solid #6f42c1; min-width: 100px;">
