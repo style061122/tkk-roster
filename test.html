@@ -2676,7 +2676,7 @@
           }
       }
       // ==========================================
-      // ★ 終極系統狀態表 (5區微型網格 + 時段魔法切割 + 左右對照)
+      // ★ 終極系統狀態表 (修復按鈕消失、優化框線與排版)
       // ==========================================
       function renderIndividualTable() {
           const name = document.getElementById('indivSelect').value;
@@ -2732,13 +2732,17 @@
           let btnHtml = "";
           let personalLink = "";
 
-          // 2. 按鈕區維持原樣
+          // ==========================================
+          // ★ 2. 修復消失的按鈕：將連結按鈕獨立，不受手機版隱藏限制
+          // ==========================================
           if (userKey && userKey.length > 3) {
               personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
               btnHtml = `
-                <div class="mobile-btn-container d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                    <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
-                    <div class="d-flex gap-2">
+                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                    <div class="mobile-btn-container m-0 p-0 border-0">
+                        <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+                    </div>
+                    <div class="d-flex gap-2 ms-auto">
                         <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
                         <button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
                     </div>
@@ -2746,14 +2750,16 @@
               `;
           } else {
               btnHtml = `
-                <div class="mobile-btn-container d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                    <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
-                    <span class="badge bg-danger">❌ 無金鑰</span>
+                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                    <div class="mobile-btn-container m-0 p-0 border-0">
+                        <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
+                    </div>
+                    <span class="badge bg-danger ms-auto">❌ 無金鑰</span>
                 </div>`;
           }
           
           // ==========================================
-          // ★ 3. 上方 5 區微型網格 (純展示，無下拉)
+          // ★ 3. 上方 5 區微型網格 (優化排休排版)
           // ==========================================
           statsDiv.innerHTML = `
               <div class="w-100">
@@ -2764,12 +2770,19 @@
                               <div class="fw-bold text-dark" style="font-size: 1.2rem;">${hrs.toFixed(1)}</div>
                           </div>
                       </div>
+                      
                       <div class="col">
                           <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
                               <div class="small text-muted fw-bold mb-1">排休狀態</div>
-                              <div class="fw-bold" style="font-size: 0.95rem; color:#495057;">休${rest} 例${reg} 國${nat}</div>
+                              <div class="fw-bold d-flex flex-wrap justify-content-center gap-1" style="font-size: 0.95rem; color:#495057;">
+                                  <span>休 <span class="text-primary">${rest}</span></span><span class="text-muted opacity-50">|</span>
+                                  <span>例 <span class="text-success">${reg}</span></span><span class="text-muted opacity-50">|</span>
+                                  <span>國 <span class="text-danger">${nat}</span></span><span class="text-muted opacity-50">|</span>
+                                  <span>空 <span class="text-secondary">${empty}</span></span>
+                              </div>
                           </div>
                       </div>
+                      
                       <div class="col">
                           <div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #fff3cd; border: 1px solid #ffecb5;">
                               <div class="d-flex flex-column align-items-center mt-1">
@@ -2784,12 +2797,14 @@
                               </div>
                           </div>
                       </div>
+                      
                       <div class="col">
                           <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;">
                               <div class="small fw-bold mb-1" style="color:#842029;">超時(AA)</div>
                               <div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div>
                           </div>
                       </div>
+                      
                       <div class="col">
                           <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e0cffc; border: 1px solid #d3bbfb;">
                               <div class="small fw-bold mb-1" style="color: #3d1a87;">跨店支援</div>
@@ -2805,30 +2820,29 @@
           if(tableEl) tableEl.classList.add('mobile-card-mode');
           
           // ==========================================
-          // ★ 4. 左右對照表頭 (深藍 vs 深灰)
+          // ★ 4. 表頭框線優化 (拔除突兀黑線，改用柔和色)
           // ==========================================
           thead.innerHTML = `
-              <tr class="border-bottom border-dark border-3">
-                  <th class="bg-primary text-white" style="border-right: 1px solid #4a90e2;">日期</th>
-                  <th class="bg-primary text-white" style="border-right: 1px solid #4a90e2;">狀態</th>
-                  <th class="bg-primary text-white" style="border-right: 1px solid #4a90e2;">應有時段</th>
-                  <th class="bg-primary text-white" style="border-right: 1px solid #4a90e2;">應有(H)</th>
-                  <th class="bg-primary text-white" style="border-right: 1px solid #4a90e2;">加班時段</th>
-                  <th class="bg-primary text-white" style="border-right: 1px solid #4a90e2;">超時時段(勿打卡)</th>
-                  <th class="bg-primary text-white border-end border-3 border-dark">跨店支援</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">系統狀態</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">上班卡</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">下班卡</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">請假</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">假別</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">加班</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">加班時數</th>
-                  <th class="bg-dark text-white" style="border-right: 1px solid #495057;">異常</th>
-                  <th class="bg-dark text-white">註記(Q)</th>
+              <tr style="border-bottom: 2px solid #dee2e6;">
+                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">日期</th>
+                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">狀態</th>
+                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">應有時段</th>
+                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">應有(H)</th>
+                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">加班時段</th>
+                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">超時時段<br><small class="text-white-50">(勿打卡)</small></th>
+                  <th class="bg-primary text-white border-0" style="border-right: 3px solid #dee2e6 !important;">跨店支援</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">系統狀態</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">上班卡</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">下班卡</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">請假</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">假別</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">加班</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">加班時數</th>
+                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">異常</th>
+                  <th class="bg-dark text-white border-0">註記(Q)</th>
               </tr>
           `;
 
-          // 時間轉換小工具 (轉成 9:30 格式，整點只顯示 9)
           const ft = (t) => {
               if (isNaN(t)) return "0";
               let h = Math.floor(t); 
@@ -2838,7 +2852,7 @@
           };
 
           // ==========================================
-          // ★ 5. 逐行繪製 (啟動時段魔法切割)
+          // ★ 5. 逐行繪製 (優化欄位外框與底色)
           // ==========================================
           pData.forEach(r => {
               let sVal = r.input_start; 
@@ -2849,10 +2863,8 @@
               let aaVal = parseFloat(r.calc_excess) || 0;
               let status = r.input_status;
 
-              // 準備空字串
               let strH = "-", strZ = "-", strAA = "-";
 
-              // 執行時段切割
               if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
                   let sF = String(sVal).includes(':') ? timeToFloat(sVal) : parseFloat(sVal);
                   if(isNaN(sF)) sF = 0;
@@ -2879,7 +2891,6 @@
                   }
               }
 
-              // 組裝支援明細
               let supStrs = [];
               if(r.supports && r.supports.length > 0) {
                   r.supports.forEach(s => {
@@ -2897,26 +2908,26 @@
               let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
               let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${weekDay})`;
 
-              // ★ 利用 inline style 做出左右底色差異 (左淡藍區 / 右純白區)
+              // ★ 優化 1+2：移除 border-dark，改用優雅淡線
               tbody.innerHTML += `
-                  <tr style="border-bottom: 1px solid #dee2e6;">
-                      <td data-label="日期" class="fw-bold" style="background-color: #f4f9ff;">${dateDisplay}</td>
-                      <td data-label="狀態" class="fw-bold" style="background-color: #f4f9ff; color:#084298;">${status}</td>
-                      <td data-label="應有時段" style="background-color: #f4f9ff;">${strH}</td>
-                      <td data-label="應有(H)" class="fw-bold" style="background-color: #f4f9ff; color:#0d6efd;">${r.calc_hours || "-"}</td>
-                      <td data-label="加班時段" style="background-color: #fcf8e3; color:#997404;">${strZ}</td>
-                      <td data-label="超時時段(勿打卡)" style="background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
-                      <td data-label="跨店支援" class="border-end border-2 border-dark" style="background-color: #f9f6ff; color:#6f42c1;">${supStr}</td>
+                  <tr style="border-bottom: 1px solid #e9ecef;">
+                      <td data-label="日期" class="fw-bold border-0" style="background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${dateDisplay}</td>
+                      <td data-label="狀態" class="fw-bold border-0" style="background-color: #f4f9ff; color:#084298; border-right: 1px solid #e2eaf5 !important;">${status}</td>
+                      <td data-label="應有時段" class="border-0" style="background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${strH}</td>
+                      <td data-label="應有(H)" class="fw-bold border-0" style="background-color: #f4f9ff; color:#0d6efd; border-right: 1px solid #e2eaf5 !important;">${r.calc_hours || "-"}</td>
+                      <td data-label="加班時段" class="border-0" style="background-color: #fcf8e3; color:#997404; border-right: 1px solid #e2eaf5 !important;">${strZ}</td>
+                      <td data-label="超時時段(勿打卡)" class="border-0" style="background-color: #fdf3f4; color:#dc3545; border-right: 1px solid #e2eaf5 !important;">${strAA}</td>
+                      <td data-label="跨店支援" class="border-0" style="background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
                       
-                      <td data-label="系統狀態">${r.sys_status}</td>
-                      <td data-label="上班卡">${sysIn}</td>
-                      <td data-label="下班卡">${sysOut}</td>
-                      <td data-label="請假">${sysLeaveRange}</td>
-                      <td data-label="假別">${r.sys_leaveType||""}</td>
-                      <td data-label="加班">${sysOtRange}</td>
-                      <td data-label="加班時數" class="fw-bold text-success">${r.sys_overtimeHrs || ""}</td>
-                      <td data-label="異常" class="text-danger fw-bold">${r.sys_abnormal || ""}</td>
-                      <td data-label="註記(Q)" class="text-muted small">${r.log}</td>
+                      <td data-label="系統狀態" class="border-0" style="border-right: 1px dashed #f1f3f5 !important;">${r.sys_status}</td>
+                      <td data-label="上班卡" class="border-0" style="border-right: 1px dashed #f1f3f5 !important;">${sysIn}</td>
+                      <td data-label="下班卡" class="border-0" style="border-right: 1px dashed #f1f3f5 !important;">${sysOut}</td>
+                      <td data-label="請假" class="border-0" style="border-right: 1px dashed #f1f3f5 !important;">${sysLeaveRange}</td>
+                      <td data-label="假別" class="border-0" style="border-right: 1px dashed #f1f3f5 !important;">${r.sys_leaveType||""}</td>
+                      <td data-label="加班" class="border-0" style="border-right: 1px dashed #f1f3f5 !important;">${sysOtRange}</td>
+                      <td data-label="加班時數" class="fw-bold text-success border-0" style="border-right: 1px dashed #f1f3f5 !important;">${r.sys_overtimeHrs || ""}</td>
+                      <td data-label="異常" class="text-danger fw-bold border-0" style="border-right: 1px dashed #f1f3f5 !important;">${r.sys_abnormal || ""}</td>
+                      <td data-label="註記(Q)" class="text-muted small border-0">${r.log}</td>
                   </tr>
               `;
           });
