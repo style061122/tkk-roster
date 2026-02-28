@@ -3733,40 +3733,55 @@
           const modalFooter = document.querySelector('#monthlyModal .modal-footer');
           if (modalFooter) {
               modalFooter.innerHTML = `
-                  <div class="d-flex flex-wrap gap-2 w-100 align-items-center" style="font-size: 0.85rem;">
-                      <div class="d-flex flex-wrap gap-1 flex-grow-1">
-                          <span class="badge" style="background:#e3f2fd; color:#084298; border:1px solid #90caf9;">🟦 正常上班</span>
-                          <span class="badge" style="background:#fff3cd; color:#997404; border:1px solid #ffe082;">🟨 加班(休/國)</span>
-                          <span class="badge" style="background:#f8d7da; color:#842029; border:1px solid #f5c2c7;">🟥 超時(例/空)</span>
-                          <span class="badge" style="background:#f4f0fd; color:#592c9b; border:1px solid #d3bbfb;">🤝 友店來援</span>
-                          <span class="badge" style="background:#f8f9fa; color:#495057; border:1px solid #dee2e6;">🚀 跨店支援</span>
+                  <div class="d-flex flex-column w-100 gap-2">
+                      <div class="d-flex flex-wrap justify-content-between align-items-center w-100 gap-2">
+                          <div>
+                              <button class="btn btn-sm btn-outline-secondary d-md-none fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#calendarLegend">
+                                  🎨 顯示圖例說明 ▾
+                              </button>
+                          </div>
+                          <div class="d-flex flex-wrap gap-2 ms-auto">
+                              <button type="button" class="btn btn-outline-primary btn-sm fw-bold bg-white" onclick="toggleAllDetails(this)">🔽 展開明細</button>
+                              <button type="button" class="btn btn-outline-success btn-sm fw-bold bg-white" onclick="downloadCalendarImage(this)">📸 下載排班圖</button>
+                              <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">關閉</button>
+                          </div>
                       </div>
-                      <div class="text-muted fw-bold small me-2 mt-1 mt-md-0">💡 點擊色塊看明細</div>
                       
-                      <button type="button" class="btn btn-outline-primary btn-sm mt-1 mt-md-0 fw-bold bg-white" onclick="
-                          let details = document.querySelectorAll('#monthlyCalendarArea .cal-detail');
-                          let isExpanded = this.getAttribute('data-expanded') === 'true';
-                          details.forEach(d => d.style.display = isExpanded ? 'none' : 'block');
-                          this.setAttribute('data-expanded', !isExpanded);
-                          this.innerHTML = isExpanded ? '🔽 展開所有明細' : '🔼 收合所有明細';
-                      ">🔽 展開所有明細</button>
-
-                      <button type="button" class="btn btn-outline-success btn-sm mt-1 mt-md-0 fw-bold bg-white" onclick="downloadCalendarImage(this)">📸 下載排班圖</button>
-
-                      <button type="button" class="btn btn-secondary btn-sm mt-1 mt-md-0" data-bs-dismiss="modal">關閉</button>
+                      <div class="collapse d-md-block" id="calendarLegend">
+                          <div class="d-flex flex-wrap gap-2 align-items-center p-2 bg-light rounded border border-light shadow-sm" style="font-size: 0.85rem;">
+                              <div class="d-flex flex-wrap gap-1 flex-grow-1">
+                                  <span class="badge" style="background:#e3f2fd; color:#084298; border:1px solid #90caf9;">🟦 正常上班</span>
+                                  <span class="badge" style="background:#fff3cd; color:#997404; border:1px solid #ffe082;">🟨 加班(休/國)</span>
+                                  <span class="badge" style="background:#f8d7da; color:#842029; border:1px solid #f5c2c7;">🟥 超時(例/空)</span>
+                                  <span class="badge" style="background:#f4f0fd; color:#592c9b; border:1px solid #d3bbfb;">🤝 友店來援</span>
+                                  <span class="badge" style="background:#f8f9fa; color:#495057; border:1px solid #dee2e6;">🚀 跨店支援</span>
+                              </div>
+                              <div class="text-muted fw-bold small ms-auto mt-1 mt-md-0">💡 點擊色塊看明細</div>
+                          </div>
+                      </div>
                   </div>
               `;
           }
       }
-        // ==========================================
-      // ★ 下載排班圖核心引擎 (動態載入 html2canvas 絕不卡頓)
+        /// ==========================================
+      // ★ 展開/收合所有明細引擎 (解決按鈕文字消失問題)
+      // ==========================================
+      window.toggleAllDetails = function(btn) {
+          let details = document.querySelectorAll('#monthlyCalendarArea .cal-detail');
+          let isExpanded = btn.getAttribute('data-expanded') === 'true';
+          details.forEach(d => d.style.display = isExpanded ? 'none' : 'block');
+          btn.setAttribute('data-expanded', !isExpanded);
+          btn.innerHTML = isExpanded ? '🔽 展開明細' : '🔼 收合明細';
+      };
+
+      // ==========================================
+      // ★ 下載排班圖核心引擎 (強制電腦版寬度，解決手機跑版)
       // ==========================================
       window.downloadCalendarImage = function(btnElement) {
           let originalText = btnElement.innerHTML;
           btnElement.innerHTML = '⏳ 處理中...';
           btnElement.disabled = true;
 
-          // 若尚未載入截圖套件，則動態從雲端抓取
           if (typeof html2canvas === 'undefined') {
               let script = document.createElement('script');
               script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -3779,10 +3794,25 @@
 
       function captureAndDownload(btn, originalText) {
           const targetArea = document.getElementById('monthlyCalendarArea');
+          
           html2canvas(targetArea, {
-              scale: 2, // 提高解析度至 2 倍，確保印出來字體清晰
+              scale: 2, // 提高解析度讓圖片清晰
               backgroundColor: '#ffffff',
-              useCORS: true // 允許跨域抓取字體等資源
+              useCORS: true,
+              windowWidth: 1200, // ★ 欺騙套件螢幕寬度是 1200px (強迫觸發電腦版樣式)
+              onclone: function(clonedDoc) {
+                  // ★ 虛擬分身魔法：只在截圖分身上強制撐開寬度，完全不影響您的手機實體畫面
+                  let clonedArea = clonedDoc.getElementById('monthlyCalendarArea');
+                  clonedArea.style.width = '1200px';
+                  clonedArea.style.minWidth = '1200px';
+                  clonedArea.style.padding = '10px';
+                  
+                  // 保護文字，強制不折行
+                  let tags = clonedArea.querySelectorAll('.cal-tag');
+                  tags.forEach(t => {
+                      t.style.whiteSpace = 'nowrap';
+                  });
+              }
           }).then(canvas => {
               let link = document.createElement('a');
               let year = monthlyTargets.year || new Date().getFullYear();
@@ -3791,7 +3821,7 @@
               link.href = canvas.toDataURL('image/png');
               link.click();
               
-              // 恢復按鈕狀態
+              // 恢復按鈕原本的文字與狀態
               btn.innerHTML = originalText;
               btn.disabled = false;
           }).catch(err => {
