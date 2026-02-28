@@ -2529,7 +2529,7 @@
          new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
       // ==========================================
-      // ★ 終極個人班表渲染函式 (100% 繼承店長戰情室終極版)
+      // ★ 終極個人班表渲染函式 (完美解析 + 智慧反推引擎)
       // ==========================================
       function renderPersonalPage(data) {
           try {
@@ -2538,7 +2538,7 @@
               document.getElementById('appSection').style.display = 'none';
               document.getElementById('personalSection').style.display = 'block';
               
-              const meta = data.meta;
+              const meta = data.meta || {};
               document.getElementById('personalNameDisplay').innerText = `${meta.year}年 ${meta.month}月 - ${data.name}`;
               
               let nextMonth = (parseInt(meta.month) % 12) + 1;
@@ -2549,27 +2549,47 @@
               let hrs=0, rest=0, reg=0, nat=0, empty=0;
               let totalZ_norm=0, totalZ_nat=0, totalO=0, totalAA=0, totalSupOut=0;
 
-              // 1. 數據統計引擎 (從 data.data 陣列中精算)
+              // ★ 智慧雙引擎：優先採用後端給的 stats，確保數字不為 0
+              if (data.stats) {
+                  hrs = parseFloat(data.stats.hrs) || 0;
+                  rest = parseInt(data.stats.rest) || 0;
+                  reg = parseInt(data.stats.reg) || 0;
+                  nat = parseInt(data.stats.nat) || 0;
+              }
+
+              // 1. 數據統計引擎 (強效解析防呆版)
               if (data.data) {
                   data.data.forEach(r => { 
-                      let s = r.input_status || "";
+                      let s = String(r.input_status || "").trim();
                       let h = parseFloat(r.calc_hours) || 0;
-                      let z = parseFloat(r.input_est_overtime) || 0;
-                      let o = parseFloat(r.sys_overtimeHrs) || 0; 
-                      let aa = parseFloat(r.calc_excess) || 0;
-
-                      hrs += h; totalO += o; totalAA += aa;
                       
-                      if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
+                      // 防禦後端欄位名稱變更或格式錯誤
+                      let z = parseFloat(r.input_est_overtime) || parseFloat(r.est_overtime) || 0;
+                      let o = parseFloat(r.sys_overtimeHrs) || parseFloat(r.overtime) || 0; 
+                      let aa = parseFloat(r.calc_excess) || parseFloat(r.excess) || 0;
+
+                      // 若 stats 沒給，自己算
+                      if (!data.stats) {
+                          hrs += h;
+                          if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; 
+                      }
+                      if (s === '空班') empty++;
+
+                      totalO += o; totalAA += aa;
                       
                       if (s === '國' && z > 0) {
                           let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                           totalZ_nat += natZ; totalZ_norm += normZ;
                       } else { totalZ_norm += z; }
 
-                      if (r.supports && r.supports.length > 0) {
-                          r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
+                      // 強效解析 supports (對抗後端 JSON 字串)
+                      let supportsArr = [];
+                      if (r.supports) {
+                          if (typeof r.supports === 'string') {
+                              try { supportsArr = JSON.parse(r.supports); } catch(e){}
+                          } else if (Array.isArray(r.supports)) { supportsArr = r.supports; }
                       }
+                      supportsArr.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
                   });
               }
 
@@ -2591,11 +2611,10 @@
               const thead = document.querySelector('#personalSection table thead');
               const pTable = document.querySelector('#personalSection table');
               
-              // 強制移除卡片模式，確保永遠保持橫向大表格
               if(pTable) pTable.classList.remove('mobile-card-mode');
               
               // ==========================================
-              // ★ 3. 雙向凍結表頭 (拔除最右側註記欄位)
+              // ★ 3. 雙向凍結表頭 (移除註記欄位)
               // ==========================================
               const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
               const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
@@ -2639,28 +2658,45 @@
               };
 
               // ==========================================
-              // ★ 4. 逐行繪製 (時段魔法切割 + 左側凍結)
+              // ★ 4. 逐行繪製 (加入智慧反推引擎)
               // ==========================================
               data.data.forEach(r => {
                   let sVal = r.input_start; let eVal = r.input_end;     
-                  let restVal = parseFloat(r.input_rest) || 0; let hVal = parseFloat(r.calc_hours) || 0;
-                  let zVal = parseFloat(r.input_est_overtime) || 0; let aaVal = parseFloat(r.calc_excess) || 0;
-                  let status = r.input_status;
+                  let hVal = parseFloat(r.calc_hours) || 0;
+                  let zVal = parseFloat(r.input_est_overtime) || parseFloat(r.est_overtime) || 0; 
+                  let aaVal = parseFloat(r.calc_excess) || parseFloat(r.excess) || 0;
+                  let status = String(r.input_status || "").trim();
 
                   let strH = "-", strZ = "-", strAA = "-";
 
+                  let supportsArr = [];
+                  if (r.supports) {
+                      if (typeof r.supports === 'string') { try { supportsArr = JSON.parse(r.supports); } catch(e){} }
+                      else if (Array.isArray(r.supports)) { supportsArr = r.supports; }
+                  }
+
                   if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
-                      let sF = String(sVal).includes(':') ? (typeof timeToFloat === 'function' ? timeToFloat(sVal) : (parseInt(String(sVal).split(':')[0]) + parseInt(String(sVal).split(':')[1])/60)) : parseFloat(sVal);
-                      if(isNaN(sF)) sF = 0; let currTime = sF;
+                      let sF = String(sVal).includes(':') ? (parseInt(String(sVal).split(':')[0]) + parseInt(String(sVal).split(':')[1])/60) : parseFloat(sVal);
+                      let eF = String(eVal).includes(':') ? (parseInt(String(eVal).split(':')[0]) + parseInt(String(eVal).split(':')[1])/60) : parseFloat(eVal);
+                      if(isNaN(sF)) sF = 0; if(isNaN(eF)) eF = 0;
+                      if (eF < sF) eF += 24;
+
+                      // ★ 智慧推算休息時間魔法 (若員工 API 遺失 input_rest，自動反推)
+                      let restVal = parseFloat(r.input_rest);
+                      if (isNaN(restVal)) {
+                          let workSpan = hVal + zVal + aaVal;
+                          let totalSpan = eF - sF;
+                          restVal = (totalSpan > workSpan && workSpan > 0) ? (totalSpan - workSpan) : 0;
+                      }
+
+                      let currTime = sF;
                       if (hVal > 0) { let endT = currTime + hVal + restVal; strH = `${ft(currTime)}-${ft(endT)}${restVal > 0 ? `(休${restVal})` : ""}`; currTime = endT; }
                       if (zVal > 0) { let zRest = (hVal === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
                       if (aaVal > 0) { let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; let endT = currTime + aaVal + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
                   }
 
                   let supStrs = [];
-                  if(r.supports && r.supports.length > 0) {
-                      r.supports.forEach(s => { supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)</span>`); });
-                  }
+                  supportsArr.forEach(s => { supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)</span>`); });
                   let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
 
                   let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
@@ -2674,7 +2710,6 @@
                   const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
                   const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
 
-                  // 注意：這裡已經把最後一個 td (註記) 移除了
                   tbody.innerHTML += `
                       <tr>
                           <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
@@ -2719,7 +2754,7 @@
                       topScroll.id = 'personal-top-scrollbar-container';
                       
                       topScroll.style.position = 'sticky';
-                      topScroll.style.top = '0'; // 員工版沒有 Modal 頭部干擾，直接釘在 0
+                      topScroll.style.top = '0'; 
                       topScroll.style.zIndex = '40';
                       topScroll.style.backgroundColor = '#fff';
                       topScroll.style.overflowX = 'auto';
