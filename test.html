@@ -2879,7 +2879,8 @@
 
           let hrs=0, rest=0, reg=0, nat=0, empty=0;
           let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0;
-          let userKey = pData[0].pKey || "";
+          let userKey = pData[0].pKey || ""; 
+          
           // ★ 判斷是否為時薪人員
           let isHourly = pData.length > 0 && pData[0].salaryType && String(pData[0].salaryType).includes("時薪");
 
@@ -2891,7 +2892,7 @@
               let aa = parseFloat(r.calc_excess) || 0;
               let sysStatus = r.sys_status || ""; // ★ 抓取系統狀態 (I欄)
 
-              hrs += h; totalO += o; totalAA += aa;
+              hrs += h; totalAA += aa;
               
               if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
               
