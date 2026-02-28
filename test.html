@@ -1274,7 +1274,8 @@
 
       function initNameSelect() {
         const select = document.getElementById('selectName'); select.innerHTML = '';
-        const names = [...new Set(currentData.map(r => r.name))];
+        // ★ 微創：只把「自家門市 (store === currentStore)」的人放進下拉選單
+        const names = [...new Set(currentData.filter(r => r.store === currentStore).map(r => r.name))];
         names.forEach(n => select.innerHTML += `<option value="${n}">${n}</option>`);
       }
       async function switchMode(mode) {
@@ -1423,6 +1424,7 @@
         if (currentMode === 'error') {
             // 如果開啟了過濾器，無視日期/人名模式，直接抓出全月有「失敗、退件」等字眼的資料
             targetData = currentData.filter(row => {
+                if (row.store !== currentStore) return false; // ★ 微創：阻擋外店員工出現在異常列表
                 let logStr = String(row.log || "");
                 return logStr.includes("失敗") || logStr.includes("退件") || logStr.includes("錯誤");
             });
@@ -1434,7 +1436,8 @@
             if (currentMode === 'date') {
                const d = document.getElementById('selectDay').value.padStart(2, '0'); 
                const targetDateStr = `${y}/${m}/${d}`;
-               targetData = currentData.filter(row => row.date === targetDateStr);
+                // ★ 微創：日期模式下，只顯示自家員工
+               targetData = currentData.filter(row => row.date === targetDateStr && row.store === currentStore);
             } else {
                 targetName = document.getElementById('selectName').value; 
                 // ★ 1. 確保重新抓取 DOM，避免變數抓到舊的或是 undefined
@@ -1447,6 +1450,7 @@
                 const subMode = subModeSelect.value;
                 
                 targetData = currentData.filter(row => {
+                    if (row.store !== currentStore) return false; // ★ 微創：雙重保險，人名模式也阻擋
                     if (row.name !== targetName) return false;
                     
                     if (subMode === 'week') {
@@ -2518,7 +2522,11 @@
         btn.disabled = (errors.length > 0); btn.classList.toggle('btn-success', errors.length === 0); btn.classList.toggle('btn-secondary', errors.length > 0);
       }
       function showIndividualStatus() {
-         const select = document.getElementById('indivSelect'); select.innerHTML = ''; [...new Set(currentData.map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); renderIndividualTable(); new bootstrap.Modal(document.getElementById('indivModal')).show();
+         const select = document.getElementById('indivSelect'); select.innerHTML = ''; 
+         // ★ 微創：系統狀態選單，也只抓自家門市員工
+         [...new Set(currentData.filter(r => r.store === currentStore).map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); 
+         renderIndividualTable(); 
+         new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
       // ==========================================
       // ★★★ 補回遺失的：個人班表渲染函式 ★★★
