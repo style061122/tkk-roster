@@ -3172,10 +3172,11 @@
               html += `<div class="calendar-date-num">${targetMonth}/${d}</div>`;
               html += `<div class="emp-tag-container">`;
 
-              // 篩選出這一天「有排上班」的員工
+              // 篩選出這一天「有排上班」的自家員工
               let workers = currentData.filter(r => {
                   let rDateObj = new Date(r.date);
-                  return rDateObj.getDate() === d && r.input_status === '上班';
+                  // ★ 微創：加上 r.store === currentStore，不讓友店員工出現在月曆上
+                  return rDateObj.getDate() === d && r.input_status === '上班' && r.store === currentStore;
               });
 
               // 產生員工標籤與時間
