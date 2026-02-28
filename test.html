@@ -2529,7 +2529,7 @@
          new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
       // ==========================================
-      // ★ 終極個人班表渲染函式 (完美繼承店長戰情室 UI)
+      // ★ 終極個人班表渲染函式 (100% 繼承店長戰情室終極版)
       // ==========================================
       function renderPersonalPage(data) {
           try {
@@ -2574,7 +2574,7 @@
               }
 
               // ==========================================
-              // ★ 2. 上方 5 區微型網格 (完美移植)
+              // ★ 2. 上方 5 區微型網格 (完美移植店長版)
               // ==========================================
               document.getElementById('personalStats').innerHTML = `
                   <div class="w-100 mt-2">
@@ -2595,7 +2595,7 @@
               if(pTable) pTable.classList.remove('mobile-card-mode');
               
               // ==========================================
-              // ★ 3. 雙向凍結表頭 (移除註記欄位)
+              // ★ 3. 雙向凍結表頭 (拔除最右側註記欄位)
               // ==========================================
               const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
               const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
@@ -2608,7 +2608,7 @@
                       <th style="${thStyleLeft}">應有時段</th>
                       <th style="${thStyleLeft}">應有(H)</th>
                       <th style="${thStyleLeft}">加班時段</th>
-                      <th style="${thStyleLeft}">獎金時段<br><small style="font-size:0.65rem; color:#d0e2ff;">(勿打卡)</small></th>
+                      <th style="${thStyleLeft}">超時時段<br><small style="font-size:0.65rem; color:#d0e2ff;">(勿打卡)</small></th>
                       <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
                       
                       <th style="${thStyleRight}">系統狀態</th>
@@ -2650,7 +2650,7 @@
                   let strH = "-", strZ = "-", strAA = "-";
 
                   if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
-                      let sF = String(sVal).includes(':') ? timeToFloat(sVal) : parseFloat(sVal);
+                      let sF = String(sVal).includes(':') ? (typeof timeToFloat === 'function' ? timeToFloat(sVal) : (parseInt(String(sVal).split(':')[0]) + parseInt(String(sVal).split(':')[1])/60)) : parseFloat(sVal);
                       if(isNaN(sF)) sF = 0; let currTime = sF;
                       if (hVal > 0) { let endT = currTime + hVal + restVal; strH = `${ft(currTime)}-${ft(endT)}${restVal > 0 ? `(休${restVal})` : ""}`; currTime = endT; }
                       if (zVal > 0) { let zRest = (hVal === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
@@ -2663,8 +2663,10 @@
                   }
                   let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
 
-                  let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : ""; let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
-                  let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : ""; let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+                  let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
+                  let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+                  let sysOtRange = r.sys_overtime ? (typeof formatTime === 'function' ? formatTime(r.sys_overtime) : r.sys_overtime) : ""; 
+                  let sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
                   let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
                   let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
 
@@ -2683,7 +2685,7 @@
                           <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
                           <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
                           
-                          <td style="${tdRight}">${r.sys_status}</td>
+                          <td style="${tdRight}">${r.sys_status || ""}</td>
                           <td style="${tdRight}">${sysIn}</td>
                           <td style="${tdRight}">${sysOut}</td>
                           <td style="${tdRight}">${sysLeaveRange}</td>
@@ -2711,13 +2713,13 @@
 
                   const table = tableContainer.querySelector('table');
 
-                  let topScroll = document.getElementById('personal-top-scrollbar');
+                  let topScroll = document.getElementById('personal-top-scrollbar-container');
                   if (!topScroll) {
                       topScroll = document.createElement('div');
-                      topScroll.id = 'personal-top-scrollbar';
+                      topScroll.id = 'personal-top-scrollbar-container';
                       
                       topScroll.style.position = 'sticky';
-                      topScroll.style.top = '-16px'; 
+                      topScroll.style.top = '0'; // 員工版沒有 Modal 頭部干擾，直接釘在 0
                       topScroll.style.zIndex = '40';
                       topScroll.style.backgroundColor = '#fff';
                       topScroll.style.overflowX = 'auto';
