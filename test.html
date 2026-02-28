@@ -327,7 +327,7 @@
             </div>
 
             <div class="action-btn-group w-100">
-                <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="openMonthlyReport()">📊 月結算</button>
+                <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="openMonthlyReport()">📊 月統計</button>
                 <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
                 <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
                 <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
@@ -2195,9 +2195,10 @@
                   let isMonthly = salaryType.includes("月薪");
 
                   let workDates = [], restDates = [], regDates = [], natDates = [], emptyDates = [];
-                  let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO = 0, sumAA = 0, sumSupOut = 0;
+                  // ★ 新增 sumO_norm 與 sumO_nat
+                  let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO_norm = 0, sumO_nat = 0, sumAA = 0, sumSupOut = 0;
                   let zDetails = [], oDetails = [], aaDetails = [];
-                  let supportOutGroups = {}; 
+                  let supportOutGroups = {};
 
                   pData.forEach(r => {
                       let dateParts = r.date.split('/');
@@ -2208,11 +2209,11 @@
                       let z = parseFloat(r.input_est_overtime) || 0;
                       let aa = parseFloat(r.calc_excess) || 0;
                       let o = parseFloat(r.sys_overtimeHrs) || 0;
+                      let sysStatus = r.sys_status || ""; // ★ 抓取系統狀態 (I欄)
 
                       sumH += h;
                       sumAA += aa; 
 
-                      if (o > 0) { sumO += o; oDetails.push(`${dStr}(${o}H)`); }
                       if (aa > 0) { aaDetails.push(`${dStr}(${aa}H)`); }
 
                       if (s === '上班') workDates.push(dStr);
@@ -2221,13 +2222,24 @@
                       else if (s === '國') natDates.push(dStr);
                       else if (s === '空班') emptyDates.push(dStr);
 
-                      if (s === '國' && z > 0) {
+                      // ★ 預計加班 (Z)：只有月薪且排班為國定假日才拆分
+                      if (isMonthly && s === '國' && z > 0) {
                           let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                           sumZ_nat += natZ; sumZ_norm += normZ;
                           zDetails.push(`${dStr}(${z}H)`);
                       } else if (z > 0) {
                           sumZ_norm += z;
                           zDetails.push(`${dStr}(${z}H)`);
+                      }
+
+                      // ★ 已申請加班 (O)：只有月薪且系統狀態包含國定假日才拆分
+                      if (isMonthly && sysStatus.includes('國定假日') && o > 0) {
+                          let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
+                          sumO_nat += natO; sumO_norm += normO;
+                          oDetails.push(`${dStr}(${o}H)`);
+                      } else if (o > 0) {
+                          sumO_norm += o;
+                          oDetails.push(`${dStr}(${o}H)`);
                       }
 
                       if (r.supports && r.supports.length > 0) {
@@ -2269,6 +2281,10 @@
                           supportOutHtml += `<div class="mb-2"><span class="fw-bold" style="color:#6f42c1;">📍 ${sName} 共 ${sData.total.toFixed(1)}H：</span><br><span class="text-secondary" style="font-size:0.9rem;">${sData.details.join('<br>')}</span></div>`;
                       }
                   }
+
+                  // ★ 決定顯示字串 (時薪不秀 +0)
+                  let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${sumZ_nat.toFixed(1)}</small>`;
+                  let oDisplay = !isMonthly ? `${sumO_norm.toFixed(1)}` : `${sumO_norm.toFixed(1)}<small class="text-muted fw-normal">+${sumO_nat.toFixed(1)}</small>`;
                   
                   let cardId = `acc-${idx}`;
                   let badgeType = isMonthly ? 'bg-dark' : 'bg-success';
@@ -2298,11 +2314,11 @@
                                       <div class="d-flex flex-column align-items-center mt-1">
                                           <div class="w-100 d-flex justify-content-center align-items-baseline gap-1">
                                               <span class="fw-bold" style="color:#997404; font-size: 0.85rem;">加班</span>
-                                              <span class="fw-bold text-dark" style="font-size: 1rem;">${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${sumZ_nat.toFixed(1)}</small></span>
+                                              <span class="fw-bold text-dark" style="font-size: 1rem;">${zDisplay}</span>
                                           </div>
                                           <div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1">
                                               <span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span>
-                                              <span class="fw-bold text-dark" style="font-size: 1rem;">${sumO.toFixed(1)}</span>
+                                              <span class="fw-bold text-dark" style="font-size: 1rem;">${oDisplay}</span>
                                           </div>
                                       </div>
                                   </div>
