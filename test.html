@@ -2676,7 +2676,7 @@
           }
       }
       // ==========================================
-      // ★ 終極系統狀態表 (修復按鈕消失、優化框線與排版)
+      // ★ 終極系統狀態表 (雙捲軸 + 按鈕修復 + 防斷行優化)
       // ==========================================
       function renderIndividualTable() {
           const name = document.getElementById('indivSelect').value;
@@ -2733,33 +2733,29 @@
           let personalLink = "";
 
           // ==========================================
-          // ★ 2. 修復消失的按鈕：將連結按鈕獨立，不受手機版隱藏限制
+          // ★ 2. 修復按鈕排版 (導入彈性換行與置中)
           // ==========================================
           if (userKey && userKey.length > 3) {
               personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
               btnHtml = `
-                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                    <div class="mobile-btn-container m-0 p-0 border-0">
-                        <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
-                    </div>
-                    <div class="d-flex gap-2 ms-auto">
-                        <button class="btn btn-sm btn-outline-primary fw-bold" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
+                <div class="d-flex flex-wrap justify-content-center justify-content-md-between align-items-center mt-3 pt-2 border-top gap-2 w-100">
+                    <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版/手機版 切換</button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary fw-bold bg-white" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
                         <button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
                     </div>
                 </div>
               `;
           } else {
               btnHtml = `
-                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                    <div class="mobile-btn-container m-0 p-0 border-0">
-                        <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版檢視</button>
-                    </div>
-                    <span class="badge bg-danger ms-auto">❌ 無金鑰</span>
+                <div class="d-flex flex-wrap justify-content-center justify-content-md-between align-items-center mt-3 pt-2 border-top gap-2 w-100">
+                    <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版/手機版 切換</button>
+                    <span class="badge bg-danger">❌ 無金鑰</span>
                 </div>`;
           }
           
           // ==========================================
-          // ★ 3. 上方 5 區微型網格 (優化排休排版)
+          // ★ 3. 上方 5 區微型網格
           // ==========================================
           statsDiv.innerHTML = `
               <div class="w-100">
@@ -2820,7 +2816,7 @@
           if(tableEl) tableEl.classList.add('mobile-card-mode');
           
           // ==========================================
-          // ★ 4. 表頭框線優化 (拔除突兀黑線，改用柔和色)
+          // ★ 4. 表頭框線優化
           // ==========================================
           thead.innerHTML = `
               <tr style="border-bottom: 2px solid #dee2e6;">
@@ -2831,6 +2827,7 @@
                   <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">加班時段</th>
                   <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">超時時段<br><small class="text-white-50">(勿打卡)</small></th>
                   <th class="bg-primary text-white border-0" style="border-right: 3px solid #dee2e6 !important;">跨店支援</th>
+                  
                   <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">系統狀態</th>
                   <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">上班卡</th>
                   <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">下班卡</th>
@@ -2852,7 +2849,7 @@
           };
 
           // ==========================================
-          // ★ 5. 逐行繪製 (優化欄位外框與底色)
+          // ★ 5. 逐行繪製
           // ==========================================
           pData.forEach(r => {
               let sVal = r.input_start; 
@@ -2894,7 +2891,8 @@
               let supStrs = [];
               if(r.supports && r.supports.length > 0) {
                   r.supports.forEach(s => {
-                      supStrs.push(`${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)`);
+                      // ★ 優化：加入 inline-block 強迫整句不換行，解決尷尬切斷問題
+                      supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)</span>`);
                   });
               }
               let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
@@ -2908,7 +2906,6 @@
               let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
               let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${weekDay})`;
 
-              // ★ 優化 1+2：移除 border-dark，改用優雅淡線
               tbody.innerHTML += `
                   <tr style="border-bottom: 1px solid #e9ecef;">
                       <td data-label="日期" class="fw-bold border-0" style="background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${dateDisplay}</td>
@@ -2931,6 +2928,43 @@
                   </tr>
               `;
           });
+
+          // ==========================================
+          // ★ 6. 動態注入「頂部同步捲軸」(解決橫向捲動太長的問題)
+          // ==========================================
+          setTimeout(() => {
+              const tableContainer = document.querySelector('#indivModal .table-responsive');
+              if (!tableContainer) return;
+              const table = tableContainer.querySelector('table');
+
+              // 檢查是否已經建過頂部捲軸，避免重複建立
+              let topScroll = document.getElementById('top-scrollbar-container');
+              if (!topScroll) {
+                  topScroll = document.createElement('div');
+                  topScroll.id = 'top-scrollbar-container';
+                  topScroll.style.overflowX = 'auto';
+                  topScroll.style.overflowY = 'hidden';
+                  topScroll.style.marginBottom = '5px';
+                  
+                  const dummy = document.createElement('div');
+                  dummy.id = 'top-scrollbar-dummy';
+                  dummy.style.height = '1px'; // 隱形的高度
+                  topScroll.appendChild(dummy);
+
+                  // 插入在表格容器的上方
+                  tableContainer.parentNode.insertBefore(topScroll, tableContainer);
+
+                  // 雙向綁定捲動事件
+                  topScroll.addEventListener('scroll', () => { tableContainer.scrollLeft = topScroll.scrollLeft; });
+                  tableContainer.addEventListener('scroll', () => { topScroll.scrollLeft = tableContainer.scrollLeft; });
+              }
+
+              // 同步假捲軸的寬度，讓它跟實體表格一樣寬
+              const dummy = document.getElementById('top-scrollbar-dummy');
+              if (dummy && table) {
+                  dummy.style.width = table.offsetWidth + 'px';
+              }
+          }, 100); 
       }
       
       let currentQRCode = null; 
