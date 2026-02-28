@@ -3563,6 +3563,18 @@
                   }
               }
 
+              // ↓↓↓ 請把下面這 8 行補回去 ↓↓↓
+              if (outDetails.length > 0) {
+                  dayOut[d].push({
+                      startNum: minOutStart,
+                      bg: '#f8f9fa', color: '#495057', border: '#dee2e6',
+                      label: `🚀 ${r.name}`,
+                      detail: outDetails.join('<br>')
+                  });
+              }
+          }); // ★★★ 導致白畫面的元凶就是少了這行！這是 currentData.forEach 的結尾括號！
+          // ↑↑↑ 請把上面這 8 行補回去 ↑↑↑
+
           // ==========================================
           // ★ 核心 4：注入專屬 CSS (防止手機直排)
           // ==========================================
