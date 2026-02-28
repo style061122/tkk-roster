@@ -3742,10 +3742,64 @@
                           <span class="badge" style="background:#f8f9fa; color:#495057; border:1px solid #dee2e6;">🚀 跨店支援</span>
                       </div>
                       <div class="text-muted fw-bold small me-2 mt-1 mt-md-0">💡 點擊色塊看明細</div>
+                      
+                      <button type="button" class="btn btn-outline-primary btn-sm mt-1 mt-md-0 fw-bold bg-white" onclick="
+                          let details = document.querySelectorAll('#monthlyCalendarArea .cal-detail');
+                          let isExpanded = this.getAttribute('data-expanded') === 'true';
+                          details.forEach(d => d.style.display = isExpanded ? 'none' : 'block');
+                          this.setAttribute('data-expanded', !isExpanded);
+                          this.innerHTML = isExpanded ? '🔽 展開所有明細' : '🔼 收合所有明細';
+                      ">🔽 展開所有明細</button>
+
+                      <button type="button" class="btn btn-outline-success btn-sm mt-1 mt-md-0 fw-bold bg-white" onclick="downloadCalendarImage(this)">📸 下載排班圖</button>
+
                       <button type="button" class="btn btn-secondary btn-sm mt-1 mt-md-0" data-bs-dismiss="modal">關閉</button>
                   </div>
               `;
           }
+      }
+        // ==========================================
+      // ★ 下載排班圖核心引擎 (動態載入 html2canvas 絕不卡頓)
+      // ==========================================
+      window.downloadCalendarImage = function(btnElement) {
+          let originalText = btnElement.innerHTML;
+          btnElement.innerHTML = '⏳ 處理中...';
+          btnElement.disabled = true;
+
+          // 若尚未載入截圖套件，則動態從雲端抓取
+          if (typeof html2canvas === 'undefined') {
+              let script = document.createElement('script');
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+              script.onload = () => captureAndDownload(btnElement, originalText);
+              document.head.appendChild(script);
+          } else {
+              captureAndDownload(btnElement, originalText);
+          }
+      };
+
+      function captureAndDownload(btn, originalText) {
+          const targetArea = document.getElementById('monthlyCalendarArea');
+          html2canvas(targetArea, {
+              scale: 2, // 提高解析度至 2 倍，確保印出來字體清晰
+              backgroundColor: '#ffffff',
+              useCORS: true // 允許跨域抓取字體等資源
+          }).then(canvas => {
+              let link = document.createElement('a');
+              let year = monthlyTargets.year || new Date().getFullYear();
+              let month = monthlyTargets.month || (new Date().getMonth() + 1);
+              link.download = `${year}年${month}月_門市人力動態日曆.png`;
+              link.href = canvas.toDataURL('image/png');
+              link.click();
+              
+              // 恢復按鈕狀態
+              btn.innerHTML = originalText;
+              btn.disabled = false;
+          }).catch(err => {
+              console.error('截圖失敗', err);
+              Swal.fire('系統訊息', '截圖失敗，請稍後再試！', 'error');
+              btn.innerHTML = originalText;
+              btn.disabled = false;
+          });
       }
       // ==========================================
       // ★★★ 跨店支援視窗專用邏輯 (終極防呆防重疊版) ★★★
