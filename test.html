@@ -2868,93 +2868,150 @@
       // ★ 終極系統狀態表 (修復：絕對釘選 + 解決破圖蓋字 + 雙捲軸)
       // ==========================================
       function renderIndividualTable() {
-          const name = document.getElementById('indivSelect').value;
-          const tbody = document.getElementById('indivTableBody'); 
-          tbody.innerHTML = '';
-          const statsDiv = document.getElementById('indivStats');
-          document.getElementById('qrCodeContainer').style.display = 'none';
-          
-          const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
-          if (pData.length === 0) return;
 
-          let hrs=0, rest=0, reg=0, nat=0, empty=0;
-          let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0;
-          let userKey = pData[0].pKey || ""; 
-          
-          // ★ 判斷是否為時薪人員
-          let isHourly = pData.length > 0 && pData[0].salaryType && String(pData[0].salaryType).includes("時薪");
+          const name = document.getElementById('indivSelect').value;
 
-          pData.forEach(r => {
-              let s = r.input_status || "";
-              let h = parseFloat(r.calc_hours) || 0;
-              let z = parseFloat(r.input_est_overtime) || 0;
-              let o = parseFloat(r.sys_overtimeHrs) || 0; 
-              let aa = parseFloat(r.calc_excess) || 0;
-              let sysStatus = r.sys_status || ""; // ★ 抓取系統狀態 (I欄)
+          const tbody = document.getElementById('indivTableBody'); 
 
-              hrs += h; totalAA += aa;
-              
-              if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
-              
-              // ★ 預計加班 (Z)：只有月薪且排班為國定假日才拆分 8 內/外
-              if (!isHourly && s === '國' && z > 0) {
-                  let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
-                  totalZ_nat += natZ; totalZ_norm += normZ;
-              } else { totalZ_norm += z; }
+          tbody.innerHTML = '';
 
-              // ★ 已申請加班 (O)：只有月薪且系統狀態包含國定假日才拆分 8 內/外
-              if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
-                  let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
-                  totalO_nat += natO; totalO_norm += normO;
-              } else { totalO_norm += o; }
+          const statsDiv = document.getElementById('indivStats');
 
-              if (r.supports && r.supports.length > 0) {
-                  r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
-              }
-          });
+          document.getElementById('qrCodeContainer').style.display = 'none';
 
-          // ★ 決定顯示字串 (時薪不秀 +0)
-          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
-          let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
-          
-          let otDisplay = document.getElementById("totalOvertimeDisplay");
-          if (otDisplay) otDisplay.style.display = 'none'; 
-          
-          let currentBaseUrl = window.location.href.split('?')[0]; 
-          let btnHtml = "";
-          let personalLink = "";
+          
 
-          // ★ 拔除手機版切換鈕
-          if (userKey && userKey.length > 3) {
-              personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
-              btnHtml = `
-                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
-                    <div class="d-flex gap-2 ms-auto">
-                        <button class="btn btn-sm btn-outline-primary fw-bold bg-white" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
-                        <button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
-                    </div>
-                </div>
-              `;
-          } else {
-              btnHtml = `
-                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
-                    <span class="badge bg-danger ms-auto">❌ 無金鑰</span>
-                </div>`;
-          }
-          
-          statsDiv.innerHTML = `
-              <div class="w-100">
-                  <div class="row row-cols-2 row-cols-md-5 g-2 text-center mb-2">
-                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e3f2fd; border: 1px solid #90caf9;"><div class="small fw-bold mb-1" style="color:#084298;">應有(H)</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${hrs.toFixed(1)}</div></div></div>
-                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8f9fa; border: 1px solid #dee2e6;"><div class="small text-muted fw-bold mb-1">排休狀態</div><div class="fw-bold d-flex flex-wrap justify-content-center gap-1" style="font-size: 0.95rem; color:#495057;"><span>休 <span class="text-primary">${rest}</span></span><span class="text-muted opacity-50">|</span><span>例 <span class="text-success">${reg}</span></span><span class="text-muted opacity-50">|</span><span>國 <span class="text-danger">${nat}</span></span><span class="text-muted opacity-50">|</span><span>空 <span class="text-secondary">${empty}</span></span></div></div></div>
-                      <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #fff3cd; border: 1px solid #ffecb5;"><div class="d-flex flex-column align-items-center mt-1"><div class="w-100 d-flex justify-content-center align-items-baseline gap-1"><span class="fw-bold" style="color:#997404; font-size: 0.85rem;">加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${zDisplay}</span></div><div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1"><span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${oDisplay}</span></div></div></div></div>
-                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;"><div class="small fw-bold mb-1" style="color:#842029;">超時(AA)</div><div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div></div></div>
-                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e0cffc; border: 1px solid #d3bbfb;"><div class="small fw-bold mb-1" style="color: #3d1a87;">跨店支援</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${totalSupOut.toFixed(1)}</div></div></div>
-                  </div>
-                  ${btnHtml}
-              </div>`;
-          
-          const thead = document.querySelector('#indivModal table thead');
+          const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
+
+          if (pData.length === 0) return;
+
+
+
+          let hrs=0, rest=0, reg=0, nat=0, empty=0;
+
+          let totalZ_norm=0, totalZ_nat=0, totalO=0, totalAA=0, totalSupOut=0;
+
+          let userKey = pData[0].pKey || ""; 
+
+
+
+          pData.forEach(r => {
+
+              let s = r.input_status || "";
+
+              let h = parseFloat(r.calc_hours) || 0;
+
+              let z = parseFloat(r.input_est_overtime) || 0;
+
+              let o = parseFloat(r.sys_overtimeHrs) || 0; 
+
+              let aa = parseFloat(r.calc_excess) || 0;
+
+
+
+              hrs += h; totalO += o; totalAA += aa;
+
+              
+
+              if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
+
+              
+
+              if (s === '國' && z > 0) {
+
+                  let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
+
+                  totalZ_nat += natZ; totalZ_norm += normZ;
+
+              } else { totalZ_norm += z; }
+
+
+
+              if (r.supports && r.supports.length > 0) {
+
+                  r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
+
+              }
+
+          });
+
+          
+
+          let otDisplay = document.getElementById("totalOvertimeDisplay");
+
+          if (otDisplay) otDisplay.style.display = 'none'; 
+
+          
+
+          let currentBaseUrl = window.location.href.split('?')[0]; 
+
+          let btnHtml = "";
+
+          let personalLink = "";
+
+
+
+          // ★ 拔除手機版切換鈕
+
+          if (userKey && userKey.length > 3) {
+
+              personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
+
+              btnHtml = `
+
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
+
+                    <div class="d-flex gap-2 ms-auto">
+
+                        <button class="btn btn-sm btn-outline-primary fw-bold bg-white" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
+
+                        <button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
+
+                    </div>
+
+                </div>
+
+              `;
+
+          } else {
+
+              btnHtml = `
+
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
+
+                    <span class="badge bg-danger ms-auto">❌ 無金鑰</span>
+
+                </div>`;
+
+          }
+
+          
+
+          statsDiv.innerHTML = `
+
+              <div class="w-100">
+
+                  <div class="row row-cols-2 row-cols-md-5 g-2 text-center mb-2">
+
+                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e3f2fd; border: 1px solid #90caf9;"><div class="small fw-bold mb-1" style="color:#084298;">應有(H)</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${hrs.toFixed(1)}</div></div></div>
+
+                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8f9fa; border: 1px solid #dee2e6;"><div class="small text-muted fw-bold mb-1">排休狀態</div><div class="fw-bold d-flex flex-wrap justify-content-center gap-1" style="font-size: 0.95rem; color:#495057;"><span>休 <span class="text-primary">${rest}</span></span><span class="text-muted opacity-50">|</span><span>例 <span class="text-success">${reg}</span></span><span class="text-muted opacity-50">|</span><span>國 <span class="text-danger">${nat}</span></span><span class="text-muted opacity-50">|</span><span>空 <span class="text-secondary">${empty}</span></span></div></div></div>
+
+                      <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #fff3cd; border: 1px solid #ffecb5;"><div class="d-flex flex-column align-items-center mt-1"><div class="w-100 d-flex justify-content-center align-items-baseline gap-1"><span class="fw-bold" style="color:#997404; font-size: 0.85rem;">加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small></span></div><div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1"><span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${totalO.toFixed(1)}</span></div></div></div></div>
+
+                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;"><div class="small fw-bold mb-1" style="color:#842029;">超時(AA)</div><div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div></div></div>
+
+                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e0cffc; border: 1px solid #d3bbfb;"><div class="small fw-bold mb-1" style="color: #3d1a87;">跨店支援</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${totalSupOut.toFixed(1)}</div></div></div>
+
+                  </div>
+
+                  ${btnHtml}
+
+              </div>`;
+
+          
+
+          const thead = document.querySelector('#indivModal table thead');
           const tableEl = document.querySelector('#indivModal table');
           if(tableEl) tableEl.classList.remove('mobile-card-mode');
           
