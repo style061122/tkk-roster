@@ -2676,7 +2676,7 @@
           }
       }
       // ==========================================
-      // ★ 終極系統狀態表 (強制電腦版表格 + 首欄日期凍結)
+      // ★ 終極系統狀態表 (雙向凍結 + 拔除手機版 + 日期換行瘦身)
       // ==========================================
       function renderIndividualTable() {
           const name = document.getElementById('indivSelect').value;
@@ -2733,12 +2733,12 @@
           let personalLink = "";
 
           // ==========================================
-          // ★ 2. 拔除檢視切換鈕，只保留複製與QR碼
+          // ★ 2. 徹底拔除手機版切換鈕，只保留複製與QR碼
           // ==========================================
           if (userKey && userKey.length > 3) {
               personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
               btnHtml = `
-                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top gap-2 w-100">
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
                     <div class="d-flex gap-2 ms-auto">
                         <button class="btn btn-sm btn-outline-primary fw-bold bg-white" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
                         <button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
@@ -2747,7 +2747,7 @@
               `;
           } else {
               btnHtml = `
-                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top gap-2 w-100">
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
                     <span class="badge bg-danger ms-auto">❌ 無金鑰</span>
                 </div>`;
           }
@@ -2812,31 +2812,34 @@
           const thead = document.querySelector('#indivModal table thead');
           const tableEl = document.querySelector('#indivModal table');
           
-          // ★ 強制移除卡片模式，確保永遠保持橫向大表格
+          // ★ 確保移除卡片模式，永遠保持橫向大表格
           if(tableEl) tableEl.classList.remove('mobile-card-mode');
           
           // ==========================================
-          // ★ 4. 表頭框線優化 (加入日期凍結魔法)
+          // ★ 4. 表頭框線優化 (加入雙向凍結與字體縮小)
           // ==========================================
+          const thStyleLeft = "position: sticky; top: 18px; z-index: 20; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; border-right: 1px solid #5a9cf2 !important;";
+          const thStyleRight = "position: sticky; top: 18px; z-index: 20; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; border-right: 1px solid #495057 !important;";
+
           thead.innerHTML = `
               <tr style="border-bottom: 2px solid #dee2e6;">
-                  <th class="bg-primary text-white border-0" style="position: sticky; left: 0; z-index: 10; box-shadow: 2px 0 4px rgba(0,0,0,0.1); border-right: 1px solid #5a9cf2 !important;">日期</th>
-                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">狀態</th>
-                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">應有時段</th>
-                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">應有(H)</th>
-                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">加班時段</th>
-                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">超時時段<br><small class="text-white-50">(勿打卡)</small></th>
-                  <th class="bg-primary text-white border-0" style="border-right: 3px solid #dee2e6 !important;">跨店支援</th>
+                  <th class="bg-primary text-white border-0" style="position: sticky; top: 18px; left: 0; z-index: 30; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: 2px 0 4px rgba(0,0,0,0.1); border-right: 1px solid #5a9cf2 !important;">日期</th>
+                  <th class="bg-primary text-white border-0" style="${thStyleLeft}">狀態</th>
+                  <th class="bg-primary text-white border-0" style="${thStyleLeft}">應有時段</th>
+                  <th class="bg-primary text-white border-0" style="${thStyleLeft}">應有(H)</th>
+                  <th class="bg-primary text-white border-0" style="${thStyleLeft}">加班時段</th>
+                  <th class="bg-primary text-white border-0" style="${thStyleLeft}">超時時段<br><small class="text-white-50" style="font-size:0.65rem;">(勿打卡)</small></th>
+                  <th class="bg-primary text-white border-0" style="position: sticky; top: 18px; z-index: 20; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; border-right: 3px solid #dee2e6 !important;">跨店支援</th>
                   
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">系統狀態</th>
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">上班卡</th>
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">下班卡</th>
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">請假</th>
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">假別</th>
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">加班</th>
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">加班時數</th>
-                  <th class="bg-dark text-white border-0" style="border-right: 1px solid #495057 !important;">異常</th>
-                  <th class="bg-dark text-white border-0">註記(Q)</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">系統狀態</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">上班卡</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">下班卡</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">請假</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">假別</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">加班</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">加班時數</th>
+                  <th class="bg-dark text-white border-0" style="${thStyleRight}">異常</th>
+                  <th class="bg-dark text-white border-0" style="position: sticky; top: 18px; z-index: 20; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px;">註記(Q)</th>
               </tr>
           `;
 
@@ -2849,7 +2852,7 @@
           };
 
           // ==========================================
-          // ★ 5. 逐行繪製 (第一欄加入凍結魔法)
+          // ★ 5. 逐行繪製 (第一欄加入凍結魔法 + 換行瘦身)
           // ==========================================
           pData.forEach(r => {
               let sVal = r.input_start; 
@@ -2903,11 +2906,12 @@
               
               let dateObj = new Date(r.date);
               let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
-              let dateDisplay = `${r.date.split('/')[1]}/${r.date.split('/')[2]} (${weekDay})`;
+              // ★ 優化：日期字體變小，且強迫週幾換到下一行，大幅縮減首欄寬度
+              let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
 
               tbody.innerHTML += `
                   <tr style="border-bottom: 1px solid #e9ecef;">
-                      <td data-label="日期" class="fw-bold border-0" style="position: sticky; left: 0; z-index: 5; box-shadow: 2px 0 4px rgba(0,0,0,0.05); background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${dateDisplay}</td>
+                      <td data-label="日期" class="fw-bold border-0 text-center" style="position: sticky; left: 0; z-index: 5; box-shadow: 2px 0 4px rgba(0,0,0,0.05); background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important; padding: 4px 2px; line-height: 1.2;">${dateDisplay}</td>
                       <td data-label="狀態" class="fw-bold border-0" style="background-color: #f4f9ff; color:#084298; border-right: 1px solid #e2eaf5 !important;">${status}</td>
                       <td data-label="應有時段" class="border-0" style="background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${strH}</td>
                       <td data-label="應有(H)" class="fw-bold border-0" style="background-color: #f4f9ff; color:#0d6efd; border-right: 1px solid #e2eaf5 !important;">${r.calc_hours || "-"}</td>
@@ -2929,7 +2933,7 @@
           });
 
           // ==========================================
-          // ★ 6. 動態注入「頂部同步捲軸」(解決橫向捲動太長的問題)
+          // ★ 6. 動態注入「頂部同步捲軸」(解決橫向捲動太長的問題，並設定頂部凍結)
           // ==========================================
           setTimeout(() => {
               const tableContainer = document.querySelector('#indivModal .table-responsive');
@@ -2940,9 +2944,16 @@
               if (!topScroll) {
                   topScroll = document.createElement('div');
                   topScroll.id = 'top-scrollbar-container';
+                  
+                  // ★ 捲軸本身也設定為凍結，永遠浮在最上面！
+                  topScroll.style.position = 'sticky';
+                  topScroll.style.top = '0';
+                  topScroll.style.zIndex = '40'; // 比表頭還高
+                  topScroll.style.backgroundColor = '#fff'; // 擋住下方滑過來的資料
                   topScroll.style.overflowX = 'auto';
                   topScroll.style.overflowY = 'hidden';
-                  topScroll.style.marginBottom = '5px';
+                  topScroll.style.height = '18px'; // 配合表頭的 top: 18px 完美拼接
+                  topScroll.style.marginBottom = '0';
                   
                   const dummy = document.createElement('div');
                   dummy.id = 'top-scrollbar-dummy';
