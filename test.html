@@ -2304,7 +2304,12 @@
                               <div class="col">
                                   <div class="p-2 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: #f8f9fa; border-color: #dee2e6 !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-status">
                                       <div class="small text-muted fw-bold mb-1">排休狀態 ▾</div>
-                                      <div class="fw-bold" style="font-size: 0.95rem; color:#495057;">休${restDates.length} 例${regDates.length} 國${natDates.length}</div>
+                                      <div class="fw-bold" style="font-size: 0.95rem; color:#495057;">
+                                          休 <span class="text-primary">${restDates.length}</span> <span class="text-muted mx-1">|</span>
+                                          例 <span class="text-success">${regDates.length}</span> <span class="text-muted mx-1">|</span>
+                                          國 <span class="text-danger">${natDates.length}</span> <span class="text-muted mx-1">|</span>
+                                          空 <span class="text-secondary">${emptyDates.length}</span>
+                                      </div>
                                   </div>
                               </div>
                               
