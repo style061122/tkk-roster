@@ -3450,13 +3450,20 @@
               // ==========================================
               if (r.supports && r.supports.length > 0) {
                   r.supports.forEach(sup => {
+                      // ★ 把時間解析拉到最前面，讓「外派」與「來援」都能共用跨夜校正
+                      let supParts = sup.startEnd.split('~');
+                      let supS = getStartFloat(supParts[0]);
+                      let supE = getStartFloat(supParts[1]);
+
+                      // ★★★ 核心修復：跨夜座標系自動對齊 ★★★
+                      // 如果主班表跨夜 (eF > 24)，且支援時段的起點小於主班表起點，代表這是「跨夜後的凌晨」
+                      if (eF > 24 && supS < sF) supS += 24;
+                      // 如果支援時段本身跨夜 (或經過上面的校正後導致結束小於起點)
+                      if (supE < supS) supE += 24;
+
                       if (isOwnStaff && sup.supportStore !== currentStore) {
                           // 本店員工去外店
-                          let supParts = sup.startEnd.split('~');
-                          let supS = getStartFloat(supParts[0]);
-                          let supE = getStartFloat(supParts[1]);
-                          if (supE < supS) supE += 24;
-
+                          
                           // ★ 魔法發生點：把外出的時段從「自家時段」中扣除
                           if (homeIntervals.length > 0) {
                               let newHome = [];
@@ -3480,16 +3487,13 @@
 
                       } else if (!isOwnStaff && sup.supportStore === currentStore) {
                           // 友店員工來本店 (直接加進駐店區)
-                          let supParts = sup.startEnd.split('~');
-                          let supS = getStartFloat(supParts[0]);
-                          let supE = getStartFloat(supParts[1]); // ★ 抓出結束時間
                           
                           // ★ 將數字轉回乾淨的時間字串 (例如 9.5 -> 9:30, 18.0 -> 18)
                           let fmtStart = formatFloatToTimeStr(supS);
                           let fmtEnd = formatFloatToTimeStr(supE);
 
                           dayIn[d].push({
-                              startNum: supS,
+                              startNum: supS, // 用校正後的座標排序，確保跨夜凌晨的支援會排在卡片最下面
                               bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
                               label: `🤝 ${r.store} ${fmtStart}-${fmtEnd}`, // ★ 加上美化後的排班時間
                               detail: `${r.name}` // ★ 修正：因為外面已有時間，這裡只留支援者的姓名
