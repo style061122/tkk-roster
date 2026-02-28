@@ -3482,10 +3482,16 @@
                           // 友店員工來本店 (直接加進駐店區)
                           let supParts = sup.startEnd.split('~');
                           let supS = getStartFloat(supParts[0]);
+                          let supE = getStartFloat(supParts[1]); // ★ 抓出結束時間
+                          
+                          // ★ 將數字轉回乾淨的時間字串 (例如 9.5 -> 9:30, 18.0 -> 18)
+                          let fmtStart = formatFloatToTimeStr(supS);
+                          let fmtEnd = formatFloatToTimeStr(supE);
+
                           dayIn[d].push({
                               startNum: supS,
                               bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
-                              label: `🤝 ${r.store}`, // 顯示對方的店名
+                              label: `🤝 ${r.store} ${fmtStart}-${fmtEnd}`, // ★ 加上美化後的排班時間
                               detail: `${r.name}<br>${sup.startEnd.replace('~', '-')}` // 點開顯示人名和時間
                           });
                       }
