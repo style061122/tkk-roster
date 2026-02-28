@@ -2676,7 +2676,7 @@
           }
       }
       // ==========================================
-      // ★ 終極系統狀態表 (雙捲軸 + 按鈕修復 + 防斷行優化)
+      // ★ 終極系統狀態表 (強制電腦版表格 + 首欄日期凍結)
       // ==========================================
       function renderIndividualTable() {
           const name = document.getElementById('indivSelect').value;
@@ -2733,14 +2733,13 @@
           let personalLink = "";
 
           // ==========================================
-          // ★ 2. 修復按鈕排版 (導入彈性換行與置中)
+          // ★ 2. 拔除檢視切換鈕，只保留複製與QR碼
           // ==========================================
           if (userKey && userKey.length > 3) {
               personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
               btnHtml = `
-                <div class="d-flex flex-wrap justify-content-center justify-content-md-between align-items-center mt-3 pt-2 border-top gap-2 w-100">
-                    <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版/手機版 切換</button>
-                    <div class="d-flex gap-2">
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top gap-2 w-100">
+                    <div class="d-flex gap-2 ms-auto">
                         <button class="btn btn-sm btn-outline-primary fw-bold bg-white" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
                         <button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
                     </div>
@@ -2748,9 +2747,8 @@
               `;
           } else {
               btnHtml = `
-                <div class="d-flex flex-wrap justify-content-center justify-content-md-between align-items-center mt-3 pt-2 border-top gap-2 w-100">
-                    <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="toggleViewMode('#indivModal table', this)">🖥️ 電腦版/手機版 切換</button>
-                    <span class="badge bg-danger">❌ 無金鑰</span>
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top gap-2 w-100">
+                    <span class="badge bg-danger ms-auto">❌ 無金鑰</span>
                 </div>`;
           }
           
@@ -2813,14 +2811,16 @@
           
           const thead = document.querySelector('#indivModal table thead');
           const tableEl = document.querySelector('#indivModal table');
-          if(tableEl) tableEl.classList.add('mobile-card-mode');
+          
+          // ★ 強制移除卡片模式，確保永遠保持橫向大表格
+          if(tableEl) tableEl.classList.remove('mobile-card-mode');
           
           // ==========================================
-          // ★ 4. 表頭框線優化
+          // ★ 4. 表頭框線優化 (加入日期凍結魔法)
           // ==========================================
           thead.innerHTML = `
               <tr style="border-bottom: 2px solid #dee2e6;">
-                  <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">日期</th>
+                  <th class="bg-primary text-white border-0" style="position: sticky; left: 0; z-index: 10; box-shadow: 2px 0 4px rgba(0,0,0,0.1); border-right: 1px solid #5a9cf2 !important;">日期</th>
                   <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">狀態</th>
                   <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">應有時段</th>
                   <th class="bg-primary text-white border-0" style="border-right: 1px solid #5a9cf2 !important;">應有(H)</th>
@@ -2849,7 +2849,7 @@
           };
 
           // ==========================================
-          // ★ 5. 逐行繪製
+          // ★ 5. 逐行繪製 (第一欄加入凍結魔法)
           // ==========================================
           pData.forEach(r => {
               let sVal = r.input_start; 
@@ -2891,7 +2891,6 @@
               let supStrs = [];
               if(r.supports && r.supports.length > 0) {
                   r.supports.forEach(s => {
-                      // ★ 優化：加入 inline-block 強迫整句不換行，解決尷尬切斷問題
                       supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)</span>`);
                   });
               }
@@ -2908,7 +2907,7 @@
 
               tbody.innerHTML += `
                   <tr style="border-bottom: 1px solid #e9ecef;">
-                      <td data-label="日期" class="fw-bold border-0" style="background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${dateDisplay}</td>
+                      <td data-label="日期" class="fw-bold border-0" style="position: sticky; left: 0; z-index: 5; box-shadow: 2px 0 4px rgba(0,0,0,0.05); background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${dateDisplay}</td>
                       <td data-label="狀態" class="fw-bold border-0" style="background-color: #f4f9ff; color:#084298; border-right: 1px solid #e2eaf5 !important;">${status}</td>
                       <td data-label="應有時段" class="border-0" style="background-color: #f4f9ff; border-right: 1px solid #e2eaf5 !important;">${strH}</td>
                       <td data-label="應有(H)" class="fw-bold border-0" style="background-color: #f4f9ff; color:#0d6efd; border-right: 1px solid #e2eaf5 !important;">${r.calc_hours || "-"}</td>
@@ -2937,7 +2936,6 @@
               if (!tableContainer) return;
               const table = tableContainer.querySelector('table');
 
-              // 檢查是否已經建過頂部捲軸，避免重複建立
               let topScroll = document.getElementById('top-scrollbar-container');
               if (!topScroll) {
                   topScroll = document.createElement('div');
@@ -2948,19 +2946,15 @@
                   
                   const dummy = document.createElement('div');
                   dummy.id = 'top-scrollbar-dummy';
-                  dummy.style.height = '1px'; // 隱形的高度
+                  dummy.style.height = '1px'; 
                   topScroll.appendChild(dummy);
 
-                  // 插入在表格容器的上方
                   tableContainer.parentNode.insertBefore(topScroll, tableContainer);
 
-                  // 雙向綁定捲動事件
                   topScroll.addEventListener('scroll', () => { tableContainer.scrollLeft = topScroll.scrollLeft; });
                   tableContainer.addEventListener('scroll', () => { topScroll.scrollLeft = tableContainer.scrollLeft; });
               }
 
-              // 同步假捲軸的寬度，讓它跟實體表格一樣寬
-              const dummy = document.getElementById('top-scrollbar-dummy');
               if (dummy && table) {
                   dummy.style.width = table.offsetWidth + 'px';
               }
