@@ -3129,7 +3129,7 @@
           }
       }
       // ==========================================
-      // ★ 終極整月檢視 (駐店動態 + 時序排列 + 高質感純色網格)
+      // ★ 終極整月檢視 (駐店動態 + 智慧時段扣除 + 高質感純色網格)
       // ==========================================
       function openMonthlyView() {
           const area = document.getElementById('monthlyCalendarArea');
@@ -3156,14 +3156,25 @@
           // ==========================================
           // ★ 核心 1：資料分流引擎 (準備 1~31 天的陣列)
           // ==========================================
-          let dayIn = Array.from({length: 32}, () => []);  // 在店內的人 (含自家上班、加班、外店來援)
+          let dayIn = Array.from({length: 32}, () => []);  // 在店內的人 (含自家、外店來援)
           let dayOut = Array.from({length: 32}, () => []); // 不在店的人 (自家外派)
 
-          // 時間轉換小工具 (用於排序)
+          // 時間轉換小工具 (轉成小數點方便計算)
           const getStartFloat = (t) => {
-              if(!t) return 999; // 沒填時間的放最後
+              if(!t) return 999; 
               if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); }
               return parseFloat(t) || 999;
+          };
+
+          // 將小數點轉回美觀時間字串 (例：9.5 轉 9:30，9.0 轉 9)
+          const formatFloatToTimeStr = (f) => {
+              let val = f;
+              while (val >= 24) val -= 24;
+              let h = Math.floor(val);
+              let m = Math.round((val - h) * 60);
+              if (m === 60) { h += 1; m = 0; }
+              if (h >= 24) h -= 24;
+              return m === 0 ? `${h}` : `${h}:${m.toString().padStart(2, '0')}`;
           };
 
           currentData.forEach(r => {
@@ -3173,49 +3184,106 @@
               let status = r.input_status || "";
               let isOwnStaff = (r.store === currentStore);
 
-              // 情況 A：自家員工，且有填寫「上下班時間」的，才算在店內
-              if (isOwnStaff && startVal !== "" && endVal !== "") {
-                  let bg, color, border;
-                  if (status === '上班') { bg = '#e3f2fd'; color = '#084298'; border = '#90caf9'; } 
-                  else if (status === '休' || status === '國') { bg = '#fff3cd'; color = '#997404'; border = '#ffe082'; } 
-                  else { bg = '#f8d7da'; color = '#842029'; border = '#f5c2c7'; } // 例/空班 (超時)
+              // 先將原本的上下班時間定義為初始的「自家時段」
+              let sF = getStartFloat(startVal);
+              let eF = getStartFloat(endVal);
+              if (eF < sF) eF += 24;
 
-                  dayIn[d].push({
-                      startNum: getStartFloat(startVal),
-                      bg: bg, color: color, border: border,
-                      label: r.name,
-                      detail: `${startVal}~${endVal}`
+              let homeIntervals = [];
+              if (startVal !== "" && endVal !== "") {
+                  homeIntervals = [[sF, eF]]; // 初始擁有完整的上班時段
+              }
+
+              let outDetails = []; // 搜集外出支援的明細字串
+              let minOutStart = 999; // 用於排序外出卡片
+
+              // ==========================================
+              // ★ 核心 2：智慧時段扣除 (有支援就挖空自家時間)
+              // ==========================================
+              if (r.supports && r.supports.length > 0) {
+                  r.supports.forEach(sup => {
+                      if (isOwnStaff && sup.supportStore !== currentStore) {
+                          // 本店員工去外店
+                          let supParts = sup.startEnd.split('~');
+                          let supS = getStartFloat(supParts[0]);
+                          let supE = getStartFloat(supParts[1]);
+                          if (supE < supS) supE += 24;
+
+                          // ★ 魔法發生點：把外出的時段從「自家時段」中扣除
+                          if (homeIntervals.length > 0) {
+                              let newHome = [];
+                              homeIntervals.forEach(h => {
+                                  let hS = h[0], hE = h[1];
+                                  // 如果完全沒重疊，保留原樣
+                                  if (supE <= hS || supS >= hE) {
+                                      newHome.push([hS, hE]);
+                                  } else {
+                                      // 切割保留剩下的時段
+                                      if (supS > hS) newHome.push([hS, supS]);
+                                      if (supE < hE) newHome.push([supE, hE]);
+                                  }
+                              });
+                              homeIntervals = newHome;
+                          }
+
+                          // 把這筆外出記錄存起來，準備印在下方的卡片
+                          outDetails.push(`${sup.supportStore} ${sup.startEnd.replace('~', '-')}`);
+                          if (supS < minOutStart) minOutStart = supS;
+
+                      } else if (!isOwnStaff && sup.supportStore === currentStore) {
+                          // 友店員工來本店 (直接加進駐店區)
+                          let supParts = sup.startEnd.split('~');
+                          let supS = getStartFloat(supParts[0]);
+                          dayIn[d].push({
+                              startNum: supS,
+                              bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
+                              label: `🤝 ${r.store}`, // 顯示對方的店名
+                              detail: `${r.name}<br>${sup.startEnd.replace('~', '-')}` // 點開顯示人名和時間
+                          });
+                      }
                   });
               }
 
-              // 情況 B：處理跨店支援
-              if (r.supports && r.supports.length > 0) {
-                  r.supports.forEach(sup => {
-                      let sStart = getStartFloat(sup.startEnd.split('~')[0]);
-                      
-                      if (isOwnStaff && sup.supportStore !== currentStore) {
-                          // 本店員工去外店 (外派區)
-                          dayOut[d].push({
-                              startNum: sStart,
-                              bg: '#f8f9fa', color: '#495057', border: '#dee2e6',
-                              label: `🚀 ${r.name}`,
-                              detail: ` ${sup.supportStore}<br>${sup.startEnd.replace('~', '-')}`
-                          });
-                      } else if (!isOwnStaff && sup.supportStore === currentStore) {
-                          // 友店員工來本店 (駐店區)
-                          dayIn[d].push({
-                              startNum: sStart,
-                              bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
-                              label: `🤝 ${r.store}`, // 按鈕顯示店名
-                              detail: `${r.name}<br>${sup.startEnd.replace('~', '-')}` // 點開顯示人名+時間
-                          });
-                      }
+              // ==========================================
+              // ★ 核心 3：結算自家剩餘時間與產生標籤
+              // ==========================================
+              if (isOwnStaff && startVal !== "" && endVal !== "") {
+                  // 過濾掉小於 6 分鐘 (0.1H) 的微小碎片
+                  homeIntervals = homeIntervals.filter(h => (h[1] - h[0]) >= 0.1);
+
+                  // 如果扣完支援後，自家還有剩時間，才放進「駐店區」
+                  if (homeIntervals.length > 0) {
+                      // 把所有碎片組合成漂亮的字串，例如 "9~13, 18~23"
+                      let homeFmt = homeIntervals.map(h => `${formatFloatToTimeStr(h[0])}~${formatFloatToTimeStr(h[1])}`).join(', ');
+
+                      // 依照您要求的底色配置
+                      let bg, color, border;
+                      if (status === '上班') { bg = '#e3f2fd'; color = '#084298'; border = '#90caf9'; } 
+                      else if (status === '休' || status === '國') { bg = '#fff3cd'; color = '#997404'; border = '#ffe082'; } 
+                      else { bg = '#f8d7da'; color = '#842029'; border = '#f5c2c7'; } 
+
+                      dayIn[d].push({
+                          startNum: homeIntervals[0][0], // 用第一段上班時間來排序
+                          bg: bg, color: color, border: border,
+                          label: r.name,
+                          detail: homeFmt
+                      });
+                  }
+              }
+
+              // 如果這個人今天有任何外出紀錄，打包成一張「外派區」卡片
+              if (outDetails.length > 0) {
+                  dayOut[d].push({
+                      startNum: minOutStart,
+                      bg: '#f8f9fa', color: '#495057', border: '#dee2e6',
+                      label: `🚀 ${r.name}`,
+                      detail: outDetails.join('<br>')
                   });
               }
           });
 
           // ==========================================
-          // ★ 核心 2：注入專屬 CSS (防止手機直排、優化視覺)
+          // ★ 核心 4：注入專屬 CSS (防止手機直排)
           // ==========================================
           let html = `
           <style>
@@ -3247,7 +3315,7 @@
           for (let i = 0; i < shift; i++) html += `<div class="cal-day-new empty"></div>`;
 
           // ==========================================
-          // ★ 核心 3：依序繪製每一天的格子 (先駐店，後外派)
+          // ★ 核心 5：依序繪製每一天的格子 (先駐店，後外派)
           // ==========================================
           for (let d = 1; d <= daysInMonth; d++) {
               html += `<div class="cal-day-new">`;
@@ -3290,7 +3358,7 @@
           area.innerHTML = html;
 
           // ==========================================
-          // ★ 核心 4：更新 Modal 底部的精美圖例說明
+          // ★ 核心 6：底部精美圖例說明 (完全吻合您的色彩定義)
           // ==========================================
           const modalFooter = document.querySelector('#monthlyModal .modal-footer');
           if (modalFooter) {
@@ -3298,10 +3366,10 @@
                   <div class="d-flex flex-wrap gap-2 w-100 align-items-center" style="font-size: 0.85rem;">
                       <div class="d-flex flex-wrap gap-1 flex-grow-1">
                           <span class="badge" style="background:#e3f2fd; color:#084298; border:1px solid #90caf9;">🟦 正常上班</span>
-                          <span class="badge" style="background:#fff3cd; color:#997404; border:1px solid #ffe082;">🟨 休/國(加班)</span>
-                          <span class="badge" style="background:#f8d7da; color:#842029; border:1px solid #f5c2c7;">🟥 例/空(超時)</span>
+                          <span class="badge" style="background:#fff3cd; color:#997404; border:1px solid #ffe082;">🟨 加班(休/國)</span>
+                          <span class="badge" style="background:#f8d7da; color:#842029; border:1px solid #f5c2c7;">🟥 超時(例/空)</span>
                           <span class="badge" style="background:#f4f0fd; color:#592c9b; border:1px solid #d3bbfb;">🤝 友店來援</span>
-                          <span class="badge" style="background:#f8f9fa; color:#495057; border:1px solid #dee2e6;">🚀 外派出借</span>
+                          <span class="badge" style="background:#f8f9fa; color:#495057; border:1px solid #dee2e6;">🚀 跨店支援</span>
                       </div>
                       <div class="text-muted fw-bold small me-2 mt-1 mt-md-0">💡 點擊色塊看明細</div>
                       <button type="button" class="btn btn-secondary btn-sm mt-1 mt-md-0" data-bs-dismiss="modal">關閉</button>
