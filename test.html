@@ -2580,7 +2580,10 @@
               document.getElementById('personalClosingNotice').innerText = noticeText;
 
               let hrs=0, rest=0, reg=0, nat=0, empty=0;
-              let totalZ_norm=0, totalZ_nat=0, totalO=0, totalAA=0, totalSupOut=0;
+              let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0; // ★ 把 totalO 拆分
+
+              // ★ 判斷是否為時薪人員 (從員工 API 傳回的資料判斷)
+              let isHourly = data.isHourly === true;
 
               // 讀取後端基本統計
               if (data.stats) {
@@ -2589,9 +2592,6 @@
                   reg = parseInt(data.stats.reg) || 0;
                   nat = parseInt(data.stats.nat) || 0;
               }
-              
-              // ★ 判斷是否為時薪人員 (從員工 API 傳回的資料判斷)
-              let isHourly = data.isHourly === true;
 
               // 1. 數據統計引擎 (結合最新後端資料)
               if (data.data) {
