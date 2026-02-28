@@ -3492,7 +3492,7 @@
                               startNum: supS,
                               bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
                               label: `🤝 ${r.store} ${fmtStart}-${fmtEnd}`, // ★ 加上美化後的排班時間
-                              detail: `${r.name}<br>${sup.startEnd.replace('~', '-')}` // 點開顯示人名和時間
+                              detail: `${r.name}` // ★ 修正：因為外面已有時間，這裡只留支援者的姓名
                           });
                       }
                   });
