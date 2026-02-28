@@ -2846,17 +2846,19 @@
           });
 
           // ==========================================
-          // ★ 6. 核心修復：賦予容器最大高度，徹底啟動雙向凍結！
+          // ★ 6. 終極絲滑體驗：硬體加速與防震盪捲軸同步
           // ==========================================
           setTimeout(() => {
               const tableContainer = document.querySelector('#indivModal .table-responsive');
               if (!tableContainer) return;
               
-              // 【救命關鍵】沒有 maxHeight，sticky 就抓不到邊界！
-              tableContainer.style.maxHeight = '60vh'; 
+              // 👑 絲滑魔法 1：啟動手機原生慣性滑動與 GPU 渲染
+              tableContainer.style.maxHeight = '65vh'; 
               tableContainer.style.overflowY = 'auto';
               tableContainer.style.overflowX = 'auto';
               tableContainer.style.borderBottom = '2px solid #dee2e6';
+              tableContainer.style.WebkitOverflowScrolling = 'touch'; // 關鍵：恢復 iOS/Android 慣性滑動
+              tableContainer.style.transform = 'translateZ(0)';       // 關鍵：強迫開啟 3D 硬體加速
 
               const table = tableContainer.querySelector('table');
 
@@ -2865,7 +2867,7 @@
                   topScroll = document.createElement('div');
                   topScroll.id = 'top-scrollbar-container';
                   
-                  // 讓頂部捲軸也浮在上方，不怕被 modal body 擠走
+                  // 頂部捲軸也加上相同的絲滑設定
                   topScroll.style.position = 'sticky';
                   topScroll.style.top = '-16px'; 
                   topScroll.style.zIndex = '40';
@@ -2874,6 +2876,7 @@
                   topScroll.style.overflowY = 'hidden';
                   topScroll.style.height = '14px'; 
                   topScroll.style.marginBottom = '2px';
+                  topScroll.style.WebkitOverflowScrolling = 'touch'; 
                   
                   const dummy = document.createElement('div');
                   dummy.id = 'top-scrollbar-dummy';
@@ -2882,17 +2885,33 @@
 
                   tableContainer.parentNode.insertBefore(topScroll, tableContainer);
 
-                  topScroll.addEventListener('scroll', () => { tableContainer.scrollLeft = topScroll.scrollLeft; });
-                  tableContainer.addEventListener('scroll', () => { topScroll.scrollLeft = tableContainer.scrollLeft; });
+                  // 👑 絲滑魔法 2：防震盪交通警察 (避免上下捲軸互相死鎖)
+                  let isSyncingTop = false;
+                  let isSyncingTable = false;
+
+                  // 加入 { passive: true }，保證滑動事件不會阻塞畫面渲染
+                  topScroll.addEventListener('scroll', () => { 
+                      if (!isSyncingTop) {
+                          isSyncingTable = true;
+                          tableContainer.scrollLeft = topScroll.scrollLeft; 
+                      }
+                      isSyncingTop = false;
+                  }, { passive: true });
+
+                  tableContainer.addEventListener('scroll', () => { 
+                      if (!isSyncingTable) {
+                          isSyncingTop = true;
+                          topScroll.scrollLeft = tableContainer.scrollLeft; 
+                      }
+                      isSyncingTable = false;
+                  }, { passive: true });
               }
 
               const dummy = document.getElementById('top-scrollbar-dummy');
               if (dummy && table) {
-                  // 【救命關鍵 2】使用 scrollWidth 抓取真實寬度，捲軸才會出現！
                   dummy.style.width = table.scrollWidth + 'px'; 
               }
-          }, 150); 
-      }
+          }, 150);
       
       let currentQRCode = null; 
       function toggleQRCode(url) {
