@@ -3493,7 +3493,7 @@
               }
 
               // ==========================================
-              // ★ 核心 3：結算自家剩餘時間與產生標籤
+              // ★ 核心 3：結算自家剩餘時間與產生標籤 (門市戰情雷達 - 兼容加班)
               // ==========================================
               if (isOwnStaff && startVal !== "" && endVal !== "") {
                   // 過濾掉小於 6 分鐘 (0.1H) 的微小碎片
@@ -3501,34 +3501,67 @@
 
                   // 如果扣完支援後，自家還有剩時間，才放進「駐店區」
                   if (homeIntervals.length > 0) {
-                      // 把所有碎片組合成漂亮的字串，例如 "9~13, 18~23"
-                      let homeFmt = homeIntervals.map(h => `${formatFloatToTimeStr(h[0])}~${formatFloatToTimeStr(h[1])}`).join(', ');
-
-                      // 依照您要求的底色配置
+                      
+                      // 1. 無論什麼狀態，只要有時間，就統一抓取並顯示「姓名 上班-下班」
+                      let dStart = formatFloatToTimeStr(homeIntervals[0][0]);
+                      let dEnd = formatFloatToTimeStr(homeIntervals[homeIntervals.length - 1][1]);
+                      let mainLabel = `${r.name} ${dStart}-${dEnd}`; // 效果：張仲偉 9-23 (包含加班)
+                      
+                      let detailHtml = "";
                       let bg, color, border;
-                      if (status === '上班') { bg = '#e3f2fd'; color = '#084298'; border = '#90caf9'; } 
-                      else if (status === '休' || status === '國') { bg = '#fff3cd'; color = '#997404'; border = '#ffe082'; } 
-                      else { bg = '#f8d7da'; color = '#842029'; border = '#f5c2c7'; } 
+
+                      // 預先準備打卡資訊 (所有狀態都通用)
+                      let hasIn = r.sys_clockIn && String(r.sys_clockIn).trim() !== "";
+                      let hasOut = r.sys_clockOut && String(r.sys_clockOut).trim() !== "";
+                      let punchStr = (hasIn || hasOut) ? `${r.sys_clockIn || ""} ~ ${r.sys_clockOut || ""}` : "無打卡";
+
+                      // 2. 依照狀態分流處理顏色與明細/異常
+                      if (status === '上班') {
+                          bg = '#e3f2fd'; color = '#084298'; border = '#90caf9';
+                          
+                          let hasLeave = r.sys_leave && String(r.sys_leave).trim() !== "";
+                          let rDateObj = new Date(r.date);
+                          rDateObj.setHours(0,0,0,0);
+                          let todayObj = new Date();
+                          todayObj.setHours(0,0,0,0);
+
+                          if (hasLeave) {
+                              // 【情境 B & C：有請假】
+                              mainLabel += `<br><span style="color:#fd7e14; font-size:0.75rem;">(請假)</span>`;
+                              detailHtml = `打卡：${punchStr}<br>請假：${r.sys_leaveType || "請假"} (${r.sys_leave})`;
+                          } else if (!hasIn && !hasOut && rDateObj < todayObj) {
+                              // 【情境 D：缺勤】
+                              mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(缺勤)</span>`;
+                              detailHtml = `打卡：無打卡<br>請假：無請假`;
+                          } else {
+                              // 【情境 A：正常】
+                              if (hasIn || hasOut) {
+                                  detailHtml = `打卡：${punchStr}`;
+                              } else {
+                                  detailHtml = `排班：${dStart}~${dEnd}`; 
+                              }
+                          }
+                      } 
+                      else {
+                          // 【非上班狀態：休、國、例、空班】
+                          // 只要有排時間就代表加班，不標示異常，單純顯示打卡狀況
+                          if (status === '休' || status === '國') { 
+                              bg = '#fff3cd'; color = '#997404'; border = '#ffe082'; 
+                          } else { 
+                              bg = '#f8d7da'; color = '#842029'; border = '#f5c2c7'; 
+                          }
+                          // 點開一樣顯示打卡明細 (有打卡就秀時間，沒打卡就秀無打卡)
+                          detailHtml = `打卡：${punchStr}`; 
+                      }
 
                       dayIn[d].push({
                           startNum: homeIntervals[0][0], // 用第一段上班時間來排序
                           bg: bg, color: color, border: border,
-                          label: r.name,
-                          detail: homeFmt
+                          label: mainLabel,
+                          detail: detailHtml
                       });
                   }
               }
-
-              // 如果這個人今天有任何外出紀錄，打包成一張「外派區」卡片
-              if (outDetails.length > 0) {
-                  dayOut[d].push({
-                      startNum: minOutStart,
-                      bg: '#f8f9fa', color: '#495057', border: '#dee2e6',
-                      label: `🚀 ${r.name}`,
-                      detail: outDetails.join('<br>')
-                  });
-              }
-          });
 
           // ==========================================
           // ★ 核心 4：注入專屬 CSS (防止手機直排)
