@@ -2152,15 +2152,14 @@
           const modalBody = document.getElementById('monthlyReportBody');
           modalBody.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 fw-bold text-muted">資料精算中...</div></div>';
           
-          // 喚起 Modal
           const reportModal = new bootstrap.Modal(document.getElementById('monthlyReportModal'));
           reportModal.show();
 
           setTimeout(() => {
               let htmlMonthly = '';
               let htmlHourly = '';
-              let htmlOutbound = ''; // ★ 新增：本店支援外店區
-              let htmlInbound = '';  // 友店來支援區
+              let htmlOutbound = ''; // ★ 本店支援外店區
+              let htmlInbound = '';  // ★ 友店來支援區
 
               let myStaffNames = [...new Set(currentData.filter(r => r.store === currentStore).map(r => r.name))];
               let externalData = currentData.filter(r => r.store !== currentStore);
@@ -2170,7 +2169,7 @@
               let inboundStores = {};  // 追蹤借入各店的總和
 
               // ==========================================
-              // ★ 處理自家人 (正職與兼職)
+              // ★ 第一部分：處理自家人 (正職與兼職)
               // ==========================================
               myStaffNames.forEach((name, idx) => {
                   let pData = currentData.filter(r => r.name === name && r.store === currentStore);
@@ -2181,11 +2180,13 @@
 
                   let workDates = [], restDates = [], regDates = [], natDates = [], emptyDates = [];
                   let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO = 0, sumAA = 0, sumSupOut = 0;
-                  let zDetails = [], oDetails = [];
+                  let zDetails = [], oDetails = [], aaDetails = [];
                   let supportOutGroups = {}; 
 
                   pData.forEach(r => {
-                      let dStr = parseInt(r.date.split('/')[2]);
+                      let dateParts = r.date.split('/');
+                      let monthStr = dateParts[1];
+                      let dStr = parseInt(dateParts[2]);
                       let s = r.input_status || "";
                       let h = parseFloat(r.calc_hours) || 0;
                       let z = parseFloat(r.input_est_overtime) || 0;
@@ -2193,10 +2194,11 @@
                       let o = parseFloat(r.sys_overtimeHrs) || 0;
 
                       sumH += h;
-                      sumAA += aa; // ★ 累計超時
+                      sumAA += aa; 
 
-                      // ★ 優化：使用空格隔開，拿掉「日」
+                      // ★ 優化 1：使用空格隔開，拿掉「日」
                       if (o > 0) { sumO += o; oDetails.push(`${dStr}(${o}H)`); }
+                      if (aa > 0) { aaDetails.push(`${dStr}(${aa}H)`); }
 
                       if (s === '上班') workDates.push(dStr);
                       else if (s === '休') restDates.push(dStr);
@@ -2219,45 +2221,42 @@
                               sumSupOut += sh;
                               let tgtStore = sup.supportStore;
 
-                              // 1. 給個人卡片明細用的群組
-                              if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = [];
-                              supportOutGroups[tgtStore].push(`${dStr}(${sh}H)`);
+                              // ★ 優化 5：統一日曆明細格式 (給個人卡片用)
+                              if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = { total: 0, details: [] };
+                              supportOutGroups[tgtStore].total += sh;
+                              supportOutGroups[tgtStore].details.push(`🗓️ ${monthStr}/${dStr} (${sup.startEnd}) 共 ${sh}H`);
 
-                              // 2. ★ 新增：給「第3區 本店支援外店」的總表使用
+                              // (給下方大匯總區用)
                               if (!outboundStores[tgtStore]) outboundStores[tgtStore] = { total: 0, emps: {} };
                               if (!outboundStores[tgtStore].emps[name]) outboundStores[tgtStore].emps[name] = { total: 0, details: [] };
                               outboundStores[tgtStore].total += sh;
                               outboundStores[tgtStore].emps[name].total += sh;
-                              outboundStores[tgtStore].emps[name].details.push(`${dStr}(${sh}H)`);
+                              outboundStores[tgtStore].emps[name].details.push(`🗓️ ${monthStr}/${dStr} (${sup.startEnd}) 共 ${sh}H`);
                           });
                       }
                   });
 
-                  // ==========================================
-                  // ★ 優化 4：標題色彩徽章 (H為藍色，AA為紅色)
-                  // ==========================================
+                  // ★ 優化 4：標題色彩徽章 (拿掉英文縮寫)
                   let hBadge = '';
                   if (isMonthly) {
                       if (targetH > 0) {
                           let diff = sumH - targetH;
                           let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
-                          hBadge = `<span class="badge bg-primary ms-1 shadow-sm">應有(H): ${sumH.toFixed(1)} (${diffText})</span>`;
+                          hBadge = `<span class="badge bg-primary ms-1 shadow-sm">應有: ${sumH.toFixed(1)} (${diffText})</span>`;
                       } else {
-                          hBadge = `<span class="badge bg-primary ms-1 shadow-sm">應有(H): ${sumH.toFixed(1)}</span>`;
+                          hBadge = `<span class="badge bg-primary ms-1 shadow-sm">應有: ${sumH.toFixed(1)}</span>`;
                       }
                   } else {
-                      hBadge = `<span class="badge bg-primary ms-1 shadow-sm">累計應有(H): ${sumH.toFixed(1)}</span>`;
+                      hBadge = `<span class="badge bg-success ms-1 shadow-sm">累計應有: ${sumH.toFixed(1)}</span>`;
                   }
 
                   // 只有超時大於 0 才顯示紅色警告徽章
-                  let aaBadge = sumAA > 0 ? `<span class="badge bg-danger ms-1 shadow-sm">超時(AA): ${sumAA.toFixed(1)}</span>` : '';
+                  let aaBadge = sumAA > 0 ? `<span class="badge bg-danger ms-1 shadow-sm">超時: ${sumAA.toFixed(1)}</span>` : '';
 
-                  // ★ 優化 2：組裝個人卡片內的跨店支援明細 (換行排版)
                   let supportOutHtml = '';
                   if (sumSupOut > 0) {
-                      for (const [sName, details] of Object.entries(supportOutGroups)) {
-                          let sTotal = details.reduce((acc, curr) => acc + parseFloat(curr.split('(')[1]), 0);
-                          supportOutHtml += `<div class="mb-2"><span class="fw-bold" style="color:#0d6efd;">📍去 ${sName} 共 ${sTotal}H：</span><br><span class="text-secondary" style="font-size:0.9rem;">${details.join(' ')}</span></div>`;
+                      for (const [sName, sData] of Object.entries(supportOutGroups)) {
+                          supportOutHtml += `<div class="mb-2"><span class="fw-bold" style="color:#6f42c1;">📍 ${sName} 共 ${sData.total.toFixed(1)}H：</span><br><span class="text-secondary" style="font-size:0.9rem;">${sData.details.join('<br>')}</span></div>`;
                       }
                   }
                   
@@ -2276,28 +2275,38 @@
                       <div class="card-body p-2 p-md-3">
                           
                           <div class="row row-cols-2 row-cols-md-4 g-2 text-center mb-2">
+                              
                               <div class="col">
-                                  <div class="p-2 rounded bg-light border h-100 d-flex flex-column justify-content-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${cardId}-status">
+                                  <div class="p-2 rounded h-100 d-flex flex-column justify-content-center" style="cursor: pointer; background-color: #f8f9fa; border-bottom: 4px solid #6c757d;" data-bs-toggle="collapse" data-bs-target="#${cardId}-status">
                                       <div class="small text-muted fw-bold mb-1">排休狀態 ▾</div>
                                       <div class="fw-bold" style="font-size: 0.95rem; color:#495057;">休${restDates.length} 例${regDates.length} 國${natDates.length}</div>
                                   </div>
                               </div>
+                              
                               <div class="col">
-                                  <div class="p-2 rounded bg-light border h-100 d-flex flex-column justify-content-center" style="cursor: pointer; border-color: #ffeeba !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime">
-                                      <div class="small fw-bold mb-1" style="color:#997404;">預計加班(Z) ▾</div>
-                                      <div class="fw-bold text-dark" style="font-size: 1.1rem;">${sumZ_norm.toFixed(1)}<span class="text-muted small fw-normal">+${sumZ_nat.toFixed(1)}</span></div>
+                                  <div class="h-100 d-flex flex-column rounded border" style="cursor: pointer; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime">
+                                      <div class="flex-fill d-flex justify-content-between align-items-center px-2 py-1" style="background-color: #fff3cd; border-bottom: 2px solid #ffc107;">
+                                          <span class="small fw-bold" style="color:#997404;">預計</span>
+                                          <span class="fw-bold text-dark">${sumZ_norm.toFixed(1)}<small class="text-muted">+${sumZ_nat.toFixed(1)}</small></span>
+                                      </div>
+                                      <div class="flex-fill d-flex justify-content-between align-items-center px-2 py-1" style="background-color: #d1e7dd; border-bottom: 2px solid #198754;">
+                                          <span class="small fw-bold text-success">已申請 ▾</span>
+                                          <span class="fw-bold text-dark">${sumO.toFixed(1)}</span>
+                                      </div>
                                   </div>
                               </div>
+                              
                               <div class="col">
-                                  <div class="p-2 rounded bg-light border h-100 d-flex flex-column justify-content-center" style="cursor: pointer; border-color: #c3e6cb !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime">
-                                      <div class="small fw-bold mb-1 text-success">已申請(O) ▾</div>
-                                      <div class="fw-bold text-dark" style="font-size: 1.1rem;">${sumO.toFixed(1)}</div>
+                                  <div class="p-2 rounded h-100 d-flex flex-column justify-content-center" style="cursor: pointer; background-color: #f8d7da; border-bottom: 4px solid #dc3545;" data-bs-toggle="collapse" data-bs-target="#${cardId}-aa">
+                                      <div class="small fw-bold mb-1" style="color:#842029;">超時 ▾</div>
+                                      <div class="fw-bold text-danger" style="font-size: 1.1rem;">${sumAA.toFixed(1)}</div>
                                   </div>
                               </div>
+
                               <div class="col">
-                                  <div class="p-2 rounded border h-100 d-flex flex-column justify-content-center ${sumSupOut > 0 ? 'bg-primary text-white border-primary' : 'bg-light text-muted'}" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${cardId}-support">
-                                      <div class="small fw-bold mb-1 ${sumSupOut > 0 ? 'text-white' : ''}">跨店出借 ▾</div>
-                                      <div class="fw-bold" style="font-size: 1.1rem;">${sumSupOut > 0 ? sumSupOut.toFixed(1) : '0.0'}</div>
+                                  <div class="p-2 rounded h-100 d-flex flex-column justify-content-center ${sumSupOut > 0 ? 'border-primary' : 'text-muted'}" style="cursor: pointer; background-color: ${sumSupOut > 0 ? '#e0cffc' : '#f8f9fa'}; border-bottom: 4px solid ${sumSupOut > 0 ? '#6f42c1' : '#dee2e6'};" data-bs-toggle="collapse" data-bs-target="#${cardId}-support">
+                                      <div class="small fw-bold mb-1" style="color: ${sumSupOut > 0 ? '#3d1a87' : '#6c757d'};">跨店支援 ▾</div>
+                                      <div class="fw-bold ${sumSupOut > 0 ? 'text-dark' : ''}" style="font-size: 1.1rem;">${sumSupOut > 0 ? sumSupOut.toFixed(1) : '0.0'}</div>
                                   </div>
                               </div>
                           </div>
@@ -2313,15 +2322,21 @@
                           </div>
                           
                           <div class="collapse" id="${cardId}-overtime">
-                              <div class="p-2 bg-light rounded text-muted small border-start border-3 border-warning mb-2" style="line-height:1.6;">
+                              <div class="p-2 rounded small border-start border-3 mb-2" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.6;">
                                   ${zDetails.length > 0 ? `🗓️ <strong style="color:#997404;">預計加班:</strong> ${zDetails.join(' ')}<br>` : '<span class="text-black-50 opacity-75">無預計加班紀錄</span><br>'}
                                   ${oDetails.length > 0 ? `🗓️ <strong class="text-success">已申請:</strong> ${oDetails.join(' ')}` : '<span class="text-black-50 opacity-75">無已申請紀錄</span>'}
                               </div>
                           </div>
 
+                          <div class="collapse" id="${cardId}-aa">
+                              <div class="p-2 rounded small border-start border-3 mb-2" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.6;">
+                                  ${aaDetails.length > 0 ? `🗓️ <strong class="text-danger">超時:</strong> ${aaDetails.join(' ')}<br>` : '<span class="text-black-50 opacity-75">無超時紀錄</span><br>'}
+                              </div>
+                          </div>
+
                           ${sumSupOut > 0 ? `
                           <div class="collapse" id="${cardId}-support">
-                              <div class="p-2 bg-light rounded border-start border-3 border-primary mb-2">
+                              <div class="p-2 rounded border-start border-3 mb-2" style="background-color: #f4f0fd; border-color: #6f42c1 !important;">
                                   ${supportOutHtml}
                               </div>
                           </div>
@@ -2339,26 +2354,27 @@
               // ==========================================
               externalData.forEach(r => {
                   let store = String(r.store).trim();
-                  let dateObj = new Date(r.date);
-                  let dayStr = dateObj.getDate();
+                  let dateParts = r.date.split('/');
+                  let monthStr = dateParts[1];
+                  let dayStr = parseInt(dateParts[2]);
                   
                   if (r.supports && r.supports.length > 0) {
                       r.supports.forEach(sup => {
-                          if (sup.supportStore === currentStore) { // 確定是來支援「本店」的
+                          if (sup.supportStore === currentStore) { 
                               if (!inboundStores[store]) inboundStores[store] = { total: 0, emps: {} };
                               let sh = parseFloat(sup.hrs) || 0;
                               inboundStores[store].total += sh;
 
                               if (!inboundStores[store].emps[r.name]) inboundStores[store].emps[r.name] = { total: 0, details: [] };
                               inboundStores[store].emps[r.name].total += sh;
-                              inboundStores[store].emps[r.name].details.push(`${dayStr}(${sh}H)`);
+                              inboundStores[store].emps[r.name].details.push(`🗓️ ${monthStr}/${dayStr} (${sup.startEnd}) 共 ${sh}H`);
                           }
                       });
                   }
               });
 
               // ==========================================
-              // ★ 優化 6：組裝「本店支援外店 (出借)」卡片區
+              // ★ 組裝「本店支援外店 (出借)」卡片區
               // ==========================================
               for (const [storeName, storeData] of Object.entries(outboundStores)) {
                   let empsHtml = '';
@@ -2369,7 +2385,7 @@
                               👤 ${empName} <span class="float-end text-primary fw-bolder">${empData.total.toFixed(1)}H</span>
                           </div>
                           <div class="text-muted small mt-1 ps-2" style="line-height:1.5;">
-                              ${empData.details.join(' ')}
+                              ${empData.details.join('<br>')}
                           </div>
                       </div>
                       `;
@@ -2378,7 +2394,7 @@
                   <div class="card mb-3 shadow-sm border-0 rounded-4" style="border-left: 5px solid #0d6efd !important;">
                       <div class="card-header bg-white pt-3 pb-2">
                           <h5 class="fw-bolder mb-0" style="color:#084298;">
-                              🚀 去 ${storeName} <span class="badge bg-primary rounded-pill float-end">共 ${storeData.total.toFixed(1)}H</span>
+                              🚀 ${storeName} <span class="badge bg-primary rounded-pill float-end">共 ${storeData.total.toFixed(1)}H</span>
                           </h5>
                       </div>
                       <div class="card-body p-3">
@@ -2400,7 +2416,7 @@
                               👤 ${empName} <span class="float-end fw-bolder" style="color:#6f42c1;">${empData.total.toFixed(1)}H</span>
                           </div>
                           <div class="text-muted small mt-1 ps-2" style="line-height:1.5;">
-                              ${empData.details.join(' ')}
+                              ${empData.details.join('<br>')}
                           </div>
                       </div>
                       `;
@@ -2410,7 +2426,7 @@
                   <div class="card mb-3 shadow-sm border-0 rounded-4" style="border-left: 5px solid #6f42c1 !important;">
                       <div class="card-header bg-white pt-3 pb-2">
                           <h5 class="fw-bolder mb-0" style="color:#592c9b;">
-                              🤝 ${storeName} 來支援 <span class="badge bg-purple rounded-pill float-end" style="background-color:#6f42c1;">共 ${storeData.total.toFixed(1)}H</span>
+                              🤝 ${storeName} <span class="badge bg-purple rounded-pill float-end" style="background-color:#6f42c1;">共 ${storeData.total.toFixed(1)}H</span>
                           </h5>
                       </div>
                       <div class="card-body p-3">
