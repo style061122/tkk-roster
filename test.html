@@ -1219,14 +1219,41 @@
           loadData();
       };
       
-      window.toggleMonthMode = function() {
-          // 防呆：如果店長有沒存檔的資料，擋住不給切
-          if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
-              Swal.fire('⚠️ 尚未儲存', '請先儲存或放棄當前修改的班表，再切換月份！', 'warning');
-              return;
-          }
+      window.toggleMonthMode = async function() {
           let targetMode = (currentMonthMode === 'current') ? 'next' : 'current';
-          enterMode(targetMode);
+          let targetText = (targetMode === 'next') ? '次月預排' : '當月班表';
+
+          if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
+              const result = await Swal.fire({
+                  title: '⚠️ 您有尚未儲存的排班資料！',
+                  html: `請問要先儲存目前的修改，還是要放棄修改直接前往【${targetText}】？`,
+                  icon: 'warning',
+                  showDenyButton: true,
+                  showCancelButton: true,
+                  confirmButtonText: '💾 儲存並切換',
+                  denyButtonText: '❌ 放棄修改並切換',
+                  cancelButtonText: '返回',
+                  allowOutsideClick: false
+              });
+
+              if (result.isConfirmed) {
+                  // ★ 預約目的地：告訴系統存檔完後要去哪個月
+                  window.tempMonthMode = targetMode; 
+                  // ★ 鎖定當下狀態以利存檔
+                  window.lockedSaveState = lastSafeFilters;
+                  await saveData(false);
+                  window.lockedSaveState = null;
+              } else if (result.isDenied) {
+                  // ★ 瞬間洗白記憶體，恢復未輸入前的樣子，然後直接切換
+                  pendingUnsaved = false;
+                  if (window.cleanSnapshot) {
+                      currentData = JSON.parse(JSON.stringify(window.cleanSnapshot));
+                  }
+                  enterMode(targetMode);
+              }
+          } else {
+              enterMode(targetMode);
+          }
       };
 
       function loadData() {
@@ -1302,6 +1329,14 @@
                  window.tempFilterWeek = null;
                  window.tempSubMode = null;
                  window.tempStatusFilter = null;
+
+                 // ★ 處理月份切換跳轉：如果剛才是按了「儲存並切換月份」，存完就飛過去！
+                 if (window.tempMonthMode) {
+                     let nextM = window.tempMonthMode;
+                     window.tempMonthMode = null;
+                     enterMode(nextM);
+                     return; // 終止這回合渲染，因為 enterMode 會載入新月份
+                 }
                  
                  // ★ 執行大分類跳轉：如果剛才有跨模式的任務，現在立刻飛過去！
                  if (window.pendingSwitchMode) {
