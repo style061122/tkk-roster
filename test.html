@@ -1929,14 +1929,14 @@
           let oldAA = parseFloat(currentData[originalIndex].calc_excess) || 0;
 
           // ==========================================
-          // ★ 畫面壓縮優化：極簡時段格式 (8:00 -> 8) + 保留文字標籤
+          // ★ 畫面壓縮優化：保留純小數點格式，僅做跨夜校正
           // ==========================================
           let msgs = []; let currTime = sF;
           const ft = (t) => {
-              if (isNaN(t)) return "0";
-              let h = Math.floor(t); let m = Math.round((t - h) * 60);
-              if (h >= 24) h -= 24;
-              return m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`;
+              if (isNaN(t) || t === "") return "0";
+              let val = parseFloat(t);
+              while (val >= 24) val -= 24; // 跨夜校正 (例如 25 變 1)
+              return String(val); // JS 自動將 8.0 轉 "8"，10.5 轉 "10.5"
           };
 
           if (outH > 0) {
@@ -2699,11 +2699,10 @@
               }
 
               const ft = (t) => {
-                  if (isNaN(t)) return "0";
-                  let h = Math.floor(t); 
-                  let m = Math.round((t - h) * 60);
-                  if (h >= 24) h -= 24;
-                  return m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`;
+                  if (isNaN(t) || t === "") return "0";
+                  let val = parseFloat(t);
+                  while (val >= 24) val -= 24;
+                  return String(val);
               };
 
               // ==========================================
@@ -3004,11 +3003,10 @@
           `;
 
           const ft = (t) => {
-              if (isNaN(t)) return "0";
-              let h = Math.floor(t); 
-              let m = Math.round((t - h) * 60);
-              if (h >= 24) h -= 24;
-              return m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`;
+              if (isNaN(t) || t === "") return "0";
+              let val = parseFloat(t);
+              while (val >= 24) val -= 24;
+              return String(val);
           };
 
           pData.forEach(r => {
@@ -3478,15 +3476,12 @@
               return parseFloat(t) || 999;
           };
 
-          // 將小數點轉回美觀時間字串 (例：9.5 轉 9:30，9.0 轉 9)
+          // ★ 純小數點格式，僅做跨夜校正
           const formatFloatToTimeStr = (f) => {
-              let val = f;
+              let val = parseFloat(f);
+              if (isNaN(val)) return "";
               while (val >= 24) val -= 24;
-              let h = Math.floor(val);
-              let m = Math.round((val - h) * 60);
-              if (m === 60) { h += 1; m = 0; }
-              if (h >= 24) h -= 24;
-              return m === 0 ? `${h}` : `${h}:${m.toString().padStart(2, '0')}`;
+              return String(val);
           };
 
           currentData.forEach(r => {
