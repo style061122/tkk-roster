@@ -1551,6 +1551,19 @@
          let weekData = personData.filter(r => { let d = new Date(r.date); return d >= weekStart && d <= weekEnd; });
          let usage = { rest: 0, reg: 0 };
          weekData.forEach(r => { if (r.input_status === '休') usage.rest++; if (r.input_status === '例') usage.reg++; });
+
+         // ==========================================
+         // ★ 跨月額度繼承引擎 (僅限第一週生效)
+         // ==========================================
+         // 智慧判斷：只要這週的「起點」跟「今天」不在同一個月份，代表這就是跨月的第一週！
+         let isFirstWeek = (weekStart.getMonth() !== currDate.getMonth() || weekStart.getFullYear() !== currDate.getFullYear());
+         
+         if (isFirstWeek && monthlyTargets.crossMonthUsage && monthlyTargets.crossMonthUsage[name]) {
+             let pastUsage = monthlyTargets.crossMonthUsage[name];
+             usage.rest += (pastUsage.rest || 0);
+             usage.reg += (pastUsage.reg || 0);
+         }
+
          return usage;
       }
 
