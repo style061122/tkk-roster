@@ -816,8 +816,8 @@
             // ★★★ 設定區：這裡輸入 -24, -30, -48 皆可 ★★★
             lockoutStart.setHours(closingDeadline.getHours() - 24); 
 
-            // 3. 判斷是否在鎖定區間內
-            if (now >= lockoutStart && now < closingDeadline) {
+            // 3. 判斷是否在鎖定區間內 (★ 如果是次月預排模式，永遠不鎖定！)
+            if (currentMonthMode !== 'next' && now >= lockoutStart && now < closingDeadline) {
                 
                 // 4. 定義日期格式化工具 (轉成 "2月3日 09:00" 格式)
                 const fmt = (d) => {
@@ -980,12 +980,13 @@
         // ★ 保留您原本的 Loading 文字
         showLoading(true, "儲存中...");
         
-        // ★ 呼叫後端時帶上 Token
+        // ★ 呼叫後端時帶上 Token 與 月份模式
         callApi('saveStoreData', { 
             store: currentStore, 
             inputData: inputData, 
             forceSave: force,
-            token: currentToken 
+            token: currentToken,
+            monthMode: currentMonthMode // ★ 將狀態送給後端
         })
           .then(res => {
              showLoading(false); 
