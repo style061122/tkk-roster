@@ -1343,7 +1343,7 @@
                  let nextMonth = (parseInt(month) % 12) + 1; 
                  let closeDay = monthlyTargets.closingDay || 1; 
                  
-                 let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，請於結算前完成(請假/加班/忘打)申請並簽核完成。`;
+                 let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行班表關帳，請於關帳前完成(請假/加班/忘打)申請並簽核完成。`;
                  document.getElementById('closingNotice').innerText = noticeText;
 
                  if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
@@ -2724,7 +2724,7 @@
               
               let nextMonth = (parseInt(meta.month) % 12) + 1;
               let closeDay = meta.closingDay || 1; 
-              let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行薪資結算，請於結算前完成(請假/加班/忘打)申請並簽核完成。。`;
+              let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行班表關帳，請於關帳前完成(請假/加班/忘打)申請並簽核完成。`;
               document.getElementById('personalClosingNotice').innerText = noticeText;
 
               let hrs=0, rest=0, reg=0, nat=0, empty=0;
