@@ -365,8 +365,18 @@
     </div>
 
     <div id="personalSection" class="container" style="display:none; max-width: 1400px; margin-top: 20px;">
-       <h3 class="text-center fw-bold text-primary mb-2">📅 個人班表與出勤紀錄</h3>
-       <h5 class="text-center text-secondary mb-4" id="personalNameDisplay">載入中...</h5>
+       <h3 class="text-center fw-bold text-primary mb-2">
+           📅 個人班表與出勤紀錄 
+           <span id="personalModeBadge" class="badge bg-primary fs-6 align-middle ms-1 shadow-sm">當月</span>
+       </h3>
+       
+       <div class="d-flex justify-content-center mb-3">
+           <button id="btnPersonalToggle" class="btn btn-warning text-dark fw-bold shadow-sm rounded-pill px-4" onclick="togglePersonalMonth()">
+               🔄 切換至 次月預排
+           </button>
+       </div>
+       
+       <h5 class="text-center text-secondary mb-4" id="personalNameDisplay" style="font-size: 1.2rem; font-weight: 900;">載入中...</h5>
        <div id="personalStats"></div>
        <div class="table-responsive">
            <table class="table table-bordered table-hover table-striped mobile-card-mode">
@@ -690,6 +700,50 @@
       });
 
       // ==========================================
+      // ★ 員工專屬平行時空切換引擎
+      // ==========================================
+      window.personalUserKey = ""; 
+      window.personalMonthMode = "current";
+
+      window.loadPersonalData = function() {
+          document.getElementById('loadingOverlay').style.display = 'flex';
+          document.getElementById('loadingText').innerText = "讀取個人班表中...";
+          
+          // ★ 呼叫 API 時帶入 monthMode
+          callApi('getPersonalData', { u: window.personalUserKey, monthMode: window.personalMonthMode })
+            .then(res => {
+               showLoading(false);
+               if (res.success) {
+                   // 更新按鈕與徽章 UI
+                   const badge = document.getElementById('personalModeBadge');
+                   const btn = document.getElementById('btnPersonalToggle');
+                   if (window.personalMonthMode === 'next') {
+                       badge.className = 'badge bg-warning text-dark fs-6 align-middle ms-1 shadow-sm';
+                       badge.innerText = '次月預排';
+                       btn.className = 'btn btn-primary fw-bold shadow-sm rounded-pill px-4';
+                       btn.innerText = '🔄 切換回 當月班表';
+                   } else {
+                       badge.className = 'badge bg-primary fs-6 align-middle ms-1 shadow-sm';
+                       badge.innerText = '當月班表';
+                       btn.className = 'btn btn-warning text-dark fw-bold shadow-sm rounded-pill px-4';
+                       btn.innerText = '🔄 切換至 次月預排';
+                   }
+                   renderPersonalPage(res);
+               }
+               else document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
+            })
+            .catch(err => {
+               showLoading(false);
+               alert("錯誤：" + err.message); 
+            });
+      };
+
+      window.togglePersonalMonth = function() {
+          window.personalMonthMode = (window.personalMonthMode === 'current') ? 'next' : 'current';
+          window.loadPersonalData();
+      };
+
+      // ==========================================
       // window.onload (程式入口)
       // ==========================================
       window.onload = function() {
@@ -700,23 +754,12 @@
         
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode');
-          // ★★★ 修改這行：優先抓取 'key'，如果沒有才抓 'u' (相容舊版) ★★★
         const userParam = urlParams.get('key') || urlParams.get('u');
         
         // 1. 員工個人連結模式
         if (mode === 'personal' && userParam) {
-           document.getElementById('loadingOverlay').style.display = 'flex';
-           document.getElementById('loadingText').innerText = "讀取個人班表中...";
-           callApi('getPersonalData', { u: userParam })
-             .then(res => {
-                showLoading(false);
-                if (res.success) renderPersonalPage(res);
-                else document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
-             })
-             .catch(err => {
-                showLoading(false);
-                alert("錯誤：" + err.message); 
-             });
+           window.personalUserKey = userParam; // 記住金鑰
+           window.loadPersonalData();          // 啟動專屬引擎
         } 
         // 2. 店長管理模式
         else {
