@@ -774,10 +774,27 @@
                document.getElementById('displayStoreName').innerText = savedStore;
                document.getElementById('loginSection').style.display = 'none';
                
-               // ★ 恢復登入時，也先顯示選擇月份畫面
+               // ★ 恢復登入時，先顯示選擇月份畫面
                document.getElementById('modeSelectionSection').style.display = 'block';
                
-               callApi('getStoreList').then(res => { if(res.success) allStoreData = res.data; });
+               // ★ 修復：確保重整時，去後端抓取正確的月份，並「關閉轉圈圈」！
+               showLoading(true, "系統載入中..."); 
+               callApi('getStoreList').then(res => { 
+                   showLoading(false); // 👈 就是這行，解開轉圈圈的封印！
+                   if (res.success) {
+                       let resData = res.data;
+                       // 相容新版資料結構並寫入月份
+                       if (resData && resData.companies) {
+                           allStoreData = resData.companies;
+                           if (resData.currentMonth) setMonthTitles(resData.currentMonth);
+                       } else {
+                           allStoreData = resData || {};
+                       }
+                   } 
+               }).catch(err => {
+                   showLoading(false);
+                   errorHandler(err);
+               });
            } else {
                showLoading(true, "連線中...");
                callApi('getStoreList').then(res => {
