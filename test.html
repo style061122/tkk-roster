@@ -2238,7 +2238,7 @@ function showMaintenanceShield(message) {
              let allowed = [];
              if (isHourlyHoliday) allowed = ["", "上班", "國"]; else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || currentVal === '休') allowed.push("休"); if (usage.reg < 1 || currentVal === '例') allowed.push("例"); }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
-             / ★ 修復：如果當下已經有明確狀態，徹底拔除「請選擇」的資格
+             // ★ 修復：如果當下已經有明確狀態，徹底拔除「請選擇」的資格
              if (currentVal !== "") allowed = allowed.filter(o => o !== "");
              let newHtml = ""; statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (currentVal === opt) ? "selected" : ""; newHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
              if (select.innerHTML !== newHtml) { select.innerHTML = newHtml; select.value = currentVal; }
@@ -2255,7 +2255,7 @@ function showMaintenanceShield(message) {
              let allowed = [];
              if (activeRules.length > 0) { allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班"); activeRules.forEach(r => { let used = getRangeUsage(name, r.type, r.start, r.end); if (used < r.limit || currentVal === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } }); } else { allowed = statusOpts; }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
-             / ★ 修復：如果當下已經有明確狀態，徹底拔除「請選擇」的資格
+             // ★ 修復：如果當下已經有明確狀態，徹底拔除「請選擇」的資格
              if (currentVal !== "") allowed = allowed.filter(o => o !== "");
              let newHtml = ""; statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (currentVal === opt) ? "selected" : ""; newHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
              if (select.innerHTML !== newHtml) { select.innerHTML = newHtml; select.value = currentVal; }
