@@ -479,7 +479,7 @@
       window.sysNextMonthStr = "次月";
 
       // ★ 動態設定按鈕與徽章月份的函數
-      window.setMonthTitles = (sysMonth) {
+      window.setMonthTitles = function(sysMonth) {
           let curM = parseInt(sysMonth);
           if (!isNaN(curM)) {
               let nxtM = (curM % 12) + 1;
