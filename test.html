@@ -479,7 +479,7 @@
       window.sysNextMonthStr = "次月";
 
       // ★ 動態設定按鈕與徽章月份的函數
-      window.setMonthTitles = function(sysMonth) {
+      window.setMonthTitles = (sysMonth) {
           let curM = parseInt(sysMonth);
           if (!isNaN(curM)) {
               let nxtM = (curM % 12) + 1;
@@ -493,6 +493,27 @@
               if (btnN) btnN.innerText = `${window.sysNextMonthStr} 預排`;
           }
       };
+        
+// ==========================================
+// ★ 系統維護防護盾 (Step 1 專用)
+// ==========================================
+function showMaintenanceShield(message) {
+    // 關閉網頁離開時的防呆警告 (因為我們要強制鎖死畫面)
+    if (typeof pendingUnsaved !== 'undefined') pendingUnsaved = false;
+    window.onbeforeunload = null;
+
+    Swal.fire({
+        icon: 'warning',
+        title: '⛔ 系統維護中',
+        html: message || '系統正在進行每月例行跨月轉檔...<br>請稍候 3~5 分鐘，再重新整理頁面！',
+        allowOutsideClick: false, // 禁止點擊外部關閉
+        allowEscapeKey: false,    // 禁止按 ESC 關閉
+        showConfirmButton: false, // 隱藏確認按鈕，強制只能重整
+        didOpen: () => {
+            Swal.showLoading();   // 顯示轉圈圈動畫，安撫等待情緒
+        }
+    });
+}
 
       // ★★★ 新增：狀態控制變數 ★★★
       let pendingUnsaved = false;      // 是否有未存檔的修改 (用來觸發防呆)
@@ -1221,8 +1242,23 @@
          }).then(response => {
              return response.text().then(text => {
                  try {
-                     return JSON.parse(text);
+                     let data = JSON.parse(text);
+                     
+                     // ==========================================
+                     // ★ 終極讀寫雙鎖：第一時間攔截維護狀態
+                     // ==========================================
+                     if (data && data.isMaintenance) {
+                         showMaintenanceShield(data.message);
+                         // 丟出一個特殊的錯誤，強制中斷後面的所有程式碼執行！
+                         throw new Error("MAINTENANCE_LOCKED"); 
+                     }
+                     
+                     return data; // 如果沒被攔截，就正常回傳資料
+                     
                  } catch (e) {
+                     if (e.message === "MAINTENANCE_LOCKED") {
+                         throw e; // 將維護鎖定的錯誤繼續往外丟，確保後續的 .then 都不會被執行
+                     }
                      console.error("API Error Raw:", text);
                      throw new Error("後端回應非 JSON 格式");
                  }
