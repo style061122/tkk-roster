@@ -684,8 +684,8 @@ function showMaintenanceShield(message) {
       setInterval(checkIdleTime, 30000); 
 
       function checkIdleTime() {
-          // 只有在「有登入」且「停留在操作畫面」時才檢查
-          if (typeof currentStore !== 'undefined' && currentStore !== "" && document.getElementById('appSection').style.display !== 'none') {
+          // ★ 修正：只要有登入(有Token)，無論在哪個畫面，一律啟動閒置偵測！
+          if (typeof currentStore !== 'undefined' && currentStore !== "" && currentToken !== "") {
               let currentTime = Date.now();
               if (currentTime - lastActivityTime >= IDLE_LIMIT_MS) {
                   
@@ -2238,6 +2238,8 @@ function showMaintenanceShield(message) {
              let allowed = [];
              if (isHourlyHoliday) allowed = ["", "上班", "國"]; else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || currentVal === '休') allowed.push("休"); if (usage.reg < 1 || currentVal === '例') allowed.push("例"); }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
+             / ★ 修復：如果當下已經有明確狀態，徹底拔除「請選擇」的資格
+             if (currentVal !== "") allowed = allowed.filter(o => o !== "");
              let newHtml = ""; statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (currentVal === opt) ? "selected" : ""; newHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
              if (select.innerHTML !== newHtml) { select.innerHTML = newHtml; select.value = currentVal; }
          });
@@ -2253,6 +2255,8 @@ function showMaintenanceShield(message) {
              let allowed = [];
              if (activeRules.length > 0) { allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班"); activeRules.forEach(r => { let used = getRangeUsage(name, r.type, r.start, r.end); if (used < r.limit || currentVal === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } }); } else { allowed = statusOpts; }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
+             / ★ 修復：如果當下已經有明確狀態，徹底拔除「請選擇」的資格
+             if (currentVal !== "") allowed = allowed.filter(o => o !== "");
              let newHtml = ""; statusOpts.forEach(opt => { if (allowed.includes(opt)) { let selected = (currentVal === opt) ? "selected" : ""; newHtml += `<option value="${opt}" ${selected}>${opt || "請選擇"}</option>`; } });
              if (select.innerHTML !== newHtml) { select.innerHTML = newHtml; select.value = currentVal; }
          });
@@ -2864,9 +2868,9 @@ function showMaintenanceShield(message) {
                       <div class="row row-cols-2 row-cols-md-5 g-2 text-center mb-2">
                           <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e3f2fd; border: 1px solid #90caf9;"><div class="small fw-bold mb-1" style="color:#084298;">應有(H)</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${hrs.toFixed(1)}</div></div></div>
                           <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8f9fa; border: 1px solid #dee2e6;"><div class="small text-muted fw-bold mb-1">排休狀態</div><div class="fw-bold d-flex flex-wrap justify-content-center gap-1" style="font-size: 0.95rem; color:#495057;"><span>休 <span class="text-primary">${rest}</span></span><span class="text-muted opacity-50">|</span><span>例 <span class="text-success">${reg}</span></span><span class="text-muted opacity-50">|</span><span>國 <span class="text-danger">${nat}</span></span><span class="text-muted opacity-50">|</span><span>空 <span class="text-secondary">${empty}</span></span></div></div></div>
-                          <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #fff3cd; border: 1px solid #ffecb5;"><div class="d-flex flex-column align-items-center mt-1"><div class="w-100 d-flex justify-content-center align-items-baseline gap-1"><span class="fw-bold" style="color:#997404; font-size: 0.85rem;">加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${zDisplay}</span></div><div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1"><span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${oDisplay}</span></div></div></div></div>
                           <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;"><div class="small fw-bold mb-1" style="color:#842029;">超時(AA)</div><div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div></div></div>
                           <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e0cffc; border: 1px solid #d3bbfb;"><div class="small fw-bold mb-1" style="color: #3d1a87;">跨店支援</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${totalSupOut.toFixed(1)}</div></div></div>
+                          <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #fff3cd; border: 1px solid #ffecb5;"><div class="d-flex flex-column align-items-center mt-1"><div class="w-100 d-flex justify-content-center align-items-baseline gap-1"><span class="fw-bold" style="color:#997404; font-size: 0.85rem;">加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${zDisplay}</span></div><div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1"><span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${oDisplay}</span></div></div></div></div>
                       </div>
                   </div>
               `;
