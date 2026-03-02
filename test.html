@@ -2514,9 +2514,10 @@ function showMaintenanceShield(message) {
                   
                   let cardId = `acc-${idx}`;
                   let badgeType = isMonthly ? 'bg-dark' : 'bg-success';
+                  let safeName = name.replace(/\s+/g, ''); // ★ 產生絕對安全的專屬 ID
                   
                   let cardHtml = `
-                  <div class="card mb-3 shadow-sm border-0 rounded-4" style="overflow: hidden; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;">
+                  <div id="card-${safeName}" class="card mb-3 shadow-sm border-0 rounded-4" style="overflow: hidden; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; scroll-margin-top: 60px;">
                       <div class="card-header bg-white pt-3 pb-2" style="border-bottom: 1px solid #eee;">
                           <h5 class="fw-bolder mb-0 text-dark d-flex flex-wrap align-items-center gap-1">
                               ${name} <span class="badge ${badgeType} rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
@@ -2739,19 +2740,19 @@ function showMaintenanceShield(message) {
               }
 
               // ==========================================
-              // ★ 最終拼裝四大區塊 (加入導航下拉選單與卡片 ID 錨點)
+              // ★ 最終拼裝四大區塊 (加入導航列與絕對準確的錨點)
               // ==========================================
               let finalHtml = '';
               
               // 1. 建立導航選單的選項
-              let navOptions = `<option value="">請選擇人員或支援區域快速跳轉...</option>`;
+              let navOptions = `<option value="">請選擇人員快速跳轉...</option>`;
               myStaffNames.forEach(name => {
                   navOptions += `<option value="card-${name.replace(/\s+/g, '')}">👤 ${name}</option>`;
               });
               if (htmlOutbound) navOptions += `<option value="section-outbound" style="color:#084298; font-weight:bold;">🚀 本店支援外店 (借出)</option>`;
               if (htmlInbound) navOptions += `<option value="section-inbound" style="color:#592c9b; font-weight:bold;">🤝 友店來支援 (借入)</option>`;
 
-              // 2. 建立固定的頂部導航列 (使用 sticky-top 讓它在滑動時固定在頂部)
+              // 2. 建立固定的頂部導航列 (使用 sticky-top)
               let navBarHtml = `
               <div class="position-sticky top-0 bg-white py-2 mb-3 z-3" style="margin-top: -10px; border-bottom: 1px solid #dee2e6;">
                   <select class="form-select fw-bold border-primary shadow-sm" onchange="scrollToReportCard(this.value)">
@@ -2760,35 +2761,16 @@ function showMaintenanceShield(message) {
               </div>
               `;
 
-              // 3. 為了讓卡片能被定位，我們需要在產生 htmlMonthly 和 htmlHourly 時，在卡片外層加上 ID。
-              // (這部分我們直接用字串替換的魔法，把原本的 <div class="card... 變成 <div id="card-王大明" class="card...)
-              let processedMonthly = htmlMonthly;
-              let processedHourly = htmlHourly;
-              
-              myStaffNames.forEach(name => {
-                  let safeName = name.replace(/\s+/g, ''); // 移除名字中的空白避免 ID 無效
-                  // 在原本的卡片 div 裡安插 id
-                  let targetStr = `<div class="card mb-3 shadow-sm`;
-                  let replaceStr = `<div id="card-${safeName}" class="card mb-3 shadow-sm`;
-                  processedMonthly = processedMonthly.replace(targetStr, replaceStr);
-                  processedHourly = processedHourly.replace(targetStr, replaceStr);
-              });
-
-              // 4. 組合最終 HTML
               finalHtml += navBarHtml;
               
-              if (processedMonthly) finalHtml += `<h5 class="fw-bold mb-2 mt-2 px-1" style="color:#664d03;">👑 正職月薪</h5>${processedMonthly}`;
-              if (processedHourly) finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1" style="color:#0f5132;">🌟 兼職時薪</h5>${processedHourly}`;
+              if (htmlMonthly) finalHtml += `<h5 class="fw-bold mb-2 mt-2 px-1" style="color:#664d03;">👑 正職月薪</h5>${htmlMonthly}`;
+              if (htmlHourly) finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1" style="color:#0f5132;">🌟 兼職時薪</h5>${htmlHourly}`;
               
               if (htmlOutbound || htmlInbound) {
                   finalHtml += `<div class="mt-4 pt-3 border-top border-2 border-secondary border-opacity-25">`;
-                  if (htmlOutbound) finalHtml += `<h5 id="section-outbound" class="fw-bold mb-2 px-1 pt-2" style="color:#084298;">🚀 本店支援外店 (借出)</h5>${htmlOutbound}`;
-                  if (htmlInbound) finalHtml += `<h5 id="section-inbound" class="fw-bold mb-2 mt-4 px-1 pt-2" style="color:#592c9b;">🤝 友店來支援 (借入)</h5>${htmlInbound}`;
+                  if (htmlOutbound) finalHtml += `<h5 id="section-outbound" class="fw-bold mb-2 px-1 pt-2" style="color:#084298; scroll-margin-top: 60px;">🚀 本店支援外店 (借出)</h5>${htmlOutbound}`;
+                  if (htmlInbound) finalHtml += `<h5 id="section-inbound" class="fw-bold mb-2 mt-4 px-1 pt-2" style="color:#592c9b; scroll-margin-top: 60px;">🤝 友店來支援 (借入)</h5>${htmlInbound}`;
                   finalHtml += `</div>`;
-              }
-
-              if (finalHtml === '') {
-                  finalHtml = `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">本月目前沒有任何排班與支援資料</div>`;
               }
 
               modalBody.innerHTML = finalHtml;
@@ -2796,36 +2778,28 @@ function showMaintenanceShield(message) {
           }, 100); 
       }
       // ==========================================
-      // ★ 月統計戰情室專用：平滑滾動跳轉引擎
+      // ★ 月統計戰情室專用：原生平滑滾動跳轉引擎
       // ==========================================
       function scrollToReportCard(targetId) {
           if (!targetId) return;
           
           const targetElement = document.getElementById(targetId);
           if (targetElement) {
-              // 尋找 Modal 的滾動容器 (通常是 modal-body 或 modal-dialog-scrollable 的內部容器)
-              // 為了確保萬無一失，我們使用 element.scrollIntoView
+              // 1. 使用瀏覽器最原生的定位方法，絕對精準
+              targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
               
-              // 為了避免被我們剛剛加的 Sticky 導航列擋住，我們加入一些上方的偏移量 (Offset)
-              const yOffset = -60; 
-              const modalBody = document.getElementById('monthlyReportBody');
+              // 2. 酷炫動畫：被選中的卡片會浮起並發出藍色光暈，持續 1 秒
+              targetElement.style.transition = 'box-shadow 0.4s ease, transform 0.4s ease';
+              targetElement.style.boxShadow = '0 0 15px rgba(13, 110, 253, 0.6)';
+              targetElement.style.transform = 'scale(1.02)';
+              targetElement.style.zIndex = '10'; // 確保放大時不被別的卡片蓋住
               
-              // 計算目標元素相對於 modalBody 的位置
-              const y = targetElement.getBoundingClientRect().top + modalBody.scrollTop - modalBody.getBoundingClientRect().top + yOffset;
-              
-              modalBody.scrollTo({
-                  top: y,
-                  behavior: 'smooth'
-              });
-              
-              // 滾動後，給目標卡片一個短暫的高亮閃爍效果，讓店長知道「就是這張！」
-              let originalBg = targetElement.style.backgroundColor;
-              targetElement.style.transition = 'background-color 0.5s ease';
-              targetElement.style.backgroundColor = '#fff3cd'; // 閃爍黃色
-              
+              // 1秒後恢復原狀
               setTimeout(() => {
-                  targetElement.style.backgroundColor = originalBg || ''; // 恢復原狀
-              }, 800);
+                  targetElement.style.boxShadow = '';
+                  targetElement.style.transform = '';
+                  targetElement.style.zIndex = '';
+              }, 1000);
           }
       }
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
