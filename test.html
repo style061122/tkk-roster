@@ -2739,17 +2739,61 @@ function showMaintenanceShield(message) {
               }
 
               // ==========================================
-              // ★ 最終拼裝四大區塊
+              // ★ 最終拼裝四大區塊 (加入智慧導航選單)
               // ==========================================
               let finalHtml = '';
+
+              // --- 製作快速導航選單 ---
+              let navOptions = `<option value="">請選擇人員或支援區塊</option>`;
               
+              // 1. 放入所有自家人員
+              myStaffNames.forEach((name, idx) => {
+                  navOptions += `<option value="acc-${idx}">👤 ${name}</option>`;
+              });
+              
+              // 2. 放入支援區塊 (如果有)
+              if (htmlOutbound) navOptions += `<option value="nav-outbound">🚀 本店支援外店 (借出)</option>`;
+              if (htmlInbound) navOptions += `<option value="nav-inbound">🤝 友店來支援 (借入)</option>`;
+
+              // 如果有任何資料，就把導航選單放在最上面 (並加上 sticky-top 讓它滑動時會黏在頂部)
+              if (myStaffNames.length > 0 || htmlOutbound || htmlInbound) {
+                  finalHtml += `
+                      <div class="sticky-top bg-light p-2 mb-3 rounded border shadow-sm" style="z-index: 1020; top: -10px;">
+                          <div class="d-flex align-items-center gap-2">
+                              <label class="fw-bold text-nowrap text-secondary"><small>快速尋找：</small></label>
+                              <select class="form-select border-primary fw-bold" onchange="
+                                  if(!this.value) return;
+                                  let target = document.getElementById(this.value);
+                                  if(target) {
+                                      // 扣除掉 modal header 和選單本身的高度，讓定位更精準
+                                      let scrollContainer = document.querySelector('#monthlyReportModal .modal-body');
+                                      if(scrollContainer) {
+                                          let topPos = target.offsetTop - 70; 
+                                          scrollContainer.scrollTo({top: topPos, behavior: 'smooth'});
+                                          // 點擊後，如果是人員卡片，順便加個高亮閃爍特效
+                                          if(this.value.includes('acc-')) {
+                                              target.style.transition = 'box-shadow 0.3s';
+                                              target.style.boxShadow = '0 0 15px rgba(13, 110, 253, 0.8)';
+                                              setTimeout(() => target.style.boxShadow = '', 1500);
+                                          }
+                                      }
+                                  }
+                              ">
+                                  ${navOptions}
+                              </select>
+                          </div>
+                      </div>
+                  `;
+              }
+              
+              // --- 拼裝主要內容 (為支援區塊加上 ID 以利錨點定位) ---
               if (htmlMonthly) finalHtml += `<h5 class="fw-bold mb-2 mt-2 px-1" style="color:#664d03;">👑 正職月薪</h5>${htmlMonthly}`;
               if (htmlHourly) finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1" style="color:#0f5132;">🌟 兼職時薪</h5>${htmlHourly}`;
               
               if (htmlOutbound || htmlInbound) {
                   finalHtml += `<div class="mt-4 pt-3 border-top border-2 border-secondary border-opacity-25">`;
-                  if (htmlOutbound) finalHtml += `<h5 class="fw-bold mb-2 px-1" style="color:#084298;">🚀 本店支援外店 (借出)</h5>${htmlOutbound}`;
-                  if (htmlInbound) finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1" style="color:#592c9b;">🤝 友店來支援 (借入)</h5>${htmlInbound}`;
+                  if (htmlOutbound) finalHtml += `<h5 id="nav-outbound" class="fw-bold mb-2 px-1" style="color:#084298;">🚀 本店支援外店 (借出)</h5>${htmlOutbound}`;
+                  if (htmlInbound) finalHtml += `<h5 id="nav-inbound" class="fw-bold mb-2 mt-4 px-1" style="color:#592c9b;">🤝 友店來支援 (借入)</h5>${htmlInbound}`;
                   finalHtml += `</div>`;
               }
 
