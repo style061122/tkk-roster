@@ -754,6 +754,7 @@ function showMaintenanceShield(message) {
                else document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
             })
             .catch(err => {
+               if (err && err.message === "MAINTENANCE_LOCKED") return; // ★ 靜音防護：維護中不報錯
                showLoading(false);
                alert("錯誤：" + err.message); 
             });
@@ -1240,6 +1241,7 @@ function showMaintenanceShield(message) {
              }
           })
           .catch(err => { 
+             if (err && err.message === "MAINTENANCE_LOCKED") return; // ★ 靜音防護：維護中不報錯
              showLoading(false); 
              alert("儲存錯誤: " + err.message); 
           });
@@ -1260,6 +1262,15 @@ function showMaintenanceShield(message) {
                      // ★ 終極讀寫雙鎖：第一時間攔截維護狀態
                      // ==========================================
                      if (data && data.isMaintenance) {
+                         if (data.forceLogout) {
+                             // 如果是 Step 1 傳來的強制登出，拔除鑰匙並退回登入畫面
+                             sessionStorage.removeItem('tkk_store');
+                             sessionStorage.removeItem('tkk_token');
+                             sessionStorage.removeItem('tkk_month_mode');
+                             document.getElementById('appSection').style.display = 'none';
+                             document.getElementById('modeSelectionSection').style.display = 'none';
+                             document.getElementById('loginSection').style.display = 'block';
+                         }
                          showMaintenanceShield(data.message);
                          // 丟出一個特殊的錯誤，強制中斷後面的所有程式碼執行！
                          throw new Error("MAINTENANCE_LOCKED"); 
@@ -3435,7 +3446,11 @@ function showMaintenanceShield(message) {
       function encodeNameHex(str) { const encoder = new TextEncoder(); const view = encoder.encode(str); let hex = ""; for (let i = 0; i < view.length; i++) { let h = view[i].toString(16); hex += (h.length < 2 ? "0" : "") + h; } return hex.toUpperCase(); }
       function formatNumber(v) { return v; } 
       function showLoading(s,t) { document.getElementById('loadingOverlay').style.display = s?'flex':'none'; if(t)document.getElementById('loadingText').innerText=t;}
-      function errorHandler(e) { showLoading(false); Swal.fire('錯誤', e.message||e, 'error'); }
+      function errorHandler(e) { 
+          if (e && e.message === "MAINTENANCE_LOCKED") return; // ★ 靜音防護：維護中不報錯
+          showLoading(false); 
+          Swal.fire('錯誤', e.message||e, 'error'); 
+      }
       function generateTimeOptions() { let o='<option value="">請選擇</option>'; for(let h=0;h<24;h++){ let s=('0'+h).slice(-2); o+=`<option value="${s}:00">${s}:00</option><option value="${s}:30">${s}:30</option>`; } return o; }
       function generateRestOptions() { let o='<option value="">請選擇</option>'; for(let i=0; i<=8; i++){ let v = (i * 0.5).toFixed(1); o += `<option value="${v}">${v}</option>`; } return o; }
       // ==========================================
