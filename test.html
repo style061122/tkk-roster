@@ -336,13 +336,13 @@
             </div>
 
             <div class="action-btn-group w-100">
-                <button class="btn btn-dark fw-bold shadow-sm" onclick="toggleMonthMode()">🔄 切換月份</button>
+                <button type="button" class="btn btn-dark fw-bold shadow-sm" onclick="toggleMonthMode()">🔄 切換月份</button>
                 <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="openMonthlyReport()">📊 月統計</button>
-                <button class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
-                <button class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
-                <button class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
-                <button class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button>
-                <button class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
+                <button type="button" class="btn btn-warning text-dark fw-bold" onclick="showIndividualStatus()">👤 系統狀態</button>
+                <button type="button" class="btn btn-info fw-bold text-dark shadow-sm" onclick="openMonthlyView()" data-bs-toggle="modal" data-bs-target="#monthlyModal">📅 整月檢視</button>
+                <button type="button" class="btn btn-secondary fw-bold" onclick="handleChangePassword()">🔑 密碼變更</button>
+                <button type="button" class="btn btn-success fw-bold" onclick="refreshData()">🔄 重新整理</button>
+                <button type="button" class="btn btn-outline-danger fw-bold" onclick="logout()">登出</button>
             </div>
         </div>
       </div>
@@ -795,21 +795,26 @@ function showMaintenanceShield(message) {
                document.getElementById('displayStoreName').innerText = savedStore;
                document.getElementById('loginSection').style.display = 'none';
                
-               // ★ 恢復登入時，先顯示選擇月份畫面
-               document.getElementById('modeSelectionSection').style.display = 'block';
+               // ★ 檢查是否有記憶的月份模式
+               const savedMonthMode = sessionStorage.getItem('tkk_month_mode');
                
-               // ★ 修復：確保重整時，去後端抓取正確的月份，並「關閉轉圈圈」！
                showLoading(true, "系統載入中..."); 
                callApi('getStoreList').then(res => { 
-                   showLoading(false); // 👈 就是這行，解開轉圈圈的封印！
+                   showLoading(false); 
                    if (res.success) {
                        let resData = res.data;
-                       // 相容新版資料結構並寫入月份
                        if (resData && resData.companies) {
                            allStoreData = resData.companies;
                            if (resData.currentMonth) setMonthTitles(resData.currentMonth);
                        } else {
                            allStoreData = resData || {};
+                       }
+                       
+                       // ★ 智慧導航：如果有記憶月份，直接跳進去排班畫面！
+                       if (savedMonthMode) {
+                           enterMode(savedMonthMode);
+                       } else {
+                           document.getElementById('modeSelectionSection').style.display = 'block';
                        }
                    } 
                }).catch(err => {
@@ -860,9 +865,9 @@ function showMaintenanceShield(message) {
 
       function logout() { 
         currentStore = ""; currentData = []; currentToken = "";
-        sessionStorage.removeItem('tkk_store'); // ★ 清除 Session
+        sessionStorage.removeItem('tkk_store'); 
         sessionStorage.removeItem('tkk_token'); 
-        // ★ 破除無限輪迴的關鍵 3：登出瞬間，強制歸零碼表！
+        sessionStorage.removeItem('tkk_month_mode'); // ★ 登出時同步清除記憶的月份
         resetTimer();
         
         document.getElementById('loginPassword').value = "";
@@ -870,16 +875,23 @@ function showMaintenanceShield(message) {
         document.getElementById('selectDay').innerHTML = "";
         document.getElementById('staffTable').innerHTML = "";
         switchMode('date'); 
-        document.getElementById('loginStore').innerHTML = '<option value="">請先選擇公司</option>';
-        document.getElementById('loginCompany').value = ""; 
+        
         document.getElementById('appSection').style.display = 'none';
-        document.getElementById('modeSelectionSection').style.display = 'none'; // ★ 登出時隱藏選擇畫面
-        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('modeSelectionSection').style.display = 'none'; 
         
         if(Object.keys(allStoreData).length === 0) {
             callApi('getStoreList').then(res => { if(res.success) initLogin(res.data); });
+        } else {
+            // ★ 終極修復：確保登出時，強制把公司清單畫出來！
+            const coSelect = document.getElementById('loginCompany');
+            coSelect.innerHTML = '<option value="">請選擇公司</option>';
+            Object.keys(allStoreData).forEach(co => { coSelect.innerHTML += `<option value="${co}">${co}</option>`; });
+            document.getElementById('loginStore').innerHTML = '<option value="">請先選擇公司</option>';
+            document.getElementById('loginCompany').value = ""; 
+            
+            document.getElementById('loginSection').style.display = 'block';
+            showLoading(false);
         }
-        showLoading(false);
       }
 
       function refreshData() {
@@ -1317,6 +1329,7 @@ function showMaintenanceShield(message) {
       // ==========================================
       window.enterMode = function(mode) {
           currentMonthMode = mode;
+          sessionStorage.setItem('tkk_month_mode', mode); // ★ 記住店長選擇的月份
           document.getElementById('modeSelectionSection').style.display = 'none';
           document.getElementById('appSection').style.display = 'block';
           
