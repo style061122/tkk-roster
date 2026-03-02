@@ -3734,7 +3734,7 @@ function showMaintenanceShield(message) {
 
                       // ★★★ 核心修復：跨夜座標系自動對齊 ★★★
                       // 如果主班表跨夜 (eF > 24)，且支援時段的起點小於主班表起點，代表這是「跨夜後的凌晨」
-                      if (eF > 24 && supS < sF) supS += 24;
+                      if (sF !== 999 && eF > 24 && supS < sF) supS += 24;
                       // 如果支援時段本身跨夜 (或經過上面的校正後導致結束小於起點)
                       if (supE < supS) supE += 24;
 
