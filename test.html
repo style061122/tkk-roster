@@ -2383,7 +2383,7 @@ function showMaintenanceShield(message) {
           summaryBar.innerHTML = html;
       }
       // ==========================================
-      // ★ 終極月結算戰情室 (全微型網格 + 完美手感版)
+      // ★ 終極月結算戰情室 (精準下拉選單過濾版)
       // ==========================================
       function openMonthlyReport() {
           if (!currentData || currentData.length === 0) {
@@ -2403,6 +2403,10 @@ function showMaintenanceShield(message) {
               let htmlOutbound = ''; 
               let htmlInbound = '';  
 
+              // ★ 用來搜集下拉選單的 HTML
+              let optMonthly = '';
+              let optHourly = '';
+
               let myStaffNames = [...new Set(currentData.filter(r => r.store === currentStore).map(r => r.name))];
               let externalData = currentData.filter(r => r.store !== currentStore);
               let targetH = parseFloat(monthlyTargets.hrs) || 0;
@@ -2421,7 +2425,6 @@ function showMaintenanceShield(message) {
                   let isMonthly = salaryType.includes("月薪");
 
                   let workDates = [], restDates = [], regDates = [], natDates = [], emptyDates = [];
-                  // ★ 新增 sumO_norm 與 sumO_nat
                   let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO_norm = 0, sumO_nat = 0, sumAA = 0, sumSupOut = 0;
                   let zDetails = [], oDetails = [], aaDetails = [];
                   let supportOutGroups = {};
@@ -2435,7 +2438,7 @@ function showMaintenanceShield(message) {
                       let z = parseFloat(r.input_est_overtime) || 0;
                       let aa = parseFloat(r.calc_excess) || 0;
                       let o = parseFloat(r.sys_overtimeHrs) || 0;
-                      let sysStatus = r.sys_status || ""; // ★ 抓取系統狀態 (I欄)
+                      let sysStatus = r.sys_status || ""; 
 
                       sumH += h;
                       sumAA += aa; 
@@ -2448,7 +2451,6 @@ function showMaintenanceShield(message) {
                       else if (s === '國') natDates.push(dStr);
                       else if (s === '空班') emptyDates.push(dStr);
 
-                      // ★ 預計加班 (Z)：只有月薪且排班為國定假日才拆分
                       if (isMonthly && s === '國' && z > 0) {
                           let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                           sumZ_nat += natZ; sumZ_norm += normZ;
@@ -2458,7 +2460,6 @@ function showMaintenanceShield(message) {
                           zDetails.push(`${dStr}(${z}H)`);
                       }
 
-                      // ★ 已申請加班 (O)：只有月薪且系統狀態包含國定假日才拆分
                       if (isMonthly && sysStatus.includes('國定假日') && o > 0) {
                           let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
                           sumO_nat += natO; sumO_norm += normO;
@@ -2478,7 +2479,6 @@ function showMaintenanceShield(message) {
                               supportOutGroups[tgtStore].total += sh;
                               supportOutGroups[tgtStore].details.push(`🗓️ ${monthStr}/${dStr} (${sup.startEnd}) 共 ${sh}H`);
 
-                              // (給下方大匯總區用)
                               if (!outboundStores[tgtStore]) outboundStores[tgtStore] = { total: 0, emps: {} };
                               if (!outboundStores[tgtStore].emps[name]) outboundStores[tgtStore].emps[name] = { total: 0, details: [] };
                               outboundStores[tgtStore].total += sh;
@@ -2508,16 +2508,18 @@ function showMaintenanceShield(message) {
                       }
                   }
 
-                  // ★ 決定顯示字串 (時薪不秀 +0)
                   let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${sumZ_nat.toFixed(1)}</small>`;
                   let oDisplay = !isMonthly ? `${sumO_norm.toFixed(1)}` : `${sumO_norm.toFixed(1)}<small class="text-muted fw-normal">+${sumO_nat.toFixed(1)}</small>`;
                   
                   let cardId = `acc-${idx}`;
                   let badgeType = isMonthly ? 'bg-dark' : 'bg-success';
-                  let safeName = name.replace(/\s+/g, ''); // ★ 產生絕對安全的專屬 ID
+                  
+                  // ★ 產生絕對準確的 ID，並加上 report-item 類別供過濾使用
+                  let safeName = name.replace(/\s+/g, ''); 
+                  let reportCardId = `report-card-${safeName}`;
                   
                   let cardHtml = `
-                  <div id="card-${safeName}" class="card mb-3 shadow-sm border-0 rounded-4" style="overflow: hidden; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; scroll-margin-top: 60px;">
+                  <div id="${reportCardId}" class="card mb-3 shadow-sm border-0 rounded-4 report-item" style="overflow: hidden; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;">
                       <div class="card-header bg-white pt-3 pb-2" style="border-bottom: 1px solid #eee;">
                           <h5 class="fw-bolder mb-0 text-dark d-flex flex-wrap align-items-center gap-1">
                               ${name} <span class="badge ${badgeType} rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
@@ -2603,8 +2605,14 @@ function showMaintenanceShield(message) {
                   </div>
                   `;
 
-                  if (isMonthly) htmlMonthly += cardHtml;
-                  else htmlHourly += cardHtml;
+                  // ★ 將選項與 HTML 同步收集
+                  if (isMonthly) {
+                      htmlMonthly += cardHtml;
+                      optMonthly += `<option value="${reportCardId}">👤 ${name}</option>`;
+                  } else {
+                      htmlHourly += cardHtml;
+                      optHourly += `<option value="${reportCardId}">👤 ${name}</option>`;
+                  }
               });
 
               // ==========================================
@@ -2640,8 +2648,6 @@ function showMaintenanceShield(message) {
 
               for (const [storeName, storeData] of Object.entries(outboundStores)) {
                   let collapseId = `outbound-${outCount}`;
-                  
-                  // 產生按鈕方塊
                   outGridHtml += `
                   <div class="col">
                       <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #e6f2ff; border-bottom: 4px solid #0d6efd;" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
@@ -2650,7 +2656,6 @@ function showMaintenanceShield(message) {
                       </div>
                   </div>`;
 
-                  // 產生展開明細
                   let empsHtml = '';
                   for (const [empName, empData] of Object.entries(storeData.emps)) {
                       empsHtml += `
@@ -2673,9 +2678,10 @@ function showMaintenanceShield(message) {
                   outCount++;
               }
 
+              let outId = "report-section-outbound";
               if (outGridHtml !== '') {
                   htmlOutbound = `
-                  <div class="card shadow-sm border-0 rounded-4 mb-3" style="background-color: #f8f9fa;">
+                  <div id="${outId}" class="card shadow-sm border-0 rounded-4 mb-3 report-item" style="background-color: #f8f9fa;">
                       <div class="card-body p-2 p-md-3">
                           <div class="row row-cols-2 row-cols-md-4 g-2 text-center mb-2">
                               ${outGridHtml}
@@ -2694,8 +2700,6 @@ function showMaintenanceShield(message) {
 
               for (const [storeName, storeData] of Object.entries(inboundStores)) {
                   let collapseId = `inbound-${inCount}`;
-                  
-                  // 產生按鈕方塊
                   inGridHtml += `
                   <div class="col">
                       <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #f4f0fd; border-bottom: 4px solid #6f42c1;" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
@@ -2704,7 +2708,6 @@ function showMaintenanceShield(message) {
                       </div>
                   </div>`;
 
-                  // 產生展開明細
                   let empsHtml = '';
                   for (const [empName, empData] of Object.entries(storeData.emps)) {
                       empsHtml += `
@@ -2727,9 +2730,10 @@ function showMaintenanceShield(message) {
                   inCount++;
               }
 
+              let inId = "report-section-inbound";
               if (inGridHtml !== '') {
                   htmlInbound = `
-                  <div class="card shadow-sm border-0 rounded-4 mb-3" style="background-color: #f8f9fa;">
+                  <div id="${inId}" class="card shadow-sm border-0 rounded-4 mb-3 report-item" style="background-color: #f8f9fa;">
                       <div class="card-body p-2 p-md-3">
                           <div class="row row-cols-2 row-cols-md-4 g-2 text-center mb-2">
                               ${inGridHtml}
@@ -2740,22 +2744,25 @@ function showMaintenanceShield(message) {
               }
 
               // ==========================================
-              // ★ 最終拼裝四大區塊 (加入導航列與絕對準確的錨點)
+              // ★ 最終拼裝四大區塊 (加入下拉過濾器)
               // ==========================================
               let finalHtml = '';
               
-              // 1. 建立導航選單的選項
-              let navOptions = `<option value="">請選擇人員快速跳轉...</option>`;
-              myStaffNames.forEach(name => {
-                  navOptions += `<option value="card-${name.replace(/\s+/g, '')}">👤 ${name}</option>`;
-              });
-              if (htmlOutbound) navOptions += `<option value="section-outbound" style="color:#084298; font-weight:bold;">🚀 本店支援外店 (借出)</option>`;
-              if (htmlInbound) navOptions += `<option value="section-inbound" style="color:#592c9b; font-weight:bold;">🤝 友店來支援 (借入)</option>`;
+              // 1. 組裝下拉選單內容
+              let navOptions = `<option value="ALL">顯示全店 (預設)</option>`;
+              if (optMonthly) navOptions += `<optgroup label="🔵 正職月薪">${optMonthly}</optgroup>`;
+              if (optHourly) navOptions += `<optgroup label="🟢 兼職時薪">${optHourly}</optgroup>`;
+              
+              let optSupport = "";
+              if (htmlOutbound) optSupport += `<option value="${outId}">🚀 本店支援外店 (借出)</option>`;
+              if (htmlInbound) optSupport += `<option value="${inId}">🤝 友店來支援 (借入)</option>`;
+              if (optSupport) navOptions += `<optgroup label="✨ 跨店支援">${optSupport}</optgroup>`;
 
-              // 2. 建立固定的頂部導航列 (使用 sticky-top)
+              // 2. 建立精美的 Sticky 導航列
               let navBarHtml = `
-              <div class="position-sticky top-0 bg-white py-2 mb-3 z-3" style="margin-top: -10px; border-bottom: 1px solid #dee2e6;">
-                  <select class="form-select fw-bold border-primary shadow-sm" onchange="scrollToReportCard(this.value)">
+              <div class="mb-3 d-flex align-items-center flex-wrap gap-2 bg-light p-2 rounded border border-primary shadow-sm position-sticky top-0" style="z-index: 1020;">
+                  <label class="fw-bold text-dark text-nowrap mb-0 ms-1">👤 快速尋找：</label>
+                  <select class="form-select fw-bold border-primary flex-grow-1" style="width: auto; cursor: pointer;" onchange="filterMonthlyReport(this.value)">
                       ${navOptions}
                   </select>
               </div>
@@ -2763,14 +2770,18 @@ function showMaintenanceShield(message) {
 
               finalHtml += navBarHtml;
               
-              if (htmlMonthly) finalHtml += `<h5 class="fw-bold mb-2 mt-2 px-1" style="color:#664d03;">👑 正職月薪</h5>${htmlMonthly}`;
-              if (htmlHourly) finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1" style="color:#0f5132;">🌟 兼職時薪</h5>${htmlHourly}`;
+              // 3. 放入所有內容 (大標題加上 report-category-header 供過濾器控制)
+              if (htmlMonthly) finalHtml += `<h5 class="fw-bold mb-2 mt-2 px-1 report-category-header" style="color:#664d03;">👑 正職月薪</h5>${htmlMonthly}`;
+              if (htmlHourly) finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1 report-category-header" style="color:#0f5132;">🌟 兼職時薪</h5>${htmlHourly}`;
               
               if (htmlOutbound || htmlInbound) {
-                  finalHtml += `<div class="mt-4 pt-3 border-top border-2 border-secondary border-opacity-25">`;
-                  if (htmlOutbound) finalHtml += `<h5 id="section-outbound" class="fw-bold mb-2 px-1 pt-2" style="color:#084298; scroll-margin-top: 60px;">🚀 本店支援外店 (借出)</h5>${htmlOutbound}`;
-                  if (htmlInbound) finalHtml += `<h5 id="section-inbound" class="fw-bold mb-2 mt-4 px-1 pt-2" style="color:#592c9b; scroll-margin-top: 60px;">🤝 友店來支援 (借入)</h5>${htmlInbound}`;
-                  finalHtml += `</div>`;
+                  finalHtml += `<div class="mt-4 pt-3 border-top border-2 border-secondary border-opacity-25 report-category-header"></div>`;
+                  if (htmlOutbound) finalHtml += `<h5 class="fw-bold mb-2 px-1 report-category-header" style="color:#084298;">🚀 本店支援外店 (借出)</h5>${htmlOutbound}`;
+                  if (htmlInbound) finalHtml += `<h5 class="fw-bold mb-2 mt-4 px-1 report-category-header" style="color:#592c9b;">🤝 友店來支援 (借入)</h5>${htmlInbound}`;
+              }
+
+              if (!htmlMonthly && !htmlHourly && !htmlOutbound && !htmlInbound) {
+                  finalHtml += `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">本月目前沒有任何排班與支援資料</div>`;
               }
 
               modalBody.innerHTML = finalHtml;
@@ -2778,30 +2789,24 @@ function showMaintenanceShield(message) {
           }, 100); 
       }
       // ==========================================
-      // ★ 月統計戰情室專用：原生平滑滾動跳轉引擎
+      // ★ 月統計戰情室專用：精準過濾引擎
       // ==========================================
-      function scrollToReportCard(targetId) {
-          if (!targetId) return;
+      window.filterMonthlyReport = function(targetId) {
+          const headers = document.querySelectorAll('.report-category-header');
+          const items = document.querySelectorAll('.report-item');
           
-          const targetElement = document.getElementById(targetId);
-          if (targetElement) {
-              // 1. 使用瀏覽器最原生的定位方法，絕對精準
-              targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              
-              // 2. 酷炫動畫：被選中的卡片會浮起並發出藍色光暈，持續 1 秒
-              targetElement.style.transition = 'box-shadow 0.4s ease, transform 0.4s ease';
-              targetElement.style.boxShadow = '0 0 15px rgba(13, 110, 253, 0.6)';
-              targetElement.style.transform = 'scale(1.02)';
-              targetElement.style.zIndex = '10'; // 確保放大時不被別的卡片蓋住
-              
-              // 1秒後恢復原狀
-              setTimeout(() => {
-                  targetElement.style.boxShadow = '';
-                  targetElement.style.transform = '';
-                  targetElement.style.zIndex = '';
-              }, 1000);
+          if (targetId === 'ALL') {
+              // 顯示全部
+              headers.forEach(h => h.style.display = 'block');
+              items.forEach(i => i.style.display = 'block');
+          } else {
+              // 隱藏分類大標題，只留下選中的那張卡片
+              headers.forEach(h => h.style.display = 'none');
+              items.forEach(i => {
+                  i.style.display = (i.id === targetId) ? 'block' : 'none';
+              });
           }
-      }
+      };
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
       function updateRowState(tr) {
         const status = tr.querySelector('.status-select').value; const inputs = tr.querySelectorAll('.time-select, .rest-select'); const hInput = tr.querySelector('.hours-input');
