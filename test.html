@@ -5103,68 +5103,158 @@ function showMaintenanceShield(message) {
 
       function renderAdminDashboard(targetStore, monthMode) {
           let zTot=0, oTot=0, aaTot=0, lvTot=0, supOut=0, supIn=0;
+          let abnCount = 0;
           
+          // 明細收集器
+          let aaDetails = {}, lvDetails = {}, abnDetails = {};
+          let outStoreTotals = {}, inStoreTotals = {};
+          let hqDispatchCount = 0; // 總部派來這家店的數量
+
+          // 輔助時間轉換
+          const ft = (t) => { if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val); };
+          const getFloat = (t) => { if(!t) return 0; if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); } return parseFloat(t) || 0; };
+
           currentData.forEach(r => {
+              let dParts = r.date.split('/'); let shortDate = `${dParts[1]}/${dParts[2]}`;
+              
               if (r.store === targetStore) {
-                  zTot += parseFloat(r.input_est_overtime) || 0;
-                  oTot += parseFloat(r.sys_overtimeHrs) || 0;
-                  aaTot += parseFloat(r.calc_excess) || 0;
-                  lvTot += parseFloat(r.sys_leaveHrs) || 0;
-                  if (r.supports) r.supports.forEach(s => supOut += parseFloat(s.hrs)||0);
+                  let z = parseFloat(r.input_est_overtime) || 0;
+                  let o = parseFloat(r.sys_overtimeHrs) || 0;
+                  let aa = parseFloat(r.calc_excess) || 0;
+                  let lv = parseFloat(r.sys_leaveHrs) || 0;
+                  let abn = String(r.sys_abnormal||"").trim();
+
+                  zTot += z; oTot += o; aaTot += aa; lvTot += lv;
+                  
+                  // 超時明細 (依人名分類)
+                  if (aa > 0) {
+                      if (!aaDetails[r.name]) aaDetails[r.name] = [];
+                      let sF = getFloat(r.input_start); let eF = getFloat(r.input_end);
+                      let h = parseFloat(r.calc_hours)||0; let rV = parseFloat(r.input_rest)||0;
+                      if(eF < sF) eF += 24;
+                      let aaStart = sF + h + z + (h===0&&z===0 ? 0 : rV); // 簡化推算
+                      let aaEnd = aaStart + aa + (h===0&&z===0 ? rV : 0);
+                      aaDetails[r.name].push(`${shortDate} (${ft(aaStart)}~${ft(aaEnd)}) 共 ${aa.toFixed(1)}H`);
+                  }
+
+                  // 請假明細
+                  if (lv > 0) {
+                      if (!lvDetails[r.name]) lvDetails[r.name] = [];
+                      lvDetails[r.name].push(`${shortDate} ${r.sys_leaveType} ${lv.toFixed(1)}H`);
+                  }
+
+                  // 異常明細
+                  if (abn !== "") {
+                      abnCount++;
+                      if (!abnDetails[r.name]) abnDetails[r.name] = [];
+                      abnDetails[r.name].push(`${shortDate} ${abn}`);
+                  }
+
+                  // 跨店出明細 (只記店名與時數)
+                  if (r.supports && r.supports.length > 0) {
+                      r.supports.forEach(s => { 
+                          let sh = parseFloat(s.hrs)||0; supOut += sh; 
+                          let tgt = s.supportStore;
+                          outStoreTotals[tgt] = (outStoreTotals[tgt] || 0) + sh;
+                      });
+                  }
               } else {
-                  if (r.supports) {
+                  // 友店來援明細
+                  if (r.supports && r.supports.length > 0) {
                       r.supports.forEach(s => {
-                          if (s.supportStore === targetStore) supIn += parseFloat(s.hrs)||0;
+                          if (s.supportStore === targetStore) {
+                              let sh = parseFloat(s.hrs)||0; supIn += sh;
+                              let src = r.store;
+                              inStoreTotals[src] = (inStoreTotals[src] || 0) + sh;
+                              // 順便計算是不是總部派來的
+                              if (allStoreData["總公司"] && allStoreData["總公司"].includes(src)) {
+                                  hqDispatchCount++;
+                              }
+                          }
                       });
                   }
               }
           });
 
+          // 組裝 HTML 明細字串
+          const buildPersonList = (dict) => Object.entries(dict).map(([name, arr]) => `<div class="mb-2"><div class="fw-bold text-dark">👤 ${name}</div><div class="text-muted" style="font-size:0.8rem; padding-left:20px;">${arr.join('<br>')}</div></div>`).join('');
+          const buildStoreList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
+
+          let htmlAA = buildPersonList(aaDetails) || '<div class="text-muted">無超紀錄</div>';
+          let htmlLv = buildPersonList(lvDetails) || '<div class="text-muted">無請假紀錄</div>';
+          let htmlAbn = buildPersonList(abnDetails) || '<div class="text-muted">無異常紀錄</div>';
+          let htmlOut = buildStoreList(outStoreTotals) || '<div class="text-muted">無跨店支援</div>';
+          let htmlIn = buildStoreList(inStoreTotals) || '<div class="text-muted">無友店來援</div>';
+
           let monthStr = (monthMode === 'current') ? window.sysCurrentMonthStr : window.sysNextMonthStr;
           
           document.getElementById('adminStoreTitle').innerHTML = `
-              <div class="d-flex align-items-center justify-content-center mb-2 mt-1">
-                  <h5 class="fw-bolder text-primary mb-0">🏢 ${targetStore}</h5>
-                  <span class="badge bg-primary ms-2 shadow-sm">${monthStr}</span>
+              <div class="d-flex align-items-center justify-content-center mb-3 p-2 bg-white rounded shadow-sm border">
+                  <h4 class="fw-bolder text-primary mb-0">🏢 ${targetStore}</h4>
+                  <span class="badge bg-primary ms-2 fs-6 shadow-sm">${monthStr}</span>
               </div>
-              <div class="w-100 px-1">
-                  <div class="row row-cols-3 row-cols-md-6 g-1 text-center">
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #fffaf0; border-color: #ffc107 !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.7rem; color:#997404;">預計加班</div>
-                              <div class="fw-bold text-dark" style="font-size: 1.1rem;">${zTot.toFixed(1)}</div>
-                          </div>
+              
+              <div class="row g-2 mb-3">
+                  <div class="col-6">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${lvTot>0?'#e0f8f5':'#f8f9fa'}; border-color: ${lvTot>0?'#bcebe3':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-lv">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${lvTot>0?'#0b8273':'#6c757d'};">請假總計</div>
+                          <div class="fw-bolder fs-4" style="color:${lvTot>0?'#0b8273':'#6c757d'};">${lvTot.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #d1e7dd; border-color: #198754 !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.7rem; color:#0f5132;">已申請</div>
-                              <div class="fw-bold text-success" style="font-size: 1.1rem;">${oTot.toFixed(1)}</div>
-                          </div>
+                  </div>
+                  <div class="col-6">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${aaTot>0?'#f8d7da':'#f8f9fa'}; border-color: ${aaTot>0?'#f5c2c7':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-aa">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${aaTot>0?'#842029':'#6c757d'};">超時總計</div>
+                          <div class="fw-bolder fs-4 ${aaTot>0?'text-danger':'text-muted'}">${aaTot.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${aaTot > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${aaTot > 0 ? '#f5c2c7' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.7rem; color:${aaTot > 0 ? '#842029' : '#6c757d'};">超時</div>
-                              <div class="fw-bold ${aaTot > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${aaTot.toFixed(1)}</div>
-                          </div>
+                  </div>
+                  <div class="col-12 p-0 m-0"><div class="collapse px-1" id="admin-lv"><div class="p-2 bg-white border rounded shadow-sm text-start mb-2" style="font-size:0.85rem;">${htmlLv}</div></div></div>
+                  <div class="col-12 p-0 m-0"><div class="collapse px-1" id="admin-aa"><div class="p-2 bg-white border rounded shadow-sm text-start mb-2" style="font-size:0.85rem;">${htmlAA}</div></div></div>
+
+                  <div class="col-6">
+                      <div class="p-2 rounded h-100 border shadow-sm" style="background: #fffaf0; border-color: #ffc107 !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.8rem; color:#997404;">預計加班</div>
+                          <div class="fw-bolder fs-4 text-dark">${zTot.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${lvTot > 0 ? '#e0f8f5' : '#f8f9fa'}; border-color: ${lvTot > 0 ? '#bcebe3' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.7rem; color:${lvTot > 0 ? '#0b8273' : '#6c757d'};">請假</div>
-                              <div class="fw-bold" style="font-size: 1.1rem; color:${lvTot > 0 ? '#0b8273' : '#6c757d'};">${lvTot.toFixed(1)}</div>
-                          </div>
+                  </div>
+                  <div class="col-6">
+                      <div class="p-2 rounded h-100 border shadow-sm" style="background: #d1e7dd; border-color: #198754 !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.8rem; color:#0f5132;">已申請加班</div>
+                          <div class="fw-bolder fs-4 text-success">${oTot.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${supOut > 0 ? '#e6f2ff' : '#f8f9fa'}; border-color: ${supOut > 0 ? '#b6d4fe' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.7rem; color:${supOut > 0 ? '#084298' : '#6c757d'};">跨店(出)</div>
-                              <div class="fw-bold ${supOut > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1.1rem;">${supOut.toFixed(1)}</div>
-                          </div>
+                  </div>
+
+                  <div class="col-6">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${supOut>0?'#e6f2ff':'#f8f9fa'}; border-color: ${supOut>0?'#b6d4fe':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-out">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${supOut>0?'#084298':'#6c757d'};">跨店支援(出)</div>
+                          <div class="fw-bolder fs-4 ${supOut>0?'text-dark':'text-muted'}">${supOut.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${supIn > 0 ? '#f4f0fd' : '#f8f9fa'}; border-color: ${supIn > 0 ? '#d3bbfb' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.7rem; color:${supIn > 0 ? '#592c9b' : '#6c757d'};">友店(入)</div>
-                              <div class="fw-bold" style="font-size: 1.1rem; color:${supIn > 0 ? '#6f42c1' : '#6c757d'};">${supIn.toFixed(1)}</div>
-                          </div>
+                  </div>
+                  <div class="col-6">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${supIn>0?'#f4f0fd':'#f8f9fa'}; border-color: ${supIn>0?'#d3bbfb':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-in">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${supIn>0?'#592c9b':'#6c757d'};">友店來援(入)</div>
+                          <div class="fw-bolder fs-4" style="color:${supIn>0?'#6f42c1':'#6c757d'};">${supIn.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
+                  </div>
+                  <div class="col-12 p-0 m-0"><div class="collapse px-1" id="admin-out"><div class="p-2 bg-white border rounded shadow-sm text-start mb-2" style="font-size:0.85rem;">${htmlOut}</div></div></div>
+                  <div class="col-12 p-0 m-0"><div class="collapse px-1" id="admin-in"><div class="p-2 bg-white border rounded shadow-sm text-start mb-2" style="font-size:0.85rem;">${htmlIn}</div></div></div>
+
+                  <div class="col-12">
+                      <div class="p-2 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="background: ${abnCount>0?'#ffffff':'#f8f9fa'}; border-color: ${abnCount>0?'#dc3545':'#dee2e6'} !important; border-width: ${abnCount>0?'2px':'1px'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-abn">
+                          <div class="fw-bold" style="font-size: 0.9rem; color:${abnCount>0?'#dc3545':'#6c757d'};">⚠️ 異常狀況</div>
+                          <div class="fw-bolder fs-5 ${abnCount>0?'text-danger':'text-muted'}">${abnCount>0?abnCount+' 筆':'無'} <span class="text-muted fs-6 ms-1">▾</span></div>
+                      </div>
+                  </div>
+                  <div class="col-12 p-0 m-0"><div class="collapse px-1 mt-1" id="admin-abn"><div class="p-2 bg-white border-start border-4 rounded shadow-sm text-start mb-2" style="border-color:#dc3545!important; font-size:0.85rem;">${htmlAbn}</div></div></div>
+
+                  <div class="col-12 mt-3">
+                      <button class="btn btn-dark w-100 fw-bold shadow-sm d-flex justify-content-between align-items-center p-3" style="border-radius: 12px; font-size: 1.1rem;" onclick="openHQDispatchModal()">
+                          <span>➕ 總部人員支援派遣</span>
+                          <span class="badge bg-light text-dark rounded-pill fs-6">${hqDispatchCount} 筆</span>
+                      </button>
                   </div>
               </div>
           `;
@@ -5332,6 +5422,212 @@ function showMaintenanceShield(message) {
               `;
           });
       }
+        // ==========================================
+      // 🚀 神級引擎：總部人員跨維度派遣系統
+      // ==========================================
+      let hqTempData = []; // 暫存總部某單位的全月班表
+      let hqTargetUnit = ""; 
+      
+      // 1. 開啟視窗並載入總部單位選單
+      function openHQDispatchModal() {
+          const unitSelect = document.getElementById('hqUnitSelect');
+          unitSelect.innerHTML = '<option value="">請選擇</option>';
+          
+          if (allStoreData["總公司"]) {
+              allStoreData["總公司"].forEach(u => unitSelect.innerHTML += `<option value="${u}">${u}</option>`);
+          }
+
+          // 初始化其他欄位
+          document.getElementById('hqDateSelect').innerHTML = '<option value="">請先選擇單位</option>';
+          document.getElementById('hqDateSelect').disabled = true;
+          document.getElementById('hqPersonSelect').innerHTML = '<option value="">請選擇日期</option>';
+          document.getElementById('hqPersonSelect').disabled = true;
+          document.getElementById('hqTargetStore').value = currentStore; // 預設帶入當前督導看的門市
+          document.getElementById('hqStart').value = "";
+          document.getElementById('hqEnd').value = "";
+          document.getElementById('hqRest').value = "0";
+          document.getElementById('hqDispatchListArea').innerHTML = "請先於上方選擇人員...";
+          hqTempData = [];
+
+          new bootstrap.Modal(document.getElementById('hqDispatchModal')).show();
+      }
+
+      // 2. 選擇單位後，背景極速載入該單位全月資料
+      function fetchHQUnitData() {
+          hqTargetUnit = document.getElementById('hqUnitSelect').value;
+          if (!hqTargetUnit) return;
+
+          showLoading(true, "讀取該單位排班中...");
+          callApi('getStoreData', { store: hqTargetUnit, monthMode: currentMonthMode }).then(res => {
+              showLoading(false);
+              if (res.success) {
+                  hqTempData = res.data || [];
+                  
+                  // 根據取得的資料，產生日期選單 (1~月底)
+                  let dSelect = document.getElementById('hqDateSelect');
+                  dSelect.innerHTML = '<option value="">選擇日期</option>';
+                  
+                  // 從資料裡收集所有有出現的日期
+                  let allDates = [...new Set(hqTempData.map(r => r.date))].sort((a,b) => a.localeCompare(b));
+                  allDates.forEach(d => {
+                      let dayNum = d.split('/')[2];
+                      dSelect.innerHTML += `<option value="${d}">${dayNum} 日</option>`;
+                  });
+                  dSelect.disabled = false;
+                  
+              } else {
+                  Swal.fire('錯誤', '資料讀取失敗', 'error');
+              }
+          }).catch(err => errorHandler(err));
+      }
+
+      // 3. 選擇日期後，自動過濾出「這天有排班」的活人
+      function updateHQPersonList() {
+          const dateStr = document.getElementById('hqDateSelect').value;
+          const pSelect = document.getElementById('hqPersonSelect');
+          
+          if (!dateStr) {
+              pSelect.innerHTML = '<option value="">請選擇日期</option>';
+              pSelect.disabled = true;
+              return;
+          }
+
+          pSelect.innerHTML = '<option value="">選擇人員</option>';
+          
+          // 過濾：找出這天，且狀態不是空的員工
+          let availableStaff = hqTempData.filter(r => r.date === dateStr && r.input_status !== "");
+          
+          if (availableStaff.length === 0) {
+              pSelect.innerHTML = '<option value="">本日無人排班</option>';
+          } else {
+              availableStaff.forEach(s => {
+                  pSelect.innerHTML += `<option value="${s.name}">👤 ${s.name}</option>`;
+              });
+              pSelect.disabled = false;
+          }
+          document.getElementById('hqDispatchListArea').innerHTML = "請先於上方選擇人員...";
+      }
+
+      // 4. 選擇人員後，繪製他的歷史派遣清單
+      function renderHQDispatchHistory() {
+          const dateStr = document.getElementById('hqDateSelect').value;
+          const empName = document.getElementById('hqPersonSelect').value;
+          const listArea = document.getElementById('hqDispatchListArea');
+          
+          if (!empName) { listArea.innerHTML = "請選擇人員..."; return; }
+
+          // 找出這個人在這天的資料列
+          let rowData = hqTempData.find(r => r.date === dateStr && r.name === empName);
+          if (!rowData || !rowData.supports || rowData.supports.length === 0) {
+              listArea.innerHTML = `<div class="alert alert-light border text-center text-muted mb-0">無派遣紀錄</div>`;
+              return;
+          }
+
+          let html = '';
+          rowData.supports.forEach((sup, idx) => {
+              html += `
+              <div class="d-flex justify-content-between align-items-center p-2 mb-2 bg-light border rounded shadow-sm">
+                  <div>
+                      <div class="fw-bold text-dark" style="font-size: 0.9rem;">📍 ${sup.supportStore}</div>
+                      <div class="text-muted" style="font-size: 0.8rem;">時段: ${sup.startEnd.replace('~','-')} (休${sup.rest}) 共 ${sup.hrs}H</div>
+                  </div>
+                  <button class="btn btn-sm btn-outline-danger fw-bold rounded-circle px-2" onclick="removeHQSupportItem('${dateStr}', '${empName}', ${idx})">✕</button>
+              </div>`;
+          });
+          listArea.innerHTML = html;
+      }
+
+      // 5. 點擊加入清單 (修改記憶體)
+      function stageHQDispatch() {
+          const dateStr = document.getElementById('hqDateSelect').value;
+          const empName = document.getElementById('hqPersonSelect').value;
+          const tgtStore = document.getElementById('hqTargetStore').value.trim();
+          const sVal = document.getElementById('hqStart').value;
+          const eVal = document.getElementById('hqEnd').value;
+          const rVal = document.getElementById('hqRest').value || "0";
+
+          if(!dateStr || !empName) { Swal.fire('提示', '請先選擇日期與人員', 'warning'); return; }
+          if(!tgtStore) { Swal.fire('提示', '請填寫被支援門市', 'warning'); return; }
+          if(sVal === "" || eVal === "") { Swal.fire('提示', '請填寫完整上下班時間', 'warning'); return; }
+
+          let sF = parseFloat(sVal); let eF = parseFloat(eVal); let rF = parseFloat(rVal);
+          if(eF < sF) eF += 24;
+          let hrs = eF - sF - rF;
+          if(hrs < 0) { Swal.fire('錯誤', '休息時間大於支援時間', 'error'); return; }
+
+          let rowData = hqTempData.find(r => r.date === dateStr && r.name === empName);
+          if (rowData) {
+              if (!rowData.supports) rowData.supports = [];
+              rowData.supports.push({
+                  supportStore: tgtStore,
+                  startEnd: `${sVal}~${eVal}`,
+                  rest: rVal,
+                  hrs: hrs.toFixed(1)
+              });
+              rowData.isModified = true; // 標記為髒資料
+              
+              // 清空輸入框並重繪清單
+              document.getElementById('hqStart').value = "";
+              document.getElementById('hqEnd').value = "";
+              document.getElementById('hqRest').value = "0";
+              renderHQDispatchHistory();
+          }
+      }
+
+      // 6. 點擊 X 撤回清單 (修改記憶體)
+      window.removeHQSupportItem = function(dateStr, empName, supIndex) {
+          let rowData = hqTempData.find(r => r.date === dateStr && r.name === empName);
+          if (rowData && rowData.supports) {
+              rowData.supports.splice(supIndex, 1); // 刪除該筆
+              rowData.isModified = true; // 標記為髒資料
+              renderHQDispatchHistory(); // 重繪
+          }
+      }
+
+      // 7. 最終存檔 (將有異動的總部資料打包送後端)
+      window.saveHQDispatch = function() {
+          let inputData = [];
+          
+          hqTempData.forEach((row, idx) => {
+              if (row.isModified) {
+                  inputData.push({
+                      rowIndex: row.rowIndex,  // 注意這裡用的是原始索引
+                      verifyName: row.name, 
+                      verifyDate: row.date,
+                      d: row.input_status, e: row.input_start, f: row.input_end, g: row.input_rest,
+                      h: row.calc_hours, z: row.input_est_overtime, aa: row.calc_excess,
+                      supports: row.supports || [], 
+                      cascadeLog: row.cascade_log || ""
+                  });
+              }
+          });
+
+          if (inputData.length === 0) {
+              Swal.fire('提示', '目前沒有任何修改需要儲存。', 'info');
+              return;
+          }
+
+          showLoading(true, "儲存跨維度派遣中...");
+          
+          // ★ 關鍵魔法：欺騙後端，假裝我們是這家總部單位在存檔！
+          callApi('saveStoreData', { 
+              store: hqTargetUnit, 
+              inputData: inputData, 
+              forceSave: false,
+              token: currentToken, // Token 依然用督導的，後端已放行
+              monthMode: currentMonthMode
+          }).then(res => {
+              showLoading(false);
+              if (res.status === 'SUCCESS' || res.status === 'PARTIAL') {
+                  Swal.fire('成功', '總部支援派遣已儲存並生效！', 'success').then(() => {
+                      bootstrap.Modal.getInstance(document.getElementById('hqDispatchModal')).hide();
+                      loadAdminData(); // ★ 存檔後自動重整督導當前看的這家門市，瞬間看到外援進來！
+                  });
+              } else {
+                  Swal.fire('失敗', res.message, 'error');
+              }
+          }).catch(err => errorHandler(err));
+      }
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -5345,5 +5641,71 @@ function showMaintenanceShield(message) {
         </div>
       </div>
     </div>
+
+    <div class="modal fade" id="hqDispatchModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="background-color: #f4f6f9;">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title fw-bold">🚀 總部人員支援派遣</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="bg-white p-3 rounded shadow-sm border mb-3">
+                <h6 class="fw-bold text-primary mb-3 border-bottom pb-2">➕ 新增派遣</h6>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="fw-bold text-muted small">出兵單位(總部)</label>
+                        <select id="hqUnitSelect" class="form-select fw-bold border-primary" onchange="fetchHQUnitData()">
+                            <option value="">請選擇</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="fw-bold text-muted small">日期</label>
+                        <select id="hqDateSelect" class="form-select fw-bold border-primary" onchange="updateHQPersonList()" disabled>
+                            <option value="">請選擇單位</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="fw-bold text-muted small">派遣人員 (該日有班者)</label>
+                        <select id="hqPersonSelect" class="form-select fw-bold border-primary" disabled onchange="renderHQDispatchHistory()">
+                            <option value="">請選擇日期</option>
+                        </select>
+                    </div>
+                    <div class="col-12 position-relative mt-2">
+                        <label class="fw-bold text-muted small">被支援門市 (目的地)</label>
+                        <input type="text" id="hqTargetStore" class="form-control fw-bold border-success bg-white sup-store" placeholder="🔍 點擊輸入或選擇..." onkeyup="filterStores(this)" onfocus="filterStores(this)">
+                        <ul class="dropdown-menu w-100 store-dropdown-list shadow" style="max-height: 200px; overflow-y: auto; position: absolute; top: 100%; left: 0; z-index: 1050; display: none;"></ul>
+                    </div>
+                    <div class="col-4 mt-2">
+                        <label class="fw-bold text-muted small">上班</label>
+                        <input type="number" id="hqStart" class="form-control text-center fw-bold border-dark" step="0.5" min="0" max="23.5" placeholder="例:9.5">
+                    </div>
+                    <div class="col-4 mt-2">
+                        <label class="fw-bold text-muted small">下班</label>
+                        <input type="number" id="hqEnd" class="form-control text-center fw-bold border-dark" step="0.5" min="0" max="23.5" placeholder="例:18">
+                    </div>
+                    <div class="col-4 mt-2">
+                        <label class="fw-bold text-muted small">休息</label>
+                        <input type="number" id="hqRest" class="form-control text-center fw-bold border-dark" step="0.5" min="0" max="4" value="0">
+                    </div>
+                </div>
+                <button class="btn btn-outline-primary w-100 fw-bold mt-3" onclick="stageHQDispatch()">⬇️ 加入下方派遣清單</button>
+            </div>
+
+            <div class="bg-white p-3 rounded shadow-sm border">
+                <h6 class="fw-bold text-success mb-2 border-bottom pb-2">📋 該員派遣清單 (含歷史)</h6>
+                <div id="hqDispatchListArea" class="text-muted small mt-2">
+                    請先於上方選擇人員...
+                </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn btn-success fw-bold px-4 shadow" onclick="saveHQDispatch()">💾 確認儲存派遣</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>
