@@ -5196,14 +5196,14 @@ function showMaintenanceShield(message) {
               
               <div class="row g-2 mb-3">
                   <div class="col-6">
-                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${lvTot>0?'#e0f8f5':'#f8f9fa'}; border-color: ${lvTot>0?'#bcebe3':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-lv">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative text-center d-flex flex-column align-items-center justify-content-center" style="background: ${lvTot>0?'#e0f8f5':'#f8f9fa'}; border-color: ${lvTot>0?'#bcebe3':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-lv">
                           <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${lvTot>0?'#0b8273':'#6c757d'};">請假總計</div>
                           <div class="fw-bolder fs-4" style="color:${lvTot>0?'#0b8273':'#6c757d'};">${lvTot.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
                   </div>
                   <div class="col-6">
-                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${aaTot>0?'#f8d7da':'#f8f9fa'}; border-color: ${aaTot>0?'#f5c2c7':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-aa">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative text-center d-flex flex-column align-items-center justify-content-center" style="background: ${aaTot>0?'#f8d7da':'#f8f9fa'}; border-color: ${aaTot>0?'#f5c2c7':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-aa">
                           <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${aaTot>0?'#842029':'#6c757d'};">超時總計</div>
                           <div class="fw-bolder fs-4 ${aaTot>0?'text-danger':'text-muted'}">${aaTot.toFixed(1)}<span class="fs-6">H</span></div>
@@ -5213,27 +5213,27 @@ function showMaintenanceShield(message) {
                   <div class="col-12 p-0 m-0"><div class="collapse px-1" id="admin-aa"><div class="p-2 bg-white border rounded shadow-sm text-start mb-2" style="font-size:0.85rem;">${htmlAA}</div></div></div>
 
                   <div class="col-6">
-                      <div class="p-2 rounded h-100 border shadow-sm" style="background: #fffaf0; border-color: #ffc107 !important;">
+                      <div class="p-2 rounded h-100 border shadow-sm text-center d-flex flex-column align-items-center justify-content-center" style="background: #fffaf0; border-color: #ffc107 !important;">
                           <div class="fw-bold mb-1" style="font-size: 0.8rem; color:#997404;">預計加班</div>
                           <div class="fw-bolder fs-4 text-dark">${zTot.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
                   </div>
                   <div class="col-6">
-                      <div class="p-2 rounded h-100 border shadow-sm" style="background: #d1e7dd; border-color: #198754 !important;">
+                      <div class="p-2 rounded h-100 border shadow-sm text-center d-flex flex-column align-items-center justify-content-center" style="background: #d1e7dd; border-color: #198754 !important;">
                           <div class="fw-bold mb-1" style="font-size: 0.8rem; color:#0f5132;">已申請加班</div>
                           <div class="fw-bolder fs-4 text-success">${oTot.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
                   </div>
 
                   <div class="col-6">
-                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${supOut>0?'#e6f2ff':'#f8f9fa'}; border-color: ${supOut>0?'#b6d4fe':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-out">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative text-center d-flex flex-column align-items-center justify-content-center" style="background: ${supOut>0?'#e6f2ff':'#f8f9fa'}; border-color: ${supOut>0?'#b6d4fe':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-out">
                           <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${supOut>0?'#084298':'#6c757d'};">跨店支援(出)</div>
                           <div class="fw-bolder fs-4 ${supOut>0?'text-dark':'text-muted'}">${supOut.toFixed(1)}<span class="fs-6">H</span></div>
                       </div>
                   </div>
                   <div class="col-6">
-                      <div class="p-2 rounded h-100 border shadow-sm position-relative" style="background: ${supIn>0?'#f4f0fd':'#f8f9fa'}; border-color: ${supIn>0?'#d3bbfb':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-in">
+                      <div class="p-2 rounded h-100 border shadow-sm position-relative text-center d-flex flex-column align-items-center justify-content-center" style="background: ${supIn>0?'#f4f0fd':'#f8f9fa'}; border-color: ${supIn>0?'#d3bbfb':'#dee2e6'} !important; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#admin-in">
                           <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           <div class="fw-bold mb-1" style="font-size: 0.8rem; color:${supIn>0?'#592c9b':'#6c757d'};">友店來援(入)</div>
                           <div class="fw-bolder fs-4" style="color:${supIn>0?'#6f42c1':'#6c757d'};">${supIn.toFixed(1)}<span class="fs-6">H</span></div>
@@ -5481,7 +5481,7 @@ function showMaintenanceShield(message) {
           }).catch(err => errorHandler(err));
       }
 
-      // 3. 選擇日期後，自動過濾出「這天有排班」的活人
+      // 3. 選擇日期後，自動過濾出「這天存在」的活人 (無須判斷排班狀態)
       function updateHQPersonList() {
           const dateStr = document.getElementById('hqDateSelect').value;
           const pSelect = document.getElementById('hqPersonSelect');
@@ -5494,8 +5494,8 @@ function showMaintenanceShield(message) {
 
           pSelect.innerHTML = '<option value="">選擇人員</option>';
           
-          // 過濾：找出這天，且狀態不是空的員工
-          let availableStaff = hqTempData.filter(r => r.date === dateStr && r.input_status !== "");
+          // ★ 修改：只要這天有他的資料列就顯示，不管 D 欄有沒有值！
+          let availableStaff = hqTempData.filter(r => r.date === dateStr);
           
           if (availableStaff.length === 0) {
               pSelect.innerHTML = '<option value="">本日無人排班</option>';
