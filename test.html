@@ -3526,7 +3526,8 @@ function showMaintenanceShield(message) {
 
           let hrs=0, rest=0, reg=0, nat=0, empty=0;
           let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0;
-          let totalLeaveHrs=0, abnormalCount=0; // ★ 新增請假與異常統計
+          let totalLeaveHrs=0;
+          let abnormalDetails = []; // ★ 改用陣列來收集異常明細
           let userKey = pData[0].pKey || ""; 
           
           // ★ 判斷是否為時薪人員
@@ -3538,19 +3539,19 @@ function showMaintenanceShield(message) {
               let z = parseFloat(r.input_est_overtime) || 0;
               let o = parseFloat(r.sys_overtimeHrs) || 0; 
               let aa = parseFloat(r.calc_excess) || 0;
-              let sysStatus = r.sys_status || ""; // ★ 抓取系統狀態 (I欄)
+              let sysStatus = r.sys_status || ""; 
 
               hrs += h; totalAA += aa;
               
               if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
               
-              // ★ 預計加班 (Z)：只有月薪且排班為國定假日才拆分 8 內/外
+              // 預計加班 (Z)
               if (!isHourly && s === '國' && z > 0) {
                   let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                   totalZ_nat += natZ; totalZ_norm += normZ;
               } else { totalZ_norm += z; }
 
-              // ★ 已申請加班 (O)：只有月薪且系統狀態包含國定假日才拆分 8 內/外
+              // 已申請加班 (O)
               if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
                   let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
                   totalO_nat += natO; totalO_norm += normO;
@@ -3560,10 +3561,19 @@ function showMaintenanceShield(message) {
                   r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
               }
               
-              // ★ 統計請假時數 (等待後端更新 sys_leaveHrs 欄位)
+              // ★ 統計請假時數
               totalLeaveHrs += parseFloat(r.sys_leaveHrs) || 0;
-              // ★ 統計異常筆數
-              if (String(r.sys_abnormal || "").trim() !== "") abnormalCount++;
+              
+              // ★ 收集異常明細 (格式化日期)
+              let sysAbnormal = String(r.sys_abnormal || "").trim();
+              if (sysAbnormal !== "") {
+                  let shortDate = r.date;
+                  if (r.date && r.date.includes('/')) {
+                      let parts = r.date.split('/');
+                      if (parts.length >= 3) shortDate = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+                  }
+                  abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+              }
           });
 
           // ★ 決定顯示字串 (時薪不秀 +0)
@@ -3577,11 +3587,11 @@ function showMaintenanceShield(message) {
           let btnHtml = "";
           let personalLink = "";
 
-          // ★ 拔除手機版切換鈕
+          // 產生按鈕與連結
           if (userKey && userKey.length > 3) {
               personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
               btnHtml = `
-                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
+                <div class="d-flex justify-content-end align-items-center mt-2 pt-2 border-top w-100">
                     <div class="d-flex gap-2 ms-auto">
                         <button class="btn btn-sm btn-outline-primary fw-bold bg-white" onclick="copyToClipboard('${personalLink}')">📋 複製連結</button>
                         <button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="toggleQRCode('${personalLink}')">📱 QR碼</button>
@@ -3590,14 +3600,22 @@ function showMaintenanceShield(message) {
               `;
           } else {
               btnHtml = `
-                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top w-100">
+                <div class="d-flex justify-content-end align-items-center mt-2 pt-2 border-top w-100">
                     <span class="badge bg-danger ms-auto">❌ 無金鑰</span>
                 </div>`;
           }
           
           statsDiv.innerHTML = `
               <div class="w-100">
-                  <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
+                  <div class="row row-cols-2 row-cols-md-5 g-1 text-center mb-1">
+                      
+                      <div class="col">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #e3f2fd; border-color: #90caf9 !important;">
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#084298;">應有(H)</div>
+                              <div class="fw-bold text-dark" style="font-size: 1rem;">${hrs.toFixed(1)}</div>
+                          </div>
+                      </div>
+
                       <div class="col">
                           <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #f8f9fa; border-color: #dee2e6 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#6c757d;">排休狀態</div>
@@ -3648,14 +3666,22 @@ function showMaintenanceShield(message) {
                       </div>
 
                       <div class="col-12 col-md">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${abnormalCount > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalCount > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalCount > 0 ? '2px' : '1px'} !important;">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#indiv-abnormal">
+                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                               <div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2">
-                                  <span class="fw-bold" style="color:${abnormalCount > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
-                                  <span class="fw-bold ${abnormalCount > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalCount > 0 ? abnormalCount + ' 筆' : '無'}</span>
+                                  <span class="fw-bold" style="color:${abnormalDetails.length > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
+                                  <span class="fw-bold ${abnormalDetails.length > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalDetails.length > 0 ? abnormalDetails.length + ' 筆' : '無'}</span>
                               </div>
                           </div>
                       </div>
                   </div>
+                  
+                  <div class="collapse" id="indiv-abnormal">
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.85rem;">
+                          ${abnormalDetails.length > 0 ? `<strong class="text-danger">異常明細:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
+                      </div>
+                  </div>
+
                   ${btnHtml}
               </div>`;
           
