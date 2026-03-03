@@ -311,7 +311,7 @@
             
             <div class="mb-3 px-1 mt-3">
                 <button class="btn btn-dark w-100 fw-bold shadow-sm d-flex justify-content-between align-items-center p-3" style="border-radius: 12px; font-size: 1.1rem;" onclick="openHQDispatchModal()">
-                    <span>➕ 總部人員支援派遣</span>
+                    <span>➕ 總部人員支援</span>
                     <span id="adminDispatchBadge" class="badge bg-light text-dark rounded-pill fs-6">0 筆</span>
                 </button>
             </div>
@@ -2862,13 +2862,13 @@ function showMaintenanceShield(message) {
                       <div class="col">
                           <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #fffaf0; border-color: #ffc107 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#997404;">預計加班</div>
-                              <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}H</div>
+                              <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}</div>
                           </div>
                       </div>
                       <div class="col">
                           <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #d1e7dd; border-color: #198754 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#0f5132;">已申請加班</div>
-                              <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}H</div>
+                              <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}</div>
                           </div>
                       </div>
                       <div class="col">
@@ -2901,7 +2901,7 @@ function showMaintenanceShield(message) {
               </div></div>`;
 
               let finalHtml = '';
-              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店戰情雷達</option>`;
+              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店統計</option>`;
               if (optMonthly) navOptions += `<optgroup label="🔵 正職月薪">${optMonthly}</optgroup>`;
               if (optHourly) navOptions += `<optgroup label="🟢 兼職時薪">${optHourly}</optgroup>`;
               
@@ -2942,7 +2942,7 @@ function showMaintenanceShield(message) {
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
           currentStore = targetStore; currentMonthMode = monthMode;
-          showLoading(true, "載入戰情資料中...");
+          showLoading(true, "讀取資料中...");
           callApi('getStoreData', { store: targetStore, monthMode: monthMode }).then(res => {
               showLoading(false);
               if (res.success) {
