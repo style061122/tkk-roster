@@ -268,9 +268,14 @@
       <div id="adminSection" class="main-container" style="display:none; background-color: #f4f6f9; min-height: 80vh;">
         <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-2 border-primary">
             <div>
-                <h3 class="fw-bold text-primary mb-1">👑 營運戰情中心</h3>
+                <h3 class="fw-bold text-primary mb-1">👑 督導戰情中心</h3>
                 <span class="badge bg-secondary">唯讀查核模式</span>
             </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-secondary fw-bold shadow-sm" onclick="handleChangePassword()">🔑 密碼變更</button>
+                <button type="button" class="btn btn-outline-danger fw-bold shadow-sm" onclick="logout()">登出系統</button>
+            </div>
+        </div>
             <button type="button" class="btn btn-outline-danger fw-bold shadow-sm" onclick="logout()">登出系統</button>
         </div>
 
@@ -332,13 +337,14 @@
                 <span class="badge bg-dark">專屬看板</span>
             </div>
             
-            <div class="d-flex align-items-center gap-2 w-100-mobile">
+            <div class="d-flex align-items-center gap-2 w-100-mobile flex-wrap justify-content-end">
                 <select id="hqMonthSelect" class="form-select fw-bold border-primary shadow-sm" style="width: 140px;" onchange="loadHQData()">
                     <option value="current" id="hqOptCurrent">當月班表</option>
                     <option value="next" id="hqOptNext">次月預排</option>
                 </select>
                 <button class="btn btn-success fw-bold shadow-sm text-nowrap" onclick="loadHQData()">🔄 重整</button>
-                <button class="btn btn-outline-danger fw-bold shadow-sm text-nowrap ms-auto" onclick="logout()">登出</button>
+                <button class="btn btn-secondary fw-bold shadow-sm text-nowrap" onclick="handleChangePassword()">🔑 密碼變更</button>
+                <button class="btn btn-outline-danger fw-bold shadow-sm text-nowrap" onclick="logout()">登出</button>
             </div>
         </div>
 
@@ -5014,11 +5020,11 @@ function showMaintenanceShield(message) {
       // ==========================================
       function initAdminFilters() {
           const compSelect = document.getElementById('adminCompanySelect');
-          compSelect.innerHTML = '<option value="">請選擇區區</option>';
+          compSelect.innerHTML = '<option value="">請選擇</option>';
           
           let allowedComps = new Set();
           
-          // 智慧漏斗：過濾出營運有權限的區區
+          // 智慧漏斗：過濾出營運有權限的區域
           if (allowedStoresList === "ALL") {
               Object.keys(allStoreData).forEach(c => allowedComps.add(c));
           } else if (Array.isArray(allowedStoresList)) {
@@ -5206,20 +5212,11 @@ function showMaintenanceShield(message) {
 
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
           let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
-          let targetH = parseFloat(monthlyTargets.hrs) || 0;
           let salaryType = pData[0].salaryType || "";
           
-          let hBadge = '';
-          if (!isHourly) {
-              let diff = hrs - targetH;
-              let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
-              hBadge = targetH > 0 ? `應有: ${hrs.toFixed(1)} (${diffText})` : `應有: ${hrs.toFixed(1)}`;
-          } else { hBadge = `累計應有: ${hrs.toFixed(1)}`; }
-
           statsDiv.innerHTML = `
               <div class="d-flex align-items-center flex-wrap gap-1 mb-2 ps-1">
                   <span class="badge bg-dark rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
-                  <span class="badge ${isHourly ? 'bg-success' : 'bg-primary'} shadow-sm" style="font-size: 0.85rem;">${hBadge}</span>
               </div>
               <div class="w-100">
                   <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
