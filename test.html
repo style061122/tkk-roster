@@ -5689,17 +5689,32 @@ function showMaintenanceShield(message) {
           
           Swal.fire({
               title: '處理中...',
-              html: `正在請總機幫您將 <b>${scope === 'ALL' ? '全區' : scope}</b> 的 ${monthStr} 資料轉為 EXCEL...<br>請稍候。`,
+              html: `正在由雲端伺服器運算 <b>${scope === 'ALL' ? '全區' : scope}</b> 的 ${monthStr} 資料...<br>資料量較大，請耐心等候！`,
               allowOutsideClick: false,
               didOpen: () => { Swal.showLoading(); }
           });
 
-          // 這裡即將呼叫我們下一階段要寫的後端 API
-          // callApi('exportExcel', { scope: scope, monthMode: monthMode, token: currentToken }) ...
-          
-          setTimeout(() => {
-              Swal.fire('系統提示', '前端介面已準備就緒！接下來我們需要去「後端 GAS」撰寫產生 EXCEL 的大腦邏輯。', 'info');
-          }, 1500);
+          // 呼叫後端我們剛剛寫好的 exportExcel 路由
+          callApi('exportExcel', { 
+              store: currentStore, // 雖然是下載，但還是要帶目前的門市當作識別
+              scope: scope, 
+              monthMode: monthMode, 
+              token: currentToken 
+          }).then(res => {
+              if (res.success && res.base64Data) {
+                  // ★ 接收到 Base64 亂碼後，瞬間在前端將其還原成真實的 XLSX 檔案並觸發下載！
+                  const link = document.createElement('a');
+                  link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.base64Data;
+                  link.download = res.fileName;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  
+                  Swal.fire({ icon: 'success', title: '下載成功', timer: 1500, showConfirmButton: false });
+              } else {
+                  Swal.fire('下載失敗', res.message || '無法取得檔案資料', 'error');
+              }
+          }).catch(err => errorHandler(err));
       }
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
