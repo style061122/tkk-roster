@@ -3605,17 +3605,36 @@ function showMaintenanceShield(message) {
                 </div>`;
           }
           
-          statsDiv.innerHTML = `
-              <div class="w-100">
-                  <div class="row row-cols-2 row-cols-md-5 g-1 text-center mb-1">
-                      
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #e3f2fd; border-color: #90caf9 !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#084298;">應有(H)</div>
-                              <div class="fw-bold text-dark" style="font-size: 1rem;">${hrs.toFixed(1)}</div>
-                          </div>
-                      </div>
+          // ==========================================
+          // ★ 產生「應有(H)」專屬徽章 (完美移植月統計樣式)
+          // ==========================================
+          let targetH = parseFloat(monthlyTargets.hrs) || 0;
+          let salaryType = pData.length > 0 ? (pData[0].salaryType || "") : "";
+          let badgeType = isHourly ? 'bg-dark' : 'bg-dark'; // 月薪時薪都用深色底較有質感
+          let hBadge = '';
+          
+          if (!isHourly) {
+              if (targetH > 0) {
+                  let diff = hrs - targetH;
+                  let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
+                  hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)} (${diffText})</span>`;
+              } else {
+                  hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)}</span>`;
+              }
+          } else {
+              hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
+          }
 
+          // ★ 組裝最終 HTML (將網格改為 row-cols-md-4 四等份)
+          statsDiv.innerHTML = `
+              <div class="d-flex align-items-center flex-wrap gap-1 mb-2 mt-1 ps-1">
+                  <span class="badge ${badgeType} rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
+                  ${hBadge}
+              </div>
+
+              <div class="w-100">
+                  <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
+                      
                       <div class="col">
                           <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #f8f9fa; border-color: #dee2e6 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#6c757d;">排休狀態</div>
