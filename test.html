@@ -5077,7 +5077,7 @@ function showMaintenanceShield(message) {
           currentStore = targetStore; // 暫時把營運的視角切換成這家店
           currentMonthMode = monthMode;
           
-          showLoading(true, "載入戰情資料中...");
+          showLoading(true, "讀取資料中...");
           callApi('getStoreData', { store: targetStore, monthMode: monthMode }).then(res => {
               showLoading(false);
               if (res.success) {
@@ -5655,15 +5655,15 @@ function showMaintenanceShield(message) {
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content" style="background-color: #f4f6f9;">
           <div class="modal-header bg-dark text-white">
-            <h5 class="modal-title fw-bold">🚀 總部人員支援派遣</h5>
+            <h5 class="modal-title fw-bold">🚀 總部人員支援</h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <div class="bg-white p-3 rounded shadow-sm border mb-3">
-                <h6 class="fw-bold text-primary mb-3 border-bottom pb-2">➕ 新增派遣</h6>
+                <h6 class="fw-bold text-primary mb-3 border-bottom pb-2">➕ 新增支援</h6>
                 <div class="row g-2 mb-2">
                     <div class="col-6">
-                        <label class="fw-bold text-muted small">出兵單位(總部)</label>
+                        <label class="fw-bold text-muted small">支援單位(總部)</label>
                         <select id="hqUnitSelect" class="form-select fw-bold border-primary" onchange="fetchHQUnitData()">
                             <option value="">請選擇</option>
                         </select>
@@ -5675,7 +5675,7 @@ function showMaintenanceShield(message) {
                         </select>
                     </div>
                     <div class="col-12">
-                        <label class="fw-bold text-muted small">派遣人員 (該日有班者)</label>
+                        <label class="fw-bold text-muted small">支援人員</label>
                         <select id="hqPersonSelect" class="form-select fw-bold border-primary" disabled onchange="renderHQDispatchHistory()">
                             <option value="">請選擇日期</option>
                         </select>
@@ -5697,11 +5697,11 @@ function showMaintenanceShield(message) {
                         <input type="number" id="hqRest" class="form-control text-center fw-bold border-dark" step="0.5" min="0" max="4" value="0">
                     </div>
                 </div>
-                <button class="btn btn-outline-primary w-100 fw-bold mt-3" onclick="stageHQDispatch()">⬇️ 加入下方派遣清單</button>
+                <button class="btn btn-outline-primary w-100 fw-bold mt-3" onclick="stageHQDispatch()">⬇️ 加入下方支援清單</button>
             </div>
 
             <div class="bg-white p-3 rounded shadow-sm border">
-                <h6 class="fw-bold text-success mb-2 border-bottom pb-2">📋 該員派遣清單 (含歷史)</h6>
+                <h6 class="fw-bold text-success mb-2 border-bottom pb-2">📋 該員支援清單 (含歷史)</h6>
                 <div id="hqDispatchListArea" class="text-muted small mt-2">
                     請先於上方選擇人員...
                 </div>
@@ -5709,7 +5709,7 @@ function showMaintenanceShield(message) {
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-            <button type="button" class="btn btn-success fw-bold px-4 shadow" onclick="saveHQDispatch()">💾 確認儲存派遣</button>
+            <button type="button" class="btn btn-success fw-bold px-4 shadow" onclick="saveHQDispatch()">💾 確認儲存支援</button>
           </div>
         </div>
       </div>
