@@ -2620,10 +2620,11 @@ function showMaintenanceShield(message) {
                       }
                   }
                   
+                  // ★ 組裝請假 HTML
                   let leaveHtml = '';
                   if (Object.keys(leaveDetails).length > 0) {
                       for (const [lType, lArray] of Object.entries(leaveDetails)) {
-                          leaveHtml += `<div class="mb-1"><span class="fw-bold" style="color:#fd7e14;">📝 ${lType}：</span><br><span class="text-secondary" style="font-size:0.85rem;">${lArray.join('<br>')}</span></div>`;
+                          leaveHtml += `<div class="mb-1"><span class="fw-bold" style="color:#0b8273;">📝 ${lType}：</span><br><span class="text-secondary" style="font-size:0.85rem;">${lArray.join('<br>')}</span></div>`;
                       }
                   }
 
@@ -2661,9 +2662,9 @@ function showMaintenanceShield(message) {
                               </div>
                               
                               <div class="col">
-                                  <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${totalLeaveHrs > 0 ? '#fff0e6' : '#f8f9fa'}; border-color: ${totalLeaveHrs > 0 ? '#ffdfc5' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-leave">
-                                      <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalLeaveHrs > 0 ? '#fd7e14' : '#6c757d'};">請假 ▾</div>
-                                      <div class="fw-bold ${totalLeaveHrs > 0 ? 'text-warning' : 'text-muted'}" style="font-size: 1rem; color: ${totalLeaveHrs > 0 ? '#fd7e14 !important' : ''};">${totalLeaveHrs > 0 ? totalLeaveHrs.toFixed(1) + 'H' : '0.0'}</div>
+                                  <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${totalLeaveHrs > 0 ? '#e0f8f5' : '#f8f9fa'}; border-color: ${totalLeaveHrs > 0 ? '#bcebe3' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-leave">
+                                      <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">請假 ▾</div>
+                                      <div class="fw-bold" style="font-size: 1rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">${totalLeaveHrs > 0 ? totalLeaveHrs.toFixed(1) + 'H' : '0.0'}</div>
                                   </div>
                               </div>
                               
@@ -2699,7 +2700,7 @@ function showMaintenanceShield(message) {
                               </div>
 
                               <div class="col-12">
-                                  <div class="p-1 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: ${abnormalDetails.length > 0 ? '#ffebee' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#f5c2c7' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-abnormal">
+                                  <div class="p-1 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: ${abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-abnormal">
                                       <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                                       <div class="d-flex flex-row justify-content-center align-items-center mt-1">
                                           <div class="d-flex flex-column align-items-center">
@@ -2723,7 +2724,7 @@ function showMaintenanceShield(message) {
                           </div>
                           
                           <div class="collapse" id="${cardId}-leave">
-                              <div class="p-2 rounded small border-start border-3 mb-1" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.5; font-size: 0.8rem;">
+                              <div class="p-2 rounded small border-start border-3 mb-1" style="background-color: #f0fbfd; border-color: #17a2b8 !important; line-height:1.5; font-size: 0.8rem;">
                                   ${Object.keys(leaveDetails).length > 0 ? leaveHtml : '<span class="text-black-50 opacity-75">無請假紀錄</span>'}
                               </div>
                           </div>
@@ -2749,7 +2750,7 @@ function showMaintenanceShield(message) {
                           </div>
 
                           <div class="collapse" id="${cardId}-abnormal">
-                              <div class="p-2 rounded small border-start border-3 mb-1" style="background-color: ${abnormalDetails.length > 0 ? '#fff5f5' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; line-height:1.5; font-size: 0.8rem;">
+                              <div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
                                   ${abnormalDetails.length > 0 ? `<strong class="text-danger">異常:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
                               </div>
                           </div>
@@ -2802,28 +2803,28 @@ function showMaintenanceShield(message) {
                   let collapseId = `outbound-${outCount}`;
                   outGridHtml += `
                   <div class="col">
-                      <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #e6f2ff; border-bottom: 4px solid #0d6efd;" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                          <div class="small fw-bold mb-1" style="color: #084298;">${storeName} ▾</div>
-                          <div class="fw-bold text-dark" style="font-size: 1.1rem;">${storeData.total.toFixed(1)}H</div>
+                      <div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #e6f2ff; border-bottom: 4px solid #0d6efd;" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color: #084298;">${storeName} ▾</div>
+                          <div class="fw-bold text-dark" style="font-size: 1rem;">${storeData.total.toFixed(1)}H</div>
                       </div>
                   </div>`;
 
                   let empsHtml = '';
                   for (const [empName, empData] of Object.entries(storeData.emps)) {
                       empsHtml += `
-                      <div class="mb-2 pb-1" style="border-bottom: 1px dashed #dee2e6;">
-                          <div class="fw-bold text-dark" style="font-size: 0.95rem;">
+                      <div class="mb-1 pb-1" style="border-bottom: 1px dashed #dee2e6;">
+                          <div class="fw-bold text-dark" style="font-size: 0.85rem;">
                               👤 ${empName} <span class="float-end text-primary fw-bolder">${empData.total.toFixed(1)}H</span>
                           </div>
-                          <div class="text-muted small mt-1 ps-2" style="line-height:1.5;">
+                          <div class="text-muted mt-1 ps-2" style="line-height:1.5; font-size: 0.8rem;">
                               ${empData.details.join('<br>')}
                           </div>
                       </div>`;
                   }
                   outDetailsHtml += `
-                  <div class="collapse mt-2" id="${collapseId}">
-                      <div class="p-3 bg-white rounded border-start border-4 border-primary shadow-sm mb-2">
-                          <h6 class="fw-bold text-primary mb-3">📍 去 ${storeName} 明細</h6>
+                  <div class="collapse mt-1" id="${collapseId}">
+                      <div class="p-2 bg-white rounded border-start border-4 border-primary shadow-sm mb-1">
+                          <h6 class="fw-bold text-primary mb-2" style="font-size: 0.9rem;">📍 去 ${storeName} 明細</h6>
                           ${empsHtml}
                       </div>
                   </div>`;
@@ -2833,9 +2834,9 @@ function showMaintenanceShield(message) {
               let outId = "report-section-outbound";
               if (outGridHtml !== '') {
                   htmlOutbound = `
-                  <div id="${outId}" class="card shadow-sm border-0 rounded-4 mb-3 report-item" style="background-color: #f8f9fa;">
-                      <div class="card-body p-2 p-md-3">
-                          <div class="row row-cols-2 row-cols-md-4 g-2 text-center mb-2">
+                  <div id="${outId}" class="card shadow-sm border-0 rounded-4 mb-2 report-item" style="background-color: #f8f9fa;">
+                      <div class="card-body p-1 p-md-2">
+                          <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
                               ${outGridHtml}
                           </div>
                           ${outDetailsHtml}
@@ -2854,28 +2855,28 @@ function showMaintenanceShield(message) {
                   let collapseId = `inbound-${inCount}`;
                   inGridHtml += `
                   <div class="col">
-                      <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #f4f0fd; border-bottom: 4px solid #6f42c1;" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                          <div class="small fw-bold mb-1" style="color: #592c9b;">${storeName} ▾</div>
-                          <div class="fw-bold text-dark" style="font-size: 1.1rem;">${storeData.total.toFixed(1)}H</div>
+                      <div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #f4f0fd; border-bottom: 4px solid #6f42c1;" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color: #592c9b;">${storeName} ▾</div>
+                          <div class="fw-bold text-dark" style="font-size: 1rem;">${storeData.total.toFixed(1)}H</div>
                       </div>
                   </div>`;
 
                   let empsHtml = '';
                   for (const [empName, empData] of Object.entries(storeData.emps)) {
                       empsHtml += `
-                      <div class="mb-2 pb-1" style="border-bottom: 1px dashed #dee2e6;">
-                          <div class="fw-bold text-dark" style="font-size: 0.95rem;">
+                      <div class="mb-1 pb-1" style="border-bottom: 1px dashed #dee2e6;">
+                          <div class="fw-bold text-dark" style="font-size: 0.85rem;">
                               👤 ${empName} <span class="float-end fw-bolder" style="color:#6f42c1;">${empData.total.toFixed(1)}H</span>
                           </div>
-                          <div class="text-muted small mt-1 ps-2" style="line-height:1.5;">
+                          <div class="text-muted mt-1 ps-2" style="line-height:1.5; font-size: 0.8rem;">
                               ${empData.details.join('<br>')}
                           </div>
                       </div>`;
                   }
                   inDetailsHtml += `
-                  <div class="collapse mt-2" id="${collapseId}">
-                      <div class="p-3 bg-white rounded border-start border-4 shadow-sm mb-2" style="border-color: #6f42c1 !important;">
-                          <h6 class="fw-bold mb-3" style="color:#592c9b;">🤝 ${storeName} 支援明細</h6>
+                  <div class="collapse mt-1" id="${collapseId}">
+                      <div class="p-2 bg-white rounded border-start border-4 shadow-sm mb-1" style="border-color: #6f42c1 !important;">
+                          <h6 class="fw-bold mb-2" style="color:#592c9b; font-size: 0.9rem;">🤝 ${storeName} 支援明細</h6>
                           ${empsHtml}
                       </div>
                   </div>`;
@@ -2885,9 +2886,9 @@ function showMaintenanceShield(message) {
               let inId = "report-section-inbound";
               if (inGridHtml !== '') {
                   htmlInbound = `
-                  <div id="${inId}" class="card shadow-sm border-0 rounded-4 mb-3 report-item" style="background-color: #f8f9fa;">
-                      <div class="card-body p-2 p-md-3">
-                          <div class="row row-cols-2 row-cols-md-4 g-2 text-center mb-2">
+                  <div id="${inId}" class="card shadow-sm border-0 rounded-4 mb-2 report-item" style="background-color: #f8f9fa;">
+                      <div class="card-body p-1 p-md-2">
+                          <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
                               ${inGridHtml}
                           </div>
                           ${inDetailsHtml}
