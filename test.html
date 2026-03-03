@@ -268,7 +268,7 @@
       <div id="adminSection" class="main-container" style="display:none; background-color: #f4f6f9; min-height: 80vh;">
         <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-2 border-primary">
             <div>
-                <h3 class="fw-bold text-primary mb-1">👑 督導戰情中心</h3>
+                <h3 class="fw-bold text-primary mb-1">👑 營運戰情中心</h3>
                 <span class="badge bg-secondary">唯讀查核模式</span>
             </div>
             <button type="button" class="btn btn-outline-danger fw-bold shadow-sm" onclick="logout()">登出系統</button>
@@ -285,7 +285,7 @@
                         </select>
                     </div>
                     <div class="col-12 col-md-4">
-                        <label class="fw-bold text-muted small mb-1">選擇區區 (公司別)</label>
+                        <label class="fw-bold text-muted small mb-1">選擇(公司別)</label>
                         <select id="adminCompanySelect" class="form-select form-select-lg fw-bold border-info shadow-sm" onchange="updateAdminStoreOptions()">
                             <option value="">請先選擇公司</option>
                         </select>
@@ -574,7 +574,7 @@
       
       // ★ RBAC 角色與權限變數 (新增)
       let currentUserRole = "STORE";  // ADMIN, HQ, STORE
-      let allowedStoresList = [];     // 督導可看門市清單
+      let allowedStoresList = [];     // 營運可看門市清單
       
       // ★ 全域記住系統真實月份
       window.sysCurrentMonthStr = "當月";
@@ -594,7 +594,7 @@
               if (btnC) btnC.innerText = `${window.sysCurrentMonthStr} 班表`;
               if (btnN) btnN.innerText = `${window.sysNextMonthStr} 預排`;
 
-              // A 畫面 (督導)
+              // A 畫面 (營運)
               let aOptC = document.getElementById('adminOptCurrent');
               let aOptN = document.getElementById('adminOptNext');
               if (aOptC) aOptC.innerText = `${window.sysCurrentMonthStr} 班表`;
@@ -986,9 +986,9 @@ function showMaintenanceShield(message) {
           if(hqSec) hqSec.style.display = 'none';
 
           if (currentUserRole === 'ADMIN') {
-              // 督導視角 (A畫面)
+              // 營運視角 (A畫面)
               if(adminSec) adminSec.style.display = 'block';
-              if(typeof initAdminFilters === 'function') initAdminFilters(); // 呼叫督導專屬函數
+              if(typeof initAdminFilters === 'function') initAdminFilters(); // 呼叫營運專屬函數
           } 
           else if (currentUserRole === 'HQ') {
               // 後勤視角 (B畫面)
@@ -5010,7 +5010,7 @@ function showMaintenanceShield(message) {
         bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
       }
         // ==========================================
-      // 👑 A 畫面：督導戰情中心引擎 (Admin Engine)
+      // 👑 A 畫面：營運戰情中心引擎 (Admin Engine)
       // ==========================================
       function initAdminFilters() {
           const compSelect = document.getElementById('adminCompanySelect');
@@ -5018,7 +5018,7 @@ function showMaintenanceShield(message) {
           
           let allowedComps = new Set();
           
-          // 智慧漏斗：過濾出督導有權限的區區
+          // 智慧漏斗：過濾出營運有權限的區區
           if (allowedStoresList === "ALL") {
               Object.keys(allStoreData).forEach(c => allowedComps.add(c));
           } else if (Array.isArray(allowedStoresList)) {
@@ -5059,7 +5059,7 @@ function showMaintenanceShield(message) {
           
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
-          currentStore = targetStore; // 暫時把督導的視角切換成這家店
+          currentStore = targetStore; // 暫時把營運的視角切換成這家店
           currentMonthMode = monthMode;
           
           showLoading(true, "載入戰情資料中...");
