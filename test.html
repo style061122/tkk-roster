@@ -2407,7 +2407,7 @@ function showMaintenanceShield(message) {
           summaryBar.innerHTML = html;
       }
       // ==========================================
-      // ★ 終極月結算戰情室 (精準下拉選單過濾版)
+      // ★ 終極月結算戰情室 (精準下拉選單過濾版 + 完美明細排版)
       // ==========================================
       function openMonthlyReport() {
           if (!currentData || currentData.length === 0) {
@@ -2420,6 +2420,21 @@ function showMaintenanceShield(message) {
           
           const reportModal = new bootstrap.Modal(document.getElementById('monthlyReportModal'));
           reportModal.show();
+
+          // 輔助工具：時間轉小數點
+          const getStartFloat = (t) => {
+              if(!t) return 0; 
+              if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); }
+              return parseFloat(t) || 0;
+          };
+          
+          // 輔助工具：小數點轉時間字串 (處理跨夜)
+          const ft = (t) => {
+              if (isNaN(t) || t === "") return "0";
+              let val = parseFloat(t);
+              while (val >= 24) val -= 24;
+              return String(val);
+          };
 
           setTimeout(() => {
               let htmlMonthly = '';
@@ -2448,51 +2463,136 @@ function showMaintenanceShield(message) {
                   let salaryType = pData[0].salaryType || "";
                   let isMonthly = salaryType.includes("月薪");
 
-                  let workDates = [], restDates = [], regDates = [], natDates = [], emptyDates = [];
-                  let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO_norm = 0, sumO_nat = 0, sumAA = 0, sumSupOut = 0;
-                  let zDetails = [], oDetails = [], aaDetails = [];
+                  // ★ 改為陣列收集，不再只收集日期數字
+                  let detailWork=[], detailRest=[], detailReg=[], detailNat=[], detailEmpty=[];
+                  let zDetails = [], oDetails = [], aaDetails = [], leaveDetails = {};
                   let supportOutGroups = {};
+
+                  let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO_norm = 0, sumO_nat = 0, sumAA = 0, sumSupOut = 0;
+                  let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
 
                   pData.forEach(r => {
                       let dateParts = r.date.split('/');
-                      let monthStr = dateParts[1];
-                      let dStr = parseInt(dateParts[2]);
+                      let mStr = parseInt(dateParts[1]); // 去掉0
+                      let dStr = parseInt(dateParts[2]); // 去掉0
+                      let shortDate = `${mStr}/${dStr}`;
+                      
                       let s = r.input_status || "";
+                      let sVal = r.input_start || "";
+                      let eVal = r.input_end || "";
+                      let restVal = parseFloat(r.input_rest) || 0;
                       let h = parseFloat(r.calc_hours) || 0;
                       let z = parseFloat(r.input_est_overtime) || 0;
                       let aa = parseFloat(r.calc_excess) || 0;
                       let o = parseFloat(r.sys_overtimeHrs) || 0;
                       let sysStatus = r.sys_status || ""; 
+                      let sysLeave = String(r.sys_leave || "").trim();
+                      let sysLeaveType = String(r.sys_leaveType || "").trim();
 
                       sumH += h;
                       sumAA += aa; 
 
-                      if (aa > 0) { aaDetails.push(`${dStr}(${aa}H)`); }
+                      // 1. 計算休、例、國、空班的天數 (不管有沒有時段)
+                      if (s === '休') countRest++;
+                      else if (s === '例') countReg++;
+                      else if (s === '國') countNat++;
+                      else if (s === '空班') countEmpty++;
 
-                      if (s === '上班') workDates.push(dStr);
-                      else if (s === '休') restDates.push(dStr);
-                      else if (s === '例') regDates.push(dStr);
-                      else if (s === '國') natDates.push(dStr);
-                      else if (s === '空班') emptyDates.push(dStr);
+                      // 2. ★ 精細計算每個時段的起迄，準備放入明細
+                      let sF = getStartFloat(sVal);
+                      let eF = getStartFloat(eVal);
+                      if (eF < sF) eF += 24;
+                      let currTime = sF;
+                      let hasTime = (sVal !== "" && eVal !== "");
 
+                      let strH = "", strZ = "", strAA = "";
+
+                      if (hasTime && (h > 0 || z > 0 || aa > 0 || s === '上班')) {
+                          if (h > 0) { 
+                              let endT = currTime + h + restVal; 
+                              let rTag = restVal > 0 ? `休${restVal}` : "";
+                              strH = `${ft(currTime)}~${ft(endT)}${rTag ? '('+rTag+')' : ''}`; 
+                              currTime = endT; 
+                          }
+                          if (z > 0) { 
+                              let zRest = (h === 0) ? restVal : 0; 
+                              let endT = currTime + z + zRest; 
+                              let rTag = zRest > 0 ? `休${zRest}` : "";
+                              strZ = `${ft(currTime)}~${ft(endT)}${rTag ? '('+rTag+')' : ''}`; 
+                              currTime = endT; 
+                          }
+                          if (aa > 0) { 
+                              let aaRest = (h === 0 && z === 0) ? restVal : 0; 
+                              let endT = currTime + aa + aaRest; 
+                              let rTag = aaRest > 0 ? `休${aaRest}` : "";
+                              strAA = `${ft(currTime)}~${ft(endT)}${rTag ? '('+rTag+')' : ''}`; 
+                          }
+                      }
+
+                      // 3. 根據狀態，將明細塞入對應的陣列
+                      // 格式要求：2/1 (9~18) 共8H
+                      if (s === '上班') {
+                          if (h > 0) detailWork.push(`🗓️ ${shortDate} ${strH} 共${h.toFixed(1)}H`);
+                          else detailWork.push(`🗓️ ${shortDate}`); // 有狀態無時間
+                      } else if (s === '休') {
+                          if (z > 0) detailRest.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
+                          else detailRest.push(`🗓️ ${shortDate}`);
+                      } else if (s === '例') {
+                          if (aa > 0) detailReg.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`);
+                          else detailReg.push(`🗓️ ${shortDate}`);
+                      } else if (s === '國') {
+                          if (z > 0) detailNat.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
+                          else detailNat.push(`🗓️ ${shortDate}`);
+                      } else if (s === '空班') {
+                          if (aa > 0) detailEmpty.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`);
+                          else detailEmpty.push(`🗓️ ${shortDate}`);
+                      }
+
+                      // 4. 超時明細 (不管什麼狀態，只要有超時就抓)
+                      if (aa > 0) { 
+                          aaDetails.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`); 
+                      }
+
+                      // 5. 預計加班 (Z) 拆分與明細
                       if (isMonthly && s === '國' && z > 0) {
                           let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                           sumZ_nat += natZ; sumZ_norm += normZ;
-                          zDetails.push(`${dStr}(${z}H)`);
+                          zDetails.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                       } else if (z > 0) {
                           sumZ_norm += z;
-                          zDetails.push(`${dStr}(${z}H)`);
+                          zDetails.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                       }
 
+                      // 6. 已申請加班 (O) 拆分與明細
                       if (isMonthly && sysStatus.includes('國定假日') && o > 0) {
                           let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
                           sumO_nat += natO; sumO_norm += normO;
-                          oDetails.push(`${dStr}(${o}H)`);
+                          oDetails.push(`🗓️ ${shortDate} 共${o.toFixed(1)}H`); // O欄通常只有時數，無時段
                       } else if (o > 0) {
                           sumO_norm += o;
-                          oDetails.push(`${dStr}(${o}H)`);
+                          oDetails.push(`🗓️ ${shortDate} 共${o.toFixed(1)}H`);
+                      }
+                      
+                      // 7. ★ 新增：請假明細 (L欄與M欄)
+                      if (sysLeave !== "" && sysLeaveType !== "") {
+                          // 自動計算 L 欄時數
+                          let leaveHrs = 0;
+                          let lParts = sysLeave.split('/'); // 可能有兩段: 09:00-11:30/11:30-13:00
+                          lParts.forEach(p => {
+                              let t = p.split('-');
+                              if (t.length === 2) {
+                                  let ls = getStartFloat(t[0]); let le = getStartFloat(t[1]);
+                                  if (le < ls) le += 24;
+                                  leaveHrs += (le - ls);
+                              }
+                          });
+                          
+                          if (!leaveDetails[sysLeaveType]) leaveDetails[sysLeaveType] = [];
+                          let lHrsStr = leaveHrs > 0 ? `共${leaveHrs.toFixed(1)}H` : "";
+                          leaveDetails[sysLeaveType].push(`🗓️ ${shortDate} (${sysLeave.replace(/-/g, '~')}) ${lHrsStr}`);
                       }
 
+                      // 8. 跨店支援明細
                       if (r.supports && r.supports.length > 0) {
                           r.supports.forEach(sup => {
                               let sh = parseFloat(sup.hrs) || 0;
@@ -2501,13 +2601,14 @@ function showMaintenanceShield(message) {
 
                               if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = { total: 0, details: [] };
                               supportOutGroups[tgtStore].total += sh;
-                              supportOutGroups[tgtStore].details.push(`🗓️ ${monthStr}/${dStr} (${sup.startEnd}) 共 ${sh}H`);
+                              supportOutGroups[tgtStore].details.push(`🗓️ ${shortDate} (${sup.startEnd}) 共${sh}H`);
 
+                              // (給下方大匯總區用)
                               if (!outboundStores[tgtStore]) outboundStores[tgtStore] = { total: 0, emps: {} };
                               if (!outboundStores[tgtStore].emps[name]) outboundStores[tgtStore].emps[name] = { total: 0, details: [] };
                               outboundStores[tgtStore].total += sh;
                               outboundStores[tgtStore].emps[name].total += sh;
-                              outboundStores[tgtStore].emps[name].details.push(`🗓️ ${monthStr}/${dStr} (${sup.startEnd}) 共 ${sh}H`);
+                              outboundStores[tgtStore].emps[name].details.push(`🗓️ ${shortDate} (${sup.startEnd}) 共${sh}H`);
                           });
                       }
                   });
@@ -2525,10 +2626,19 @@ function showMaintenanceShield(message) {
                       hBadge = `<span class="badge bg-success ms-1 shadow-sm">累計應有: ${sumH.toFixed(1)}</span>`;
                   }
 
+                  // ★ 組裝跨店支援 HTML
                   let supportOutHtml = '';
                   if (sumSupOut > 0) {
                       for (const [sName, sData] of Object.entries(supportOutGroups)) {
                           supportOutHtml += `<div class="mb-2"><span class="fw-bold" style="color:#6f42c1;">📍 ${sName} 共 ${sData.total.toFixed(1)}H：</span><br><span class="text-secondary" style="font-size:0.9rem;">${sData.details.join('<br>')}</span></div>`;
+                      }
+                  }
+                  
+                  // ★ 組裝請假 HTML
+                  let leaveHtml = '';
+                  if (Object.keys(leaveDetails).length > 0) {
+                      for (const [lType, lArray] of Object.entries(leaveDetails)) {
+                          leaveHtml += `<div class="mb-2"><span class="fw-bold" style="color:#fd7e14;">📝 ${lType}：</span><br><span class="text-secondary" style="font-size:0.9rem;">${lArray.join('<br>')}</span></div>`;
                       }
                   }
 
@@ -2537,13 +2647,11 @@ function showMaintenanceShield(message) {
                   
                   let cardId = `acc-${idx}`;
                   let badgeType = isMonthly ? 'bg-dark' : 'bg-success';
-                  
-                  // ★ 產生絕對準確的 ID，並加上 report-item 類別供過濾使用
                   let safeName = name.replace(/\s+/g, ''); 
                   let reportCardId = `report-card-${safeName}`;
                   
                   let cardHtml = `
-                  <div id="${reportCardId}" class="card mb-3 shadow-sm border-0 rounded-4 report-item" style="overflow: hidden; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;">
+                  <div id="${reportCardId}" class="card mb-3 shadow-sm border-0 rounded-4 report-item" style="overflow: hidden; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; scroll-margin-top: 60px;">
                       <div class="card-header bg-white pt-3 pb-2" style="border-bottom: 1px solid #eee;">
                           <h5 class="fw-bolder mb-0 text-dark d-flex flex-wrap align-items-center gap-1">
                               ${name} <span class="badge ${badgeType} rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
@@ -2558,33 +2666,24 @@ function showMaintenanceShield(message) {
                                   <div class="p-2 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: #f8f9fa; border-color: #dee2e6 !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-status">
                                       <div class="small text-muted fw-bold mb-1">排休狀態 ▾</div>
                                       <div class="fw-bold" style="font-size: 0.95rem; color:#495057;">
-                                          休 <span class="text-primary">${restDates.length}</span> <span class="text-muted mx-1">|</span>
-                                          例 <span class="text-success">${regDates.length}</span> <span class="text-muted mx-1">|</span>
-                                          國 <span class="text-danger">${natDates.length}</span> <span class="text-muted mx-1">|</span>
-                                          空 <span class="text-secondary">${emptyDates.length}</span>
+                                          休 <span class="text-primary">${countRest}</span> <span class="text-muted mx-1">|</span>
+                                          例 <span class="text-success">${countReg}</span> <span class="text-muted mx-1">|</span>
+                                          國 <span class="text-danger">${countNat}</span> <span class="text-muted mx-1">|</span>
+                                          空 <span class="text-secondary">${countEmpty}</span>
                                       </div>
                                   </div>
                               </div>
                               
                               <div class="col">
-                                  <div class="p-1 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: #fff3cd; border-color: #ffecb5 !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime">
-                                      <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.8rem;">▾</div>
-                                      <div class="d-flex flex-column align-items-center mt-1">
-                                          <div class="w-100 d-flex justify-content-center align-items-baseline gap-1">
-                                              <span class="fw-bold" style="color:#997404; font-size: 0.85rem;">加班</span>
-                                              <span class="fw-bold text-dark" style="font-size: 1rem;">${zDisplay}</span>
-                                          </div>
-                                          <div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1">
-                                              <span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span>
-                                              <span class="fw-bold text-dark" style="font-size: 1rem;">${oDisplay}</span>
-                                          </div>
-                                      </div>
+                                  <div class="p-2 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${Object.keys(leaveDetails).length > 0 ? '#fff3cd' : '#f8f9fa'}; border-color: ${Object.keys(leaveDetails).length > 0 ? '#ffecb5' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-leave">
+                                      <div class="small fw-bold mb-1" style="color: ${Object.keys(leaveDetails).length > 0 ? '#fd7e14' : '#6c757d'};">請假 ▾</div>
+                                      <div class="fw-bold ${Object.keys(leaveDetails).length > 0 ? 'text-warning' : 'text-muted'}" style="font-size: 1.1rem; color: #fd7e14 !important;">${Object.keys(leaveDetails).length > 0 ? '有' : '無'}</div>
                                   </div>
                               </div>
                               
                               <div class="col">
                                   <div class="p-2 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${sumAA > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${sumAA > 0 ? '#f5c2c7' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-aa">
-                                      <div class="small fw-bold mb-1" style="color: ${sumAA > 0 ? '#842029' : '#6c757d'};">超時 ▾</div>
+                                      <div class="small fw-bold mb-1" style="color: ${sumAA > 0 ? '#842029' : '#6c757d'};">超時 (AA) ▾</div>
                                       <div class="fw-bold ${sumAA > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${sumAA > 0 ? sumAA.toFixed(1) : '0.0'}</div>
                                   </div>
                               </div>
@@ -2595,28 +2694,52 @@ function showMaintenanceShield(message) {
                                       <div class="fw-bold ${sumSupOut > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1.1rem;">${sumSupOut > 0 ? sumSupOut.toFixed(1) : '0.0'}</div>
                                   </div>
                               </div>
+
+                              <div class="col-12">
+                                  <div class="p-2 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: #fff3cd; border-color: #ffecb5 !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime">
+                                      <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.8rem;">▾</div>
+                                      <div class="d-flex flex-row justify-content-center align-items-center gap-4 mt-1">
+                                          <div class="d-flex flex-column align-items-center">
+                                              <span class="fw-bold" style="color:#997404; font-size: 0.85rem;">預計加班 (Z)</span>
+                                              <span class="fw-bold text-dark" style="font-size: 1.1rem;">${zDisplay}</span>
+                                          </div>
+                                          <div style="width: 1px; height: 30px; background-color: #ffe69c;"></div>
+                                          <div class="d-flex flex-column align-items-center">
+                                              <span class="fw-bold text-success" style="font-size: 0.85rem;">已申請加班</span>
+                                              <span class="fw-bold text-dark" style="font-size: 1.1rem;">${oDisplay}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
                           </div>
 
                           <div class="collapse" id="${cardId}-status">
                               <div class="p-2 bg-light rounded text-muted small border-start border-3 border-secondary mb-2" style="line-height:1.6;">
-                                  ${workDates.length > 0 ? `<strong>上班:</strong> ${workDates.join(' ')}<br>` : ''}
-                                  ${restDates.length > 0 ? `<strong>排休:</strong> ${restDates.join(' ')}<br>` : ''}
-                                  ${regDates.length > 0 ? `<strong>例假:</strong> ${regDates.join(' ')}<br>` : ''}
-                                  ${natDates.length > 0 ? `<strong>國定:</strong> ${natDates.join(' ')}<br>` : ''}
-                                  ${emptyDates.length > 0 ? `<strong>空班:</strong> ${emptyDates.join(' ')}<br>` : ''}
+                                  ${detailWork.length > 0 ? `<strong style="color:#084298;">上班:</strong><br>${detailWork.join('<br>')}<br>` : ''}
+                                  ${detailRest.length > 0 ? `<strong style="color:#997404;">排休:</strong><br>${detailRest.join('<br>')}<br>` : ''}
+                                  ${detailReg.length > 0 ? `<strong style="color:#198754;">例假:</strong><br>${detailReg.join('<br>')}<br>` : ''}
+                                  ${detailNat.length > 0 ? `<strong style="color:#dc3545;">國定:</strong><br>${detailNat.join('<br>')}<br>` : ''}
+                                  ${detailEmpty.length > 0 ? `<strong style="color:#6c757d;">空班:</strong><br>${detailEmpty.join('<br>')}<br>` : ''}
+                                  ${(detailWork.length===0 && detailRest.length===0 && detailReg.length===0 && detailNat.length===0 && detailEmpty.length===0) ? '無排班紀錄' : ''}
                               </div>
                           </div>
                           
+                          <div class="collapse" id="${cardId}-leave">
+                              <div class="p-2 rounded small border-start border-3 mb-2" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.6;">
+                                  ${Object.keys(leaveDetails).length > 0 ? leaveHtml : '<span class="text-black-50 opacity-75">無請假紀錄</span>'}
+                              </div>
+                          </div>
+
                           <div class="collapse" id="${cardId}-overtime">
                               <div class="p-2 rounded small border-start border-3 mb-2" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.6;">
-                                  ${zDetails.length > 0 ? `🗓️ <strong style="color:#997404;">加班:</strong> ${zDetails.join(' ')}<br>` : '<span class="text-black-50 opacity-75">無加班紀錄</span><br>'}
-                                  ${oDetails.length > 0 ? `🗓️ <strong class="text-success">已申請:</strong> ${oDetails.join(' ')}` : '<span class="text-black-50 opacity-75">無已申請紀錄</span>'}
+                                  ${zDetails.length > 0 ? `<strong style="color:#997404;">預計加班:</strong><br>${zDetails.join('<br>')}<br>` : '<span class="text-black-50 opacity-75">無預計加班紀錄</span><br>'}
+                                  ${oDetails.length > 0 ? `<strong class="text-success">已申請加班:</strong><br>${oDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無已申請加班紀錄</span>'}
                               </div>
                           </div>
 
                           <div class="collapse" id="${cardId}-aa">
                               <div class="p-2 rounded small border-start border-3 mb-2" style="background-color: ${sumAA > 0 ? '#fff5f5' : '#f8f9fa'}; border-color: ${sumAA > 0 ? '#dc3545' : '#dee2e6'} !important; line-height:1.6;">
-                                  ${aaDetails.length > 0 ? `🗓️ <strong class="text-danger">超時:</strong> ${aaDetails.join(' ')}` : '<span class="text-black-50 opacity-75">無超時紀錄</span>'}
+                                  ${aaDetails.length > 0 ? `<strong class="text-danger">超時:</strong><br>${aaDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無超時紀錄</span>'}
                               </div>
                           </div>
 
@@ -2645,8 +2768,8 @@ function showMaintenanceShield(message) {
               externalData.forEach(r => {
                   let store = String(r.store).trim();
                   let dateParts = r.date.split('/');
-                  let monthStr = dateParts[1];
-                  let dayStr = parseInt(dateParts[2]);
+                  let mStr = parseInt(dateParts[1]);
+                  let dStr = parseInt(dateParts[2]);
                   
                   if (r.supports && r.supports.length > 0) {
                       r.supports.forEach(sup => {
@@ -2657,14 +2780,14 @@ function showMaintenanceShield(message) {
 
                               if (!inboundStores[store].emps[r.name]) inboundStores[store].emps[r.name] = { total: 0, details: [] };
                               inboundStores[store].emps[r.name].total += sh;
-                              inboundStores[store].emps[r.name].details.push(`🗓️ ${monthStr}/${dayStr} (${sup.startEnd}) 共 ${sh}H`);
+                              inboundStores[store].emps[r.name].details.push(`🗓️ ${mStr}/${dStr} (${sup.startEnd}) 共${sh}H`);
                           }
                       });
                   }
               });
 
               // ==========================================
-              // ★ 組合第 3 區：本店支援外店 (改為微型網格)
+              // ★ 組合第 3 區：本店支援外店 (借出)
               // ==========================================
               let outGridHtml = '';
               let outDetailsHtml = '';
@@ -2716,7 +2839,7 @@ function showMaintenanceShield(message) {
               }
 
               // ==========================================
-              // ★ 組合第 4 區：友店來支援 (改為微型網格)
+              // ★ 組合第 4 區：友店來支援 (借入)
               // ==========================================
               let inGridHtml = '';
               let inDetailsHtml = '';
@@ -2812,6 +2935,7 @@ function showMaintenanceShield(message) {
 
           }, 100); 
       }
+
       // ==========================================
       // ★ 月統計戰情室專用：精準過濾引擎
       // ==========================================
