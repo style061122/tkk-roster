@@ -920,16 +920,14 @@ function showMaintenanceShield(message) {
                            allStoreData = resData || {};
                        }
                        
-                       // ★ 智慧導航：如果有記憶月份，直接跳進去排班畫面！
-                       if (savedMonthMode) {
-                           enterMode(savedMonthMode);
-                       } else {
-                           document.getElementById('modeSelectionSection').style.display = 'block';
-                       }
+                       // ★ 恢復角色與權限記憶
+                       currentUserRole = sessionStorage.getItem('tkk_role') || "STORE";
+                       try { allowedStoresList = JSON.parse(sessionStorage.getItem('tkk_allowed')) || []; } catch(e) {}
+                       
+                       // ★ 智慧導航：依據角色派發路由！
+                       routeByRole();
                    } 
                }).catch(err => {
-                   showLoading(false);
-                   errorHandler(err);
                });
            } else {
                showLoading(true, "連線中...");
@@ -5010,6 +5008,291 @@ function showMaintenanceShield(message) {
         }
 
         bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
+      }
+        // ==========================================
+      // 👑 A 畫面：督導戰情中心引擎 (Admin Engine)
+      // ==========================================
+      function initAdminFilters() {
+          const compSelect = document.getElementById('adminCompanySelect');
+          compSelect.innerHTML = '<option value="">請選擇區區</option>';
+          
+          let allowedComps = new Set();
+          
+          // 智慧漏斗：過濾出督導有權限的區區
+          if (allowedStoresList === "ALL") {
+              Object.keys(allStoreData).forEach(c => allowedComps.add(c));
+          } else if (Array.isArray(allowedStoresList)) {
+              Object.keys(allStoreData).forEach(comp => {
+                  let storesInComp = allStoreData[comp];
+                  let hasAccess = storesInComp.some(s => allowedStoresList.includes(s));
+                  if (hasAccess) allowedComps.add(comp);
+              });
+          }
+          
+          allowedComps.forEach(c => {
+              compSelect.innerHTML += `<option value="${c}">${c}</option>`;
+          });
+      }
+
+      function updateAdminStoreOptions() {
+          const comp = document.getElementById('adminCompanySelect').value;
+          const storeSelect = document.getElementById('adminStoreSelect');
+          storeSelect.innerHTML = '<option value="">請選擇門市</option>';
+          
+          if (comp && allStoreData[comp]) {
+              let storesInComp = allStoreData[comp];
+              storesInComp.forEach(store => {
+                  if (allowedStoresList === "ALL" || allowedStoresList.includes(store)) {
+                      storeSelect.innerHTML += `<option value="${store}">${store}</option>`;
+                  }
+              });
+          }
+      }
+
+      function resetAdminData() {
+          document.getElementById('adminDataArea').style.display = 'none';
+      }
+
+      function loadAdminData() {
+          const monthMode = document.getElementById('adminMonthSelect').value;
+          const targetStore = document.getElementById('adminStoreSelect').value;
+          
+          if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
+
+          currentStore = targetStore; // 暫時把督導的視角切換成這家店
+          currentMonthMode = monthMode;
+          
+          showLoading(true, "載入戰情資料中...");
+          callApi('getStoreData', { store: targetStore, monthMode: monthMode }).then(res => {
+              showLoading(false);
+              if (res.success) {
+                  currentData = res.data || []; 
+                  monthlyTargets = res.targets || {}; 
+                  currentParams = res.params || {};
+                  
+                  document.getElementById('adminDataArea').style.display = 'block';
+                  
+                  // 為了讓彈窗功能正常運作，假裝我們設定了店長參數
+                  const year = monthlyTargets.year || new Date().getFullYear();
+                  const month = monthlyTargets.month || (new Date().getMonth()+1);
+                  document.getElementById('displayYear').innerText = year;
+                  document.getElementById('displayMonth').innerText = month;
+                  
+                  // 繪製門市戰情卡片
+                  renderAdminDashboard(targetStore, monthMode);
+              } else {
+                  Swal.fire('錯誤', '資料讀取失敗: ' + res.message, 'error');
+              }
+          }).catch(err => errorHandler(err));
+      }
+
+      function renderAdminDashboard(targetStore, monthMode) {
+          let zTot=0, oTot=0, aaTot=0, lvTot=0, supOut=0, supIn=0;
+          
+          currentData.forEach(r => {
+              if (r.store === targetStore) {
+                  zTot += parseFloat(r.input_est_overtime) || 0;
+                  oTot += parseFloat(r.sys_overtimeHrs) || 0;
+                  aaTot += parseFloat(r.calc_excess) || 0;
+                  lvTot += parseFloat(r.sys_leaveHrs) || 0;
+                  if (r.supports) r.supports.forEach(s => supOut += parseFloat(s.hrs)||0);
+              } else {
+                  if (r.supports) {
+                      r.supports.forEach(s => {
+                          if (s.supportStore === targetStore) supIn += parseFloat(s.hrs)||0;
+                      });
+                  }
+              }
+          });
+
+          let monthStr = (monthMode === 'current') ? window.sysCurrentMonthStr : window.sysNextMonthStr;
+          
+          document.getElementById('adminStoreTitle').innerHTML = `
+              <div class="d-flex flex-column align-items-center justify-content-center p-3">
+                  <h4 class="fw-bolder text-dark mb-3">🏢 ${targetStore} <span class="badge bg-primary fs-6 align-middle ms-2">${monthStr}</span></h4>
+                  
+                  <div class="row row-cols-3 row-cols-md-6 g-2 w-100 text-center" style="max-width: 900px;">
+                      <div class="col"><div class="p-2 rounded bg-light border shadow-sm"><div class="small fw-bold text-muted">加班總計</div><div class="fs-5 fw-bold text-warning" style="color:#d39e00!important;">${zTot.toFixed(1)}H</div></div></div>
+                      <div class="col"><div class="p-2 rounded bg-light border shadow-sm"><div class="small fw-bold text-muted">已申請總計</div><div class="fs-5 fw-bold text-success">${oTot.toFixed(1)}H</div></div></div>
+                      <div class="col"><div class="p-2 rounded bg-light border shadow-sm"><div class="small fw-bold text-muted">超時總計</div><div class="fs-5 fw-bold text-danger">${aaTot.toFixed(1)}H</div></div></div>
+                      <div class="col"><div class="p-2 rounded bg-light border shadow-sm"><div class="small fw-bold text-muted">請假總計</div><div class="fs-5 fw-bold" style="color:#fd7e14;">${lvTot.toFixed(1)}H</div></div></div>
+                      <div class="col"><div class="p-2 rounded bg-light border shadow-sm"><div class="small fw-bold text-muted">跨店支援</div><div class="fs-5 fw-bold text-dark">${supOut.toFixed(1)}H</div></div></div>
+                      <div class="col"><div class="p-2 rounded bg-light border shadow-sm"><div class="small fw-bold text-muted">友店來援</div><div class="fs-5 fw-bold" style="color:#6f42c1;">${supIn.toFixed(1)}H</div></div></div>
+                  </div>
+              </div>
+          `;
+      }
+
+      // ==========================================
+      // 🏢 B 畫面：後勤專屬看板引擎 (HQ Engine)
+      // ==========================================
+      function loadHQData() {
+          const monthMode = document.getElementById('hqMonthSelect').value;
+          currentMonthMode = monthMode; 
+          
+          showLoading(true, "載入部門資料中...");
+          callApi('getStoreData', { store: currentStore, monthMode: monthMode }).then(res => {
+              showLoading(false);
+              if (res.success) {
+                  currentData = res.data || []; 
+                  monthlyTargets = res.targets || {}; 
+                  
+                  const select = document.getElementById('hqIndivSelect'); 
+                  select.innerHTML = ''; 
+                  let names = [...new Set(currentData.filter(r => r.store === currentStore).map(r=>r.name))];
+                  
+                  if(names.length === 0) {
+                      select.innerHTML = '<option>無人員</option>';
+                      document.getElementById('hqStatsArea').innerHTML = '';
+                      document.getElementById('hqTableBody').innerHTML = '<tr><td colspan="16" class="text-center py-5 text-muted fw-bold">本月無資料</td></tr>';
+                      return;
+                  }
+                  
+                  names.forEach(n => select.innerHTML+=`<option value="${n}">${n}</option>`); 
+                  renderHQTable(); 
+              } else {
+                  Swal.fire('錯誤', '資料讀取失敗: ' + res.message, 'error');
+              }
+          }).catch(err => errorHandler(err));
+      }
+
+      function renderHQTable() {
+          const name = document.getElementById('hqIndivSelect').value;
+          const tbody = document.getElementById('hqTableBody'); 
+          tbody.innerHTML = '';
+          const statsDiv = document.getElementById('hqStatsArea');
+          
+          const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
+          if (pData.length === 0) return;
+
+          let hrs=0, rest=0, reg=0, nat=0, empty=0;
+          let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0, totalLeaveHrs=0, abnormalCount=0;
+          let isHourly = pData.length > 0 && pData[0].salaryType && String(pData[0].salaryType).includes("時薪");
+          let abnormalDetails = [];
+
+          pData.forEach(r => {
+              let s = r.input_status || "";
+              let h = parseFloat(r.calc_hours) || 0;
+              let z = parseFloat(r.input_est_overtime) || 0;
+              let o = parseFloat(r.sys_overtimeHrs) || 0; 
+              let aa = parseFloat(r.calc_excess) || 0;
+              let sysStatus = r.sys_status || ""; 
+
+              hrs += h; totalAA += aa;
+              if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
+              
+              if (!isHourly && s === '國' && z > 0) {
+                  let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
+                  totalZ_nat += natZ; totalZ_norm += normZ;
+              } else { totalZ_norm += z; }
+
+              if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
+                  let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
+                  totalO_nat += natO; totalO_norm += normO;
+              } else { totalO_norm += o; }
+
+              if (r.supports && r.supports.length > 0) {
+                  r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
+              }
+              
+              totalLeaveHrs += parseFloat(r.sys_leaveHrs) || 0;
+              let sysAbnormal = String(r.sys_abnormal || "").trim();
+              if (sysAbnormal !== "") {
+                  let shortDate = r.date.split('/').slice(1).join('/');
+                  abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                  abnormalCount++;
+              }
+          });
+
+          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
+          let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
+          let targetH = parseFloat(monthlyTargets.hrs) || 0;
+          let salaryType = pData[0].salaryType || "";
+          
+          let hBadge = '';
+          if (!isHourly) {
+              let diff = hrs - targetH;
+              let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
+              hBadge = targetH > 0 ? `應有: ${hrs.toFixed(1)} (${diffText})` : `應有: ${hrs.toFixed(1)}`;
+          } else { hBadge = `累計應有: ${hrs.toFixed(1)}`; }
+
+          statsDiv.innerHTML = `
+              <div class="d-flex align-items-center flex-wrap gap-1 mb-2 ps-1">
+                  <span class="badge bg-dark rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
+                  <span class="badge ${isHourly ? 'bg-success' : 'bg-primary'} shadow-sm" style="font-size: 0.85rem;">${hBadge}</span>
+              </div>
+              <div class="w-100">
+                  <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: #f8f9fa; border-color: #dee2e6!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:#6c757d;">排休狀態</div><div class="fw-bold" style="font-size:0.85rem; color:#495057;">休 <span class="text-primary">${rest}</span> | 例 <span class="text-success">${reg}</span> | 國 <span class="text-danger">${nat}</span> | 空 <span class="text-secondary">${empty}</span></div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalLeaveHrs>0?'#e0f8f5':'#f8f9fa'}; border-color: ${totalLeaveHrs>0?'#bcebe3':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalLeaveHrs>0?'#0b8273':'#6c757d'};">請假</div><div class="fw-bold" style="font-size:1rem; color:${totalLeaveHrs>0?'#0b8273':'#6c757d'};">${totalLeaveHrs>0?totalLeaveHrs.toFixed(1)+'H':'0.0'}</div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${totalAA>0?'#f5c2c7':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalAA>0?'#842029':'#6c757d'};">超時</div><div class="fw-bold ${totalAA>0?'text-danger':'text-muted'}" style="font-size:1rem;">${totalAA>0?totalAA.toFixed(1):'0.0'}</div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${totalSupOut>0?'#d3bbfb':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalSupOut>0?'#3d1a87':'#6c757d'};">跨店支援</div><div class="fw-bold ${totalSupOut>0?'text-dark':'text-muted'}" style="font-size:1rem;">${totalSupOut>0?totalSupOut.toFixed(1):'0.0'}</div></div></div>
+                      <div class="col-12 col-md"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm border" style="background: #fff3cd; border-color: #ffecb5!important;"><div class="d-flex flex-row justify-content-center align-items-center gap-4"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:#997404; font-size:0.85rem;">預計加班</span><span class="fw-bold text-dark" style="font-size:1.1rem;">${zDisplay}</span></div><div style="width:1px; height:30px; background:#ffe69c;"></div><div class="d-flex flex-column align-items-center"><span class="fw-bold text-success" style="font-size:0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size:1.1rem;">${oDisplay}</span></div></div></div></div>
+                      <div class="col-12 col-md"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor:pointer; background: ${abnormalCount>0?'#ffffff':'#f8f9fa'}; border-color: ${abnormalCount>0?'#dc3545':'#dee2e6'}!important; border-width: ${abnormalCount>0?'2px':'1px'}!important;" data-bs-toggle="collapse" data-bs-target="#hq-abnormal"><div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size:0.75rem;">▾</div><div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2"><span class="fw-bold" style="color:${abnormalCount>0?'#dc3545':'#6c757d'}; font-size:0.85rem;">異常狀況</span><span class="fw-bold ${abnormalCount>0?'text-danger':'text-muted'}" style="font-size:1.1rem;">${abnormalCount>0?abnormalCount+' 筆':'無'}</span></div></div></div>
+                  </div>
+                  <div class="collapse" id="hq-abnormal">
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.85rem;">
+                          ${abnormalCount > 0 ? `<strong class="text-danger">異常明細:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
+                      </div>
+                  </div>
+              </div>`;
+
+          const ft = (t) => {
+              if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val);
+          };
+
+          pData.forEach(r => {
+              let sVal = r.input_start; let eVal = r.input_end;     
+              let restVal = parseFloat(r.input_rest) || 0; let hVal = parseFloat(r.calc_hours) || 0;
+              let zVal = parseFloat(r.input_est_overtime) || 0; let aaVal = parseFloat(r.calc_excess) || 0;
+              let status = r.input_status;
+              let strH = "-", strZ = "-", strAA = "-";
+
+              if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
+                  let sF = String(sVal).includes(':') ? timeToFloat(sVal) : parseFloat(sVal);
+                  if(isNaN(sF)) sF = 0; let currTime = sF;
+                  if (hVal > 0) { let endT = currTime + hVal + restVal; strH = `${ft(currTime)}-${ft(endT)}${restVal > 0 ? `(休${restVal})` : ""}`; currTime = endT; }
+                  if (zVal > 0) { let zRest = (h === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
+                  if (aaVal > 0) { let aaRest = (h === 0 && z === 0) ? restVal : 0; let endT = currTime + aa + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
+              }
+
+              let supStrs = [];
+              if(r.supports && r.supports.length > 0) {
+                  r.supports.forEach(s => { supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)</span>`); });
+              }
+              let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
+
+              let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : ""; let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
+              let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : ""; let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+              let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
+              let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
+
+              const tdLeftCorner = `position: sticky; left: 0; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
+              const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
+              const tdRight = `background-color: #fff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
+
+              tbody.innerHTML += `
+                  <tr>
+                      <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
+                      <td class="fw-bold" style="${tdLeft} color:#084298;">${status}</td>
+                      <td style="${tdLeft}">${strH}</td>
+                      <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
+                      <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
+                      <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
+                      <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
+                      
+                      <td style="${tdRight}">${r.sys_status || ""}</td>
+                      <td style="${tdRight}">${sysIn}</td>
+                      <td style="${tdRight}">${sysOut}</td>
+                      <td style="${tdRight}">${sysLeaveRange}</td>
+                      <td style="${tdRight}">${r.sys_leaveType||""}</td>
+                      <td style="${tdRight}">${sysOtRange}</td>
+                      <td class="fw-bold text-success" style="${tdRight}">${r.sys_overtimeHrs || ""}</td>
+                      <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
+                  </tr>
+              `;
+          });
       }
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
