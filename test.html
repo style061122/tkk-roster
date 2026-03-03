@@ -3066,7 +3066,7 @@ function showMaintenanceShield(message) {
                   <div class="row row-cols-2 row-cols-md-5 g-2 text-center mb-2">
                       <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e3f2fd; border: 1px solid #90caf9;"><div class="small fw-bold mb-1" style="color:#084298;">應有(H)</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${hrs.toFixed(1)}</div></div></div>
                       <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8f9fa; border: 1px solid #dee2e6;"><div class="small text-muted fw-bold mb-1">排休狀態</div><div class="fw-bold d-flex flex-wrap justify-content-center gap-1" style="font-size: 0.95rem; color:#495057;"><span>休 <span class="text-primary">${rest}</span></span><span class="text-muted opacity-50">|</span><span>例 <span class="text-success">${reg}</span></span><span class="text-muted opacity-50">|</span><span>國 <span class="text-danger">${nat}</span></span><span class="text-muted opacity-50">|</span><span>空 <span class="text-secondary">${empty}</span></span></div></div></div>
-                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;"><div class="small fw-bold mb-1" style="color:#842029;">超時(AA)</div><div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div></div></div>
+                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;"><div class="small fw-bold mb-1" style="color:#842029;">超時</div><div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div></div></div>
                       <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e0cffc; border: 1px solid #d3bbfb;"><div class="small fw-bold mb-1" style="color: #3d1a87;">跨店支援</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${totalSupOut.toFixed(1)}</div></div></div>
                       <div class="col-12"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #fff3cd; border: 1px solid #ffecb5;"><div class="d-flex flex-column align-items-center mt-1"><div class="w-100 d-flex justify-content-center align-items-baseline gap-1"><span class="fw-bold" style="color:#997404; font-size: 0.85rem;">預計加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${zDisplay}</span></div><div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1"><span class="fw-bold text-success" style="font-size: 0.85rem;">已申請加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${oDisplay}</span></div></div></div></div>
                   </div>
@@ -3090,7 +3090,7 @@ function showMaintenanceShield(message) {
                       <th style="${thStyleLeftCorner}">日期</th>
                       <th style="${thStyleLeft}">狀態</th>
                       <th style="${thStyleLeft}">應有時段</th>
-                      <th style="${thStyleLeft}">應有(H)</th>
+                      <th style="${thStyleLeft}">應有H</th>
                       <th style="${thStyleLeft}">加班時段</th>
                       <th style="${thStyleLeft}">獎金時段<br><small style="font-size:0.65rem; color:#d0e2ff;">(勿打卡)</small></th>
                       <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
@@ -3378,7 +3378,7 @@ function showMaintenanceShield(message) {
                   <div class="row row-cols-2 row-cols-md-5 g-2 text-center mb-2">
                       <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e3f2fd; border: 1px solid #90caf9;"><div class="small fw-bold mb-1" style="color:#084298;">應有(H)</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${hrs.toFixed(1)}</div></div></div>
                       <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8f9fa; border: 1px solid #dee2e6;"><div class="small text-muted fw-bold mb-1">排休狀態</div><div class="fw-bold d-flex flex-wrap justify-content-center gap-1" style="font-size: 0.95rem; color:#495057;"><span>休 <span class="text-primary">${rest}</span></span><span class="text-muted opacity-50">|</span><span>例 <span class="text-success">${reg}</span></span><span class="text-muted opacity-50">|</span><span>國 <span class="text-danger">${nat}</span></span><span class="text-muted opacity-50">|</span><span>空 <span class="text-secondary">${empty}</span></span></div></div></div>
-                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;"><div class="small fw-bold mb-1" style="color:#842029;">超時(AA)</div><div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div></div></div>
+                      <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #f8d7da; border: 1px solid #f5c2c7;"><div class="small fw-bold mb-1" style="color:#842029;">超時</div><div class="fw-bold text-danger" style="font-size: 1.2rem;">${totalAA.toFixed(1)}</div></div></div>
                       <div class="col"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #e0cffc; border: 1px solid #d3bbfb;"><div class="small fw-bold mb-1" style="color: #3d1a87;">跨店支援</div><div class="fw-bold text-dark" style="font-size: 1.2rem;">${totalSupOut.toFixed(1)}</div></div></div>
                       <div class="col-12"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="background-color: #fff3cd; border: 1px solid #ffecb5;"><div class="d-flex flex-column align-items-center mt-1"><div class="w-100 d-flex justify-content-center align-items-baseline gap-1"><span class="fw-bold" style="color:#997404; font-size: 0.85rem;">預計加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${zDisplay}</span></div><div class="w-100 d-flex justify-content-center align-items-baseline gap-1 mt-1"><span class="fw-bold text-success" style="font-size: 0.85rem;">已申請加班</span><span class="fw-bold text-dark" style="font-size: 1.05rem;">${oDisplay}</span></div></div></div></div>
                   </div>
@@ -3401,7 +3401,7 @@ function showMaintenanceShield(message) {
                   <th style="${thStyleLeftCorner}">日期</th>
                   <th style="${thStyleLeft}">狀態</th>
                   <th style="${thStyleLeft}">應有時段</th>
-                  <th style="${thStyleLeft}">應有(H)</th>
+                  <th style="${thStyleLeft}">應有H</th>
                   <th style="${thStyleLeft}">加班時段</th>
                   <th style="${thStyleLeft}">超時時段<br><small style="font-size:0.65rem; color:#d0e2ff;">(勿打卡)</small></th>
                   <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
@@ -3414,7 +3414,7 @@ function showMaintenanceShield(message) {
                   <th style="${thStyleRight}">加班</th>
                   <th style="${thStyleRight}">加班時數</th>
                   <th style="${thStyleRight}">異常</th>
-                  <th style="${thStyleRight}">註記(Q)</th>
+                  <th style="${thStyleRight}">註記</th>
               </tr>
           `;
 
