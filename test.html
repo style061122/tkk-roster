@@ -3015,7 +3015,7 @@ function showMaintenanceShield(message) {
               // ★ 產生標題與「應有(H)」徽章 (完美移植店長版)
               // ==========================================
               let targetH = parseFloat(meta.hrs) || 0;
-              let salaryType = (data.data && data.data.length > 0) ? (data.data[0].salaryType || "") : (isHourly ? "時薪制" : "月薪制");
+              let salaryStr = isHourly ? "時薪制" : "月薪制"; // ★ 直接用全域開關判斷，絕對不會空掉
               
               let hBadge = '';
               if (!isHourly) {
@@ -3030,7 +3030,7 @@ function showMaintenanceShield(message) {
                   hBadge = `<span class="badge bg-success shadow-sm align-middle ms-1" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
               }
 
-              let salaryBadge = `<span class="badge bg-dark rounded-pill align-middle ms-2" style="font-size: 0.7rem;">${salaryType}</span>`;
+              let salaryBadge = `<span class="badge bg-dark rounded-pill align-middle ms-2" style="font-size: 0.75rem;">${salaryStr}</span>`;
 
               // ★ 將文字與徽章組合後，寫入標題
               document.getElementById('personalNameDisplay').innerHTML = `${meta.year}年 ${meta.month}月 - ${data.name} ${salaryBadge} ${hBadge}`;
