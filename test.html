@@ -1020,6 +1020,8 @@ function showMaintenanceShield(message) {
         sessionStorage.removeItem('tkk_store'); 
         sessionStorage.removeItem('tkk_token'); 
         sessionStorage.removeItem('tkk_month_mode'); // ★ 登出時同步清除記憶的月份
+        sessionStorage.removeItem('tkk_role');       // ★ 登出時清除角色記憶
+        sessionStorage.removeItem('tkk_allowed');    // ★ 登出時清除權限記憶
         resetTimer();
         
         document.getElementById('loginPassword').value = "";
@@ -1028,8 +1030,13 @@ function showMaintenanceShield(message) {
         document.getElementById('staffTable').innerHTML = "";
         switchMode('date'); 
         
+        // ★ 隱藏所有工作區域，避免殘留
         document.getElementById('appSection').style.display = 'none';
         document.getElementById('modeSelectionSection').style.display = 'none'; 
+        const adminSec = document.getElementById('adminSection');
+        if (adminSec) adminSec.style.display = 'none';
+        const hqSec = document.getElementById('hqSection');
+        if (hqSec) hqSec.style.display = 'none';
         
         if(Object.keys(allStoreData).length === 0) {
             callApi('getStoreList').then(res => { if(res.success) initLogin(res.data); });
