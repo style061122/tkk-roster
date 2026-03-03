@@ -5541,13 +5541,13 @@ function showMaintenanceShield(message) {
       function stageHQDispatch() {
           const dateStr = document.getElementById('hqDateSelect').value;
           const empName = document.getElementById('hqPersonSelect').value;
-          const tgtStore = document.getElementById('hqTargetStore').value.trim();
+          const tgtStore = currentStore; // ★ 絕對防呆：強制鎖定為督導當前正在查看的門市！
           const sVal = document.getElementById('hqStart').value;
           const eVal = document.getElementById('hqEnd').value;
           const rVal = document.getElementById('hqRest').value || "0";
 
           if(!dateStr || !empName) { Swal.fire('提示', '請先選擇日期與人員', 'warning'); return; }
-          if(!tgtStore) { Swal.fire('提示', '請填寫被支援門市', 'warning'); return; }
+          if(!tgtStore) { Swal.fire('提示', '無法取得當前門市資訊', 'warning'); return; }
           if(sVal === "" || eVal === "") { Swal.fire('提示', '請填寫完整上下班時間', 'warning'); return; }
 
           let sF = parseFloat(sVal); let eF = parseFloat(eVal); let rF = parseFloat(rVal);
@@ -5671,10 +5671,9 @@ function showMaintenanceShield(message) {
                             <option value="">請選擇日期</option>
                         </select>
                     </div>
-                    <div class="col-12 position-relative mt-2">
+                    <div class="col-12 mt-2">
                         <label class="fw-bold text-muted small">被支援門市 (目的地)</label>
-                        <input type="text" id="hqTargetStore" class="form-control fw-bold border-success bg-white sup-store" placeholder="🔍 點擊輸入或選擇..." onkeyup="filterStores(this)" onfocus="filterStores(this)">
-                        <ul class="dropdown-menu w-100 store-dropdown-list shadow" style="max-height: 200px; overflow-y: auto; position: absolute; top: 100%; left: 0; z-index: 1050; display: none;"></ul>
+                        <input type="text" id="hqTargetStore" class="form-control fw-bold border-success text-primary text-center" style="background-color: #e9ecef; cursor: not-allowed;" readonly>
                     </div>
                     <div class="col-4 mt-2">
                         <label class="fw-bold text-muted small">上班</label>
