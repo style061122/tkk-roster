@@ -266,15 +266,16 @@
       <div id="loginNotice" class="mt-4 p-2 rounded text-danger fw-bold lh-base" style="background-color: #fff5f5; border: 1px dashed #dc3545; font-size: 0.95rem; white-space: pre-wrap;"></div>
     </div>
       <div id="adminSection" class="main-container" style="display:none; background-color: #f4f6f9; min-height: 80vh;">
-        <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-2 border-primary">
-            <div>
-                <h3 class="fw-bold text-primary mb-1">👑 營運中心</h3>
-                <span class="badge bg-secondary">唯讀查核模式</span>
-            </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-secondary fw-bold shadow-sm" onclick="handleChangePassword()">🔑 密碼變更</button>
-                <button type="button" class="btn btn-outline-danger fw-bold shadow-sm" onclick="logout()">登出系統</button>
-            </div>
+        
+        <div class="d-flex align-items-center justify-content-center mb-3 p-2 bg-white rounded shadow-sm border border-primary">
+            <h4 class="fw-bolder text-primary mb-0">👑 營運中心</h4>
+            <span class="badge bg-secondary ms-2 fs-6 shadow-sm">唯讀查核模式</span>
+        </div>
+        
+        <div class="d-flex gap-2 mb-3 pb-3 border-bottom border-2 border-primary w-100">
+            <button type="button" class="btn btn-outline-success flex-fill fw-bold shadow-sm px-1" style="font-size:0.85rem;" onclick="downloadAdminExcel()">📥 下載EXCEL</button>
+            <button type="button" class="btn btn-secondary flex-fill fw-bold shadow-sm px-1" style="font-size:0.85rem;" onclick="handleChangePassword()">🔑 密碼變更</button>
+            <button type="button" class="btn btn-outline-danger flex-fill fw-bold shadow-sm px-1" style="font-size:0.85rem;" onclick="logout()">登出系統</button>
         </div>
 
         <div class="card shadow-sm border-0 rounded-4 mb-3">
@@ -5642,6 +5643,63 @@ function showMaintenanceShield(message) {
                   Swal.fire('失敗', res.message, 'error');
               }
           }).catch(err => errorHandler(err));
+      }
+        // ==========================================
+      // ★ 營運中心：下載 EXCEL 互動介面
+      // ==========================================
+      async function downloadAdminExcel() {
+          const targetStore = document.getElementById('adminStoreSelect').value;
+          
+          let htmlText = '請問您要下載哪一份資料的 EXCEL？<br><br>';
+          let confirmText = '';
+          
+          if (targetStore) {
+              htmlText += `✅ <b>單店報表</b>：僅下載目前查看的 [${targetStore}]<br>`;
+              htmlText += `✅ <b>全區報表</b>：下載您管轄的所有門市資料`;
+              confirmText = '下載 單店';
+          } else {
+              htmlText += `✅ <b>全區報表</b>：下載您管轄的所有門市資料<br>(若要下載單店，請先於上方選擇門市)`;
+              confirmText = '下載 全區';
+          }
+
+          const result = await Swal.fire({
+              title: '📥 匯出 EXCEL',
+              html: htmlText,
+              icon: 'question',
+              showDenyButton: targetStore ? true : false,
+              showCancelButton: true,
+              confirmButtonText: targetStore ? '下載 單店' : '下載 全區',
+              denyButtonText: '下載 全區',
+              cancelButtonText: '取消',
+              confirmButtonColor: '#198754',
+              denyButtonColor: '#0d6efd'
+          });
+
+          if (result.isConfirmed) {
+              let scope = targetStore ? targetStore : 'ALL';
+              executeExcelDownload(scope);
+          } else if (result.isDenied) {
+              executeExcelDownload('ALL');
+          }
+      }
+
+      function executeExcelDownload(scope) {
+          const monthMode = document.getElementById('adminMonthSelect').value;
+          let monthStr = (monthMode === 'current') ? window.sysCurrentMonthStr : window.sysNextMonthStr;
+          
+          Swal.fire({
+              title: '處理中...',
+              html: `正在請總機幫您將 <b>${scope === 'ALL' ? '全區' : scope}</b> 的 ${monthStr} 資料轉為 EXCEL...<br>請稍候。`,
+              allowOutsideClick: false,
+              didOpen: () => { Swal.showLoading(); }
+          });
+
+          // 這裡即將呼叫我們下一階段要寫的後端 API
+          // callApi('exportExcel', { scope: scope, monthMode: monthMode, token: currentToken }) ...
+          
+          setTimeout(() => {
+              Swal.fire('系統提示', '前端介面已準備就緒！接下來我們需要去「後端 GAS」撰寫產生 EXCEL 的大腦邏輯。', 'info');
+          }, 1500);
       }
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
