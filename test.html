@@ -5105,7 +5105,7 @@ function showMaintenanceShield(message) {
           let zTot=0, oTot=0, aaTot=0, lvTot=0, supOut=0, supIn=0;
           let abnCount = 0;
           
-          // 明細收集器
+          // 明細收集器 (升級為物件格式以計算總時數)
           let aaDetails = {}, lvDetails = {}, abnDetails = {};
           let outStoreTotals = {}, inStoreTotals = {};
           let hqDispatchCount = 0; // 總部派來這家店的數量
@@ -5126,28 +5126,31 @@ function showMaintenanceShield(message) {
 
                   zTot += z; oTot += o; aaTot += aa; lvTot += lv;
                   
-                  // 超時明細 (依人名分類)
+                  // ★ 超時明細 (計算各人總時數)
                   if (aa > 0) {
-                      if (!aaDetails[r.name]) aaDetails[r.name] = [];
+                      if (!aaDetails[r.name]) aaDetails[r.name] = { total: 0, items: [] };
+                      aaDetails[r.name].total += aa; // 累加總時數
                       let sF = getFloat(r.input_start); let eF = getFloat(r.input_end);
                       let h = parseFloat(r.calc_hours)||0; let rV = parseFloat(r.input_rest)||0;
                       if(eF < sF) eF += 24;
-                      let aaStart = sF + h + z + (h===0&&z===0 ? 0 : rV); // 簡化推算
+                      let aaStart = sF + h + z + (h===0&&z===0 ? 0 : rV); 
                       let aaEnd = aaStart + aa + (h===0&&z===0 ? rV : 0);
-                      aaDetails[r.name].push(`${shortDate} (${ft(aaStart)}~${ft(aaEnd)}) 共 ${aa.toFixed(1)}H`);
+                      aaDetails[r.name].items.push(`🗓️ ${shortDate} (${ft(aaStart)}~${ft(aaEnd)}) 共 ${aa.toFixed(1)}H`);
                   }
 
-                  // 請假明細
+                  // ★ 請假明細 (計算各人總時數與完美格式)
                   if (lv > 0) {
-                      if (!lvDetails[r.name]) lvDetails[r.name] = [];
-                      lvDetails[r.name].push(`${shortDate} ${r.sys_leaveType} ${lv.toFixed(1)}H`);
+                      if (!lvDetails[r.name]) lvDetails[r.name] = { total: 0, items: [] };
+                      lvDetails[r.name].total += lv; // 累加總時數
+                      let lvTimeStr = (r.sys_leave||"").replace(/-/g, '~'); // 將打卡格式轉為波浪號
+                      lvDetails[r.name].items.push(`🗓️ ${shortDate} (${lvTimeStr}) ${r.sys_leaveType} ${lv.toFixed(1)}H`);
                   }
 
                   // 異常明細
                   if (abn !== "") {
                       abnCount++;
                       if (!abnDetails[r.name]) abnDetails[r.name] = [];
-                      abnDetails[r.name].push(`${shortDate} ${abn}`);
+                      abnDetails[r.name].push(`🗓️ ${shortDate} ${abn}`);
                   }
 
                   // 跨店出明細 (只記店名與時數)
@@ -5176,15 +5179,18 @@ function showMaintenanceShield(message) {
               }
           });
 
-          // 組裝 HTML 明細字串
-          const buildPersonList = (dict) => Object.entries(dict).map(([name, arr]) => `<div class="mb-2"><div class="fw-bold text-dark">👤 ${name}</div><div class="text-muted" style="font-size:0.8rem; padding-left:20px;">${arr.join('<br>')}</div></div>`).join('');
+          // ★ 組裝 HTML 明細字串 (新增帶有總時數的專屬排版)
+          const buildPersonListWithTotal = (dict, colorCode) => Object.entries(dict).map(([name, data]) => `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.95rem;">👤 ${name}</span><span class="fw-bolder" style="color:${colorCode}; font-size:1.05rem;">${data.total.toFixed(1)}H</span></div><div class="text-muted" style="font-size:0.85rem; padding-left:10px;">${data.items.join('<br>')}</div></div>`).join('');
+          
+          const buildPersonList = (dict) => Object.entries(dict).map(([name, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.95rem;">👤 ${name}</div><div class="text-muted mt-1" style="font-size:0.85rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
           const buildStoreList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
 
-          let htmlAA = buildPersonList(aaDetails) || '<div class="text-muted">無超紀錄</div>';
-          let htmlLv = buildPersonList(lvDetails) || '<div class="text-muted">無請假紀錄</div>';
-          let htmlAbn = buildPersonList(abnDetails) || '<div class="text-muted">無異常紀錄</div>';
-          let htmlOut = buildStoreList(outStoreTotals) || '<div class="text-muted">無跨店支援</div>';
-          let htmlIn = buildStoreList(inStoreTotals) || '<div class="text-muted">無友店來援</div>';
+          // 套用自訂顏色
+          let htmlAA = buildPersonListWithTotal(aaDetails, '#dc3545') || '<div class="text-muted text-center py-2">無超時紀錄</div>';
+          let htmlLv = buildPersonListWithTotal(lvDetails, '#0b8273') || '<div class="text-muted text-center py-2">無請假紀錄</div>';
+          let htmlAbn = buildPersonList(abnDetails) || '<div class="text-muted text-center py-2">無異常紀錄</div>';
+          let htmlOut = buildStoreList(outStoreTotals) || '<div class="text-muted text-center py-2">無跨店支援</div>';
+          let htmlIn = buildStoreList(inStoreTotals) || '<div class="text-muted text-center py-2">無友店來援</div>';
 
           let monthStr = (monthMode === 'current') ? window.sysCurrentMonthStr : window.sysNextMonthStr;
           
