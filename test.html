@@ -2570,7 +2570,7 @@ function showMaintenanceShield(message) {
           summaryBar.innerHTML = html;
       }
       // ==========================================
-      // ★ 終極月結算戰情室 (頂部全店戰情 + 互動明細彈窗版)
+      // ★ 終極月結算戰情室 (100% UI一致化 + 國定加班分流版)
       // ==========================================
       function openMonthlyReport() {
           if (!currentData || currentData.length === 0) {
@@ -2598,9 +2598,12 @@ function showMaintenanceShield(message) {
               let outboundStores = {}; let inboundStores = {};  
               
               // ==========================================
-              // 🌟 新增：全店大盤統計變數 & 明細收集器
+              // 🌟 新增：全店大盤統計變數 & 明細收集器 (包含國定加班分流)
               // ==========================================
-              let storeTotZ = 0, storeTotO = 0, storeTotAA = 0, storeTotLv = 0, storeSupOut = 0, storeSupIn = 0, storeAbnCount = 0;
+              let storeTotZ_norm = 0, storeTotZ_nat = 0;
+              let storeTotO_norm = 0, storeTotO_nat = 0;
+              let storeTotAA = 0, storeTotLv = 0, storeSupOut = 0, storeSupIn = 0, storeAbnCount = 0;
+              
               let storeAbnDetails = {}; 
               let storeAaDetails = {};  // 全店超時明細
               let storeLvDetails = {};  // 全店請假明細
@@ -2718,9 +2721,11 @@ function showMaintenanceShield(message) {
                       }
                   });
 
-                  // 🌟 結算全店大盤資料
-                  storeTotZ += (sumZ_norm + sumZ_nat);
-                  storeTotO += (sumO_norm + sumO_nat);
+                  // 🌟 結算全店大盤資料 (國定分流)
+                  storeTotZ_norm += sumZ_norm;
+                  storeTotZ_nat += sumZ_nat;
+                  storeTotO_norm += sumO_norm;
+                  storeTotO_nat += sumO_nat;
                   storeTotAA += sumAA;
                   storeTotLv += totalLeaveHrs;
                   storeSupOut += sumSupOut;
@@ -2747,8 +2752,8 @@ function showMaintenanceShield(message) {
                       }
                   }
 
-                  let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${sumZ_nat.toFixed(1)}</small>`;
-                  let oDisplay = !isMonthly ? `${sumO_norm.toFixed(1)}` : `${sumO_norm.toFixed(1)}<small class="text-muted fw-normal">+${sumO_nat.toFixed(1)}</small>`;
+                  let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumZ_nat.toFixed(1)}</small>`;
+                  let oDisplay = !isMonthly ? `${sumO_norm.toFixed(1)}` : `${sumO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumO_nat.toFixed(1)}</small>`;
                   
                   let cardId = `acc-${idx}`;
                   let badgeType = isMonthly ? 'bg-dark' : 'bg-success';
@@ -2797,7 +2802,7 @@ function showMaintenanceShield(message) {
                               if (!inboundStores[store]) inboundStores[store] = { total: 0, emps: {} };
                               let sh = parseFloat(sup.hrs) || 0;
                               inboundStores[store].total += sh;
-                              storeSupIn += sh; // 🌟 加入全店總計
+                              storeSupIn += sh; 
                               
                               if (!inboundStores[store].emps[r.name]) inboundStores[store].emps[r.name] = { total: 0, details: [] };
                               inboundStores[store].emps[r.name].total += sh;
@@ -2844,25 +2849,30 @@ function showMaintenanceShield(message) {
               // ==========================================
               // 🌟 第四部分：組合「全店戰情卡片」(精細化大小與彈出明細)
               // ==========================================
-              // 定義全店明細組裝器
-              const buildPersonListWithTotal = (dict, colorCode) => Object.entries(dict).map(([n, data]) => `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.95rem;">👤 ${n}</span><span class="fw-bolder" style="color:${colorCode}; font-size:1.05rem;">${data.total.toFixed(1)}H</span></div><div class="text-muted" style="font-size:0.85rem; padding-left:10px;">${data.items.join('<br>')}</div></div>`).join('');
-              const buildStoreList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
+              // ★ 修正：字體大小與邊距完全比照人名卡片 (0.85rem / 0.95rem)
+              const buildStorePersonList = (dict, colorCode) => Object.entries(dict).map(([n, data]) => `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.85rem;">👤 ${n}</span><span class="fw-bolder" style="color:${colorCode}; font-size:0.95rem;">${data.total.toFixed(1)}H</span></div><div class="text-muted" style="font-size:0.8rem; padding-left:10px;">${data.items.join('<br>')}</div></div>`).join('');
+              const buildStoreSimpleList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
+              const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
 
-              let storeLvHtml = buildPersonListWithTotal(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2">無請假紀錄</div>';
-              let storeAaHtml = buildPersonListWithTotal(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2">無超時紀錄</div>';
-              let storeOutHtml = buildStoreList(storeOutStoreTotals) || '<div class="text-muted text-center py-2">無跨店支援</div>';
-              let storeInHtml = buildStoreList(storeInStoreTotals) || '<div class="text-muted text-center py-2">無友店來援</div>';
-              let fullAbnHtml = Object.entries(storeAbnDetails).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.95rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.85rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('') || '<div class="text-muted text-center py-2">無異常紀錄</div>';
+              let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
+              let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時紀錄</div>';
+              let storeOutHtml = buildStoreSimpleList(storeOutStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
+              let storeInHtml = buildStoreSimpleList(storeInStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
+              let fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
+
+              // ★ 國定加班分流顯示
+              let storeZDisplay = `${storeTotZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotZ_nat.toFixed(1)}</small>`;
+              let storeODisplay = `${storeTotO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotO_nat.toFixed(1)}</small>`;
 
               let htmlStoreDashboard = `
               <div class="card shadow-sm border-0 rounded-4 mb-4 report-item" id="report-section-store-dashboard" style="background-color: #ffffff; border: 2px solid #0d6efd !important;">
-                  <div class="card-body p-2 p-md-3">
-                      <div class="d-flex align-items-center justify-content-center mb-2 pb-2 border-bottom">
-                          <h5 class="fw-bolder text-primary mb-0">🏢 ${currentStore}</h5>
-                          <span class="badge bg-dark ms-2 shadow-sm" style="font-size: 0.75rem;">全店總計</span>
+                  <div class="card-body p-1 p-md-2">
+                      <div class="d-flex align-items-center justify-content-center mb-2 pb-1 border-bottom">
+                          <h6 class="fw-bolder text-primary mb-0">🏢 ${currentStore}</h6>
+                          <span class="badge bg-dark ms-2 shadow-sm" style="font-size: 0.65rem;">全店總計</span>
                       </div>
                       
-                      <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-2">
+                      <div class="row row-cols-2 row-cols-md-4 g-2 text-center mb-1">
                           <div class="col">
                               <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeTotLv>0?'#e0f8f5':'#f8f9fa'}; border-color: ${storeTotLv>0?'#bcebe3':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-lv">
                                   <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
@@ -2871,28 +2881,28 @@ function showMaintenanceShield(message) {
                               </div>
                           </div>
                           <div class="col">
-                              <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeTotAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${storeTotAA>0?'#f5c2c7':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-aa">
+                              <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeTotAA>0?'#fff5f5':'#f8f9fa'}; border-color: ${storeTotAA>0?'#dc3545':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-aa">
                                   <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
-                                  <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${storeTotAA>0?'#842029':'#6c757d'};">超時總計</div>
+                                  <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${storeTotAA>0?'#dc3545':'#6c757d'};">超時總計</div>
                                   <div class="fw-bolder ${storeTotAA>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${storeTotAA.toFixed(1)}H</div>
                               </div>
                           </div>
                           <div class="col">
                               <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #fffaf0; border-color: #ffc107 !important;">
                                   <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#997404;">預計加班</div>
-                                  <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeTotZ.toFixed(1)}H</div>
+                                  <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}H</div>
                               </div>
                           </div>
                           <div class="col">
                               <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #d1e7dd; border-color: #198754 !important;">
                                   <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#0f5132;">已申請加班</div>
-                                  <div class="fw-bolder text-success" style="font-size: 1rem;">${storeTotO.toFixed(1)}H</div>
+                                  <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}H</div>
                               </div>
                           </div>
                           <div class="col">
-                              <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeSupOut>0?'#e6f2ff':'#f8f9fa'}; border-color: ${storeSupOut>0?'#b6d4fe':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-out">
+                              <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${storeSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-out">
                                   <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
-                                  <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${storeSupOut>0?'#084298':'#6c757d'};">跨店支援(出)</div>
+                                  <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${storeSupOut>0?'#3d1a87':'#6c757d'};">跨店支援(出)</div>
                                   <div class="fw-bolder ${storeSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${storeSupOut.toFixed(1)}H</div>
                               </div>
                           </div>
@@ -2904,18 +2914,18 @@ function showMaintenanceShield(message) {
                               </div>
                           </div>
                           <div class="col-12">
-                              <div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${storeAbnCount>0?'#ffffff':'#f8f9fa'}; border-color: ${storeAbnCount>0?'#dc3545':'#dee2e6'} !important; border-width: ${storeAbnCount>0?'2px':'1px'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-abn">
+                              <div class="p-2 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${storeAbnCount>0?'#ffffff':'#f8f9fa'}; border-color: ${storeAbnCount>0?'#dc3545':'#dee2e6'} !important; border-width: ${storeAbnCount>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-abn">
                                   <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${storeAbnCount>0?'#dc3545':'#6c757d'};">⚠️ 全店異常一覽</div>
                                   <div class="fw-bolder ${storeAbnCount>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${storeAbnCount>0?storeAbnCount+' 筆':'無'} <span class="text-muted" style="font-size: 0.75rem;">▾</span></div>
                               </div>
                           </div>
                       </div>
                       
-                      <div class="collapse" id="store-dashboard-lv"><div class="p-2 bg-white rounded border-start border-3 shadow-sm text-start mb-2" style="border-color:#17a2b8!important; font-size:0.85rem;">${storeLvHtml}</div></div>
-                      <div class="collapse" id="store-dashboard-aa"><div class="p-2 bg-white rounded border-start border-3 shadow-sm text-start mb-2" style="border-color:#dc3545!important; font-size:0.85rem;">${storeAaHtml}</div></div>
-                      <div class="collapse" id="store-dashboard-out"><div class="p-2 bg-white rounded border-start border-3 shadow-sm text-start mb-2" style="border-color:#0d6efd!important; font-size:0.85rem;">${storeOutHtml}</div></div>
-                      <div class="collapse" id="store-dashboard-in"><div class="p-2 bg-white rounded border-start border-3 shadow-sm text-start mb-2" style="border-color:#6f42c1!important; font-size:0.85rem;">${storeInHtml}</div></div>
-                      <div class="collapse" id="store-dashboard-abn"><div class="p-2 bg-white rounded border-start border-4 shadow-sm text-start mb-2" style="border-color:#dc3545!important; font-size:0.85rem;">${fullAbnHtml}</div></div>
+                      <div class="collapse" id="store-dashboard-lv"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f0fbfd; border-color: #17a2b8 !important; line-height:1.5;">${storeLvHtml}</div></div>
+                      <div class="collapse" id="store-dashboard-aa"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5;">${storeAaHtml}</div></div>
+                      <div class="collapse" id="store-dashboard-out"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeOutHtml}</div></div>
+                      <div class="collapse" id="store-dashboard-in"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeInHtml}</div></div>
+                      <div class="collapse" id="store-dashboard-abn"><div class="p-2 rounded small border-start border-4 mb-1 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">${fullAbnHtml}</div></div>
                   </div>
               </div>`;
 
