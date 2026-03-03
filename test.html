@@ -5508,33 +5508,42 @@ function showMaintenanceShield(message) {
           document.getElementById('hqDispatchListArea').innerHTML = "請先於上方選擇人員...";
       }
 
-      // 4. 選擇人員後，繪製他的歷史派遣清單
+      // 4. 選擇人員後，繪製他的歷史派遣清單 (全月掃描版)
       function renderHQDispatchHistory() {
-          const dateStr = document.getElementById('hqDateSelect').value;
           const empName = document.getElementById('hqPersonSelect').value;
           const listArea = document.getElementById('hqDispatchListArea');
           
-          if (!empName) { listArea.innerHTML = "請選擇人員..."; return; }
-
-          // 找出這個人在這天的資料列
-          let rowData = hqTempData.find(r => r.date === dateStr && r.name === empName);
-          if (!rowData || !rowData.supports || rowData.supports.length === 0) {
-              listArea.innerHTML = `<div class="alert alert-light border text-center text-muted mb-0">無派遣紀錄</div>`;
-              return;
-          }
+          if (!empName) { listArea.innerHTML = "請先於上方選擇人員..."; return; }
 
           let html = '';
-          rowData.supports.forEach((sup, idx) => {
-              html += `
-              <div class="d-flex justify-content-between align-items-center p-2 mb-2 bg-light border rounded shadow-sm">
-                  <div>
-                      <div class="fw-bold text-dark" style="font-size: 0.9rem;">📍 ${sup.supportStore}</div>
-                      <div class="text-muted" style="font-size: 0.8rem;">時段: ${sup.startEnd.replace('~','-')} (休${sup.rest}) 共 ${sup.hrs}H</div>
-                  </div>
-                  <button class="btn btn-sm btn-outline-danger fw-bold rounded-circle px-2" onclick="removeHQSupportItem('${dateStr}', '${empName}', ${idx})">✕</button>
-              </div>`;
+          let hasHistory = false;
+
+          // ★ 掃描該名員工「整個月」的每一天，只要 AE 欄 (supports) 有資料就印出來
+          hqTempData.forEach(row => {
+              if (row.name === empName && row.supports && row.supports.length > 0) {
+                  hasHistory = true;
+                  
+                  // 取得短短的日期格式 (例如 02/05)
+                  let shortDate = row.date.split('/').slice(1).join('/');
+
+                  row.supports.forEach((sup, idx) => {
+                      html += `
+                      <div class="d-flex justify-content-between align-items-center p-2 mb-2 bg-light border rounded shadow-sm">
+                          <div>
+                              <div class="fw-bold text-dark" style="font-size: 0.9rem;">🗓️ ${shortDate} ➔ 📍 ${sup.supportStore}</div>
+                              <div class="text-muted" style="font-size: 0.8rem;">時段: ${sup.startEnd.replace('~','-')} (休${sup.rest}) 共 ${sup.hrs}H</div>
+                          </div>
+                          <button class="btn btn-sm btn-outline-danger fw-bold rounded-circle px-2" onclick="removeHQSupportItem('${row.date}', '${empName}', ${idx})" title="撤回此派遣">✕</button>
+                      </div>`;
+                  });
+              }
           });
-          listArea.innerHTML = html;
+
+          if (!hasHistory) {
+              listArea.innerHTML = `<div class="alert alert-light border text-center text-muted mb-0">該員本月尚無派遣紀錄</div>`;
+          } else {
+              listArea.innerHTML = html;
+          }
       }
 
       // 5. 點擊加入清單 (修改記憶體)
