@@ -5354,6 +5354,22 @@ function showMaintenanceShield(message) {
       // ★ 營運中心：下載 EXCEL 互動介面
       // ==========================================
       async function downloadAdminExcel() {
+          // ★ 關鍵微創：如果是總公司，直接進入確認畫面
+          if (currentUserRole === 'HQ') {
+              const result = await Swal.fire({
+                  title: '📥 匯出 EXCEL',
+                  html: `確定要下載 <b>[${currentStore}]</b> 的排班月報表嗎？`,
+                  icon: 'question',
+                  showCancelButton: true,
+                  confirmButtonText: '開始下載',
+                  cancelButtonText: '取消',
+                  confirmButtonColor: '#198754'
+              });
+              if (result.isConfirmed) executeExcelDownload(currentStore);
+              return; // 總公司流程結束
+          }
+
+          // 以下維持原本督導(ADMIN)的邏輯
           const targetStore = document.getElementById('adminStoreSelect').value;
           
           let htmlText = '請問您要下載哪一份資料的 EXCEL？<br><br>';
