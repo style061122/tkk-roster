@@ -281,7 +281,7 @@
         <div class="card shadow-sm border-0 rounded-4 mb-3">
             <div class="card-body p-2 p-md-3">
                 <div class="row g-2">
-                    <div class="col-6">
+                    <div class="col-6" id="adminMonthCol">
                         <label class="fw-bold text-muted small mb-1">排班月份</label>
                         <select id="adminMonthSelect" class="form-select fw-bold border-primary shadow-sm" onchange="resetAdminData()">
                             <option value="current" id="adminOptCurrent">當月班表</option>
@@ -1004,15 +1004,20 @@ function showMaintenanceShield(message) {
               if(typeof initAdminFilters === 'function') initAdminFilters(); // 呼叫營運專屬函數
           } 
           else if (currentUserRole === 'HQ') {
-              // 總公司視角：直接飛進營運中心 (A畫面)
+              // 總公司視角：進入營運中心介面
               if(adminSec) {
                   adminSec.style.display = 'block';
-                  // 1. 標題自動更換為部門名稱
                   document.getElementById('adminTitle').innerText = "🏢 " + currentStore;
-                  // 2. 隱藏對總公司來說多餘的選單
+                  
+                  // 1. 隱藏所有篩選選單 (月份、公司、門市)
+                  document.getElementById('adminMonthCol').style.display = 'none';
                   document.getElementById('adminCompanyCol').style.display = 'none';
                   document.getElementById('adminStoreCol').style.display = 'none';
-                  // 3. 啟動自動載入引擎 (不需要點擊「載入」)
+                  
+                  // 2. 強制設定選單為「當月」
+                  document.getElementById('adminMonthSelect').value = "current";
+                  
+                  // 3. 啟動自動載入
                   if(typeof loadAdminData === 'function') loadAdminData();
               }
           }
