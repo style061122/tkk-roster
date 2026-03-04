@@ -3679,7 +3679,7 @@ function showMaintenanceShield(message) {
           let btnHtml = "";
           let personalLink = "";
 
-          // 產生按鈕與連結
+          // 產生按鈕與連結 (總部也會顯示 QR Code)
           if (userKey && userKey.length > 3) {
               personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
               btnHtml = `
@@ -3698,23 +3698,29 @@ function showMaintenanceShield(message) {
           }
           
           // ==========================================
-          // ★ 產生「應有(H)」專屬徽章 (完美移植月統計樣式)
+          // ★ 產生「應有(H)」專屬徽章 (總公司與店長分流版)
           // ==========================================
           let targetH = parseFloat(monthlyTargets.hrs) || 0;
           let salaryType = pData.length > 0 ? (pData[0].salaryType || "") : "";
           let badgeType = isHourly ? 'bg-dark' : 'bg-dark'; // 月薪時薪都用深色底較有質感
           let hBadge = '';
           
-          if (!isHourly) {
-              if (targetH > 0) {
-                  let diff = hrs - targetH;
-                  let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
-                  hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)} (${diffText})</span>`;
-              } else {
-                  hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)}</span>`;
-              }
-          } else {
+          // ★ 總公司不分月薪時薪，一律顯示累計應有！
+          if (currentUserRole === 'HQ') {
               hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
+          } else {
+              // 店長維持原判斷邏輯
+              if (!isHourly) {
+                  if (targetH > 0) {
+                      let diff = hrs - targetH;
+                      let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
+                      hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)} (${diffText})</span>`;
+                  } else {
+                      hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)}</span>`;
+                  }
+              } else {
+                  hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
+              }
           }
 
           // ★ 組裝最終 HTML (將網格改為 row-cols-md-4 四等份)
@@ -3726,114 +3732,23 @@ function showMaintenanceShield(message) {
 
               <div class="w-100">
                   <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
-                      
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #f8f9fa; border-color: #dee2e6 !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#6c757d;">排休狀態</div>
-                              <div class="fw-bold" style="font-size: 0.85rem; color:#495057;">
-                                  休 <span class="text-primary">${rest}</span> <span class="text-muted mx-1">|</span>
-                                  例 <span class="text-success">${reg}</span> <span class="text-muted mx-1">|</span>
-                                  國 <span class="text-danger">${nat}</span> <span class="text-muted mx-1">|</span>
-                                  空 <span class="text-secondary">${empty}</span>
-                              </div>
-                          </div>
-                      </div>
-                      
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalLeaveHrs > 0 ? '#e0f8f5' : '#f8f9fa'}; border-color: ${totalLeaveHrs > 0 ? '#bcebe3' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">請假</div>
-                              <div class="fw-bold" style="font-size: 1rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">${totalLeaveHrs > 0 ? totalLeaveHrs.toFixed(1) + 'H' : '0.0'}</div>
-                          </div>
-                      </div>
-                      
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalAA > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${totalAA > 0 ? '#f5c2c7' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">超時</div>
-                              <div class="fw-bold ${totalAA > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1rem;">${totalAA > 0 ? totalAA.toFixed(1) : '0.0'}</div>
-                          </div>
-                      </div>
-
-                      <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalSupOut > 0 ? '#e0cffc' : '#f8f9fa'}; border-color: ${totalSupOut > 0 ? '#d3bbfb' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalSupOut > 0 ? '#3d1a87' : '#6c757d'};">跨店支援</div>
-                              <div class="fw-bold ${totalSupOut > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1rem;">${totalSupOut > 0 ? totalSupOut.toFixed(1) : '0.0'}</div>
-                          </div>
-                      </div>
-
-                      <div class="col-12 col-md">
-                          <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm border" style="background-color: #fff3cd; border-color: #ffecb5 !important;">
-                              <div class="d-flex flex-row justify-content-center align-items-center gap-4">
-                                  <div class="d-flex flex-column align-items-center">
-                                      <span class="fw-bold" style="color:#997404; font-size: 0.85rem;">預計加班</span>
-                                      <span class="fw-bold text-dark" style="font-size: 1.1rem;">${zDisplay}</span>
-                                  </div>
-                                  <div style="width: 1px; height: 30px; background-color: #ffe69c;"></div>
-                                  <div class="d-flex flex-column align-items-center">
-                                      <span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span>
-                                      <span class="fw-bold text-dark" style="font-size: 1.1rem;">${oDisplay}</span>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-
-                      <div class="col-12 col-md">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#indiv-abnormal">
-                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
-                              <div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2">
-                                  <span class="fw-bold" style="color:${abnormalDetails.length > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
-                                  <span class="fw-bold ${abnormalDetails.length > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalDetails.length > 0 ? abnormalDetails.length + ' 筆' : '無'}</span>
-                              </div>
-                          </div>
-                      </div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: #f8f9fa; border-color: #dee2e6!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:#6c757d;">排休狀態</div><div class="fw-bold" style="font-size:0.85rem; color:#495057;">休 <span class="text-primary">${rest}</span> | 例 <span class="text-success">${reg}</span> | 國 <span class="text-danger">${nat}</span> | 空 <span class="text-secondary">${empty}</span></div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalLeaveHrs>0?'#e0f8f5':'#f8f9fa'}; border-color: ${totalLeaveHrs>0?'#bcebe3':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalLeaveHrs>0?'#0b8273':'#6c757d'};">請假</div><div class="fw-bold" style="font-size:1rem; color:${totalLeaveHrs>0?'#0b8273':'#6c757d'};">${totalLeaveHrs>0?totalLeaveHrs.toFixed(1)+'H':'0.0'}</div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${totalAA>0?'#f5c2c7':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalAA>0?'#842029':'#6c757d'};">超時</div><div class="fw-bold ${totalAA>0?'text-danger':'text-muted'}" style="font-size:1rem;">${totalAA>0?totalAA.toFixed(1):'0.0'}</div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${totalSupOut>0?'#d3bbfb':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalSupOut>0?'#3d1a87':'#6c757d'};">跨店支援</div><div class="fw-bold ${totalSupOut>0?'text-dark':'text-muted'}" style="font-size:1rem;">${totalSupOut>0?totalSupOut.toFixed(1):'0.0'}</div></div></div>
+                      <div class="col-12 col-md"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm border" style="background: #fff3cd; border-color: #ffecb5!important;"><div class="d-flex flex-row justify-content-center align-items-center gap-4"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:#997404; font-size:0.85rem;">預計加班</span><span class="fw-bold text-dark" style="font-size:1.1rem;">${zDisplay}</span></div><div style="width:1px; height:30px; background:#ffe69c;"></div><div class="d-flex flex-column align-items-center"><span class="fw-bold text-success" style="font-size:0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size:1.1rem;">${oDisplay}</span></div></div></div></div>
+                      <div class="col-12 col-md"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor:pointer; background: ${abnormalCount>0?'#ffffff':'#f8f9fa'}; border-color: ${abnormalCount>0?'#dc3545':'#dee2e6'}!important; border-width: ${abnormalCount>0?'2px':'1px'}!important;" data-bs-toggle="collapse" data-bs-target="#hq-abnormal"><div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size:0.75rem;">▾</div><div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2"><span class="fw-bold" style="color:${abnormalCount>0?'#dc3545':'#6c757d'}; font-size:0.85rem;">異常狀況</span><span class="fw-bold ${abnormalCount>0?'text-danger':'text-muted'}" style="font-size:1.1rem;">${abnormalCount>0?abnormalCount+' 筆':'無'}</span></div></div></div>
                   </div>
-                  
-                  <div class="collapse" id="indiv-abnormal">
+                  <div class="collapse" id="hq-abnormal">
                       <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.85rem;">
-                          ${abnormalDetails.length > 0 ? `<strong class="text-danger">異常明細:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
+                          ${abnormalCount > 0 ? `<strong class="text-danger">異常明細:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
                       </div>
                   </div>
-
                   ${btnHtml}
               </div>`;
-          
-          const thead = document.querySelector('#indivModal table thead');
-          const tableEl = document.querySelector('#indivModal table');
-          if(tableEl) tableEl.classList.remove('mobile-card-mode');
-          
-          // ==========================================
-          // ★ 核心修復：完全無死角的 Sticky CSS (用 box-shadow 取代 border 防止破圖)
-          // ==========================================
-          const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
-          const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
-          const thStyleRight = "position: sticky; top: 0; z-index: 20; background-color: #212529; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #495057; border: none;";
-
-          thead.innerHTML = `
-              <tr>
-                  <th style="${thStyleLeftCorner}">日期</th>
-                  <th style="${thStyleLeft}">狀態</th>
-                  <th style="${thStyleLeft}">應有時段</th>
-                  <th style="${thStyleLeft}">應有H</th>
-                  <th style="${thStyleLeft}">加班時段</th>
-                  <th style="${thStyleLeft}">超時時段<br><small style="font-size:0.65rem; color:#d0e2ff;">(勿打卡)</small></th>
-                  <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
-                  
-                  <th style="${thStyleRight}">系統狀態</th>
-                  <th style="${thStyleRight}">上班卡</th>
-                  <th style="${thStyleRight}">下班卡</th>
-                  <th style="${thStyleRight}">請假</th>
-                  <th style="${thStyleRight}">假別</th>
-                  <th style="${thStyleRight}">加班</th>
-                  <th style="${thStyleRight}">加班時數</th>
-                  <th style="${thStyleRight}">異常</th>
-                  <th style="${thStyleRight}">註記</th>
-              </tr>
-          `;
 
           const ft = (t) => {
-              if (isNaN(t) || t === "") return "0";
-              let val = parseFloat(t);
-              while (val >= 24) val -= 24;
-              return String(val);
+              if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val);
           };
 
           pData.forEach(r => {
@@ -3841,15 +3756,14 @@ function showMaintenanceShield(message) {
               let restVal = parseFloat(r.input_rest) || 0; let hVal = parseFloat(r.calc_hours) || 0;
               let zVal = parseFloat(r.input_est_overtime) || 0; let aaVal = parseFloat(r.calc_excess) || 0;
               let status = r.input_status;
-
               let strH = "-", strZ = "-", strAA = "-";
 
               if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
                   let sF = String(sVal).includes(':') ? timeToFloat(sVal) : parseFloat(sVal);
                   if(isNaN(sF)) sF = 0; let currTime = sF;
                   if (hVal > 0) { let endT = currTime + hVal + restVal; strH = `${ft(currTime)}-${ft(endT)}${restVal > 0 ? `(休${restVal})` : ""}`; currTime = endT; }
-                  if (zVal > 0) { let zRest = (hVal === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
-                  if (aaVal > 0) { let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; let endT = currTime + aaVal + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
+                  if (zVal > 0) { let zRest = (h === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
+                  if (aaVal > 0) { let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; let endT = currTime + aa + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
               }
 
               let supStrs = [];
@@ -3865,7 +3779,7 @@ function showMaintenanceShield(message) {
 
               const tdLeftCorner = `position: sticky; left: 0; z-index: 10; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
               const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
-              const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
+              const tdRight = `background-color: #fff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
 
               tbody.innerHTML += `
                   <tr>
@@ -3877,7 +3791,7 @@ function showMaintenanceShield(message) {
                       <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
                       <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
                       
-                      <td style="${tdRight}">${r.sys_status}</td>
+                      <td style="${tdRight}">${r.sys_status || ""}</td>
                       <td style="${tdRight}">${sysIn}</td>
                       <td style="${tdRight}">${sysOut}</td>
                       <td style="${tdRight}">${sysLeaveRange}</td>
@@ -3885,36 +3799,39 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${r.sys_overtimeHrs || ""}</td>
                       <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.log}</td>
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
                   </tr>
               `;
           });
 
           // ==========================================
-          // ★ 6. 終極絲滑體驗：硬體加速與防震盪捲軸同步
+          // ★ 6. 終極絲滑體驗：硬體加速與雙捲軸防震盪 (自動判斷容器)
           // ==========================================
           setTimeout(() => {
-              const tableContainer = document.querySelector('#indivModal .table-responsive');
+              // 依據角色判斷要抓取哪一個表格容器
+              const containerId = (currentUserRole === 'HQ') ? '#indivTableContainer' : '#indivModal .table-responsive';
+              const tableContainer = document.querySelector(containerId);
               if (!tableContainer) return;
               
-              // 👑 絲滑魔法 1：啟動手機原生慣性滑動與 GPU 渲染
-              tableContainer.style.maxHeight = '80vh'; 
+              tableContainer.style.maxHeight = (currentUserRole === 'HQ') ? '65vh' : '80vh'; 
               tableContainer.style.overflowY = 'auto';
               tableContainer.style.overflowX = 'auto';
               tableContainer.style.borderBottom = '2px solid #dee2e6';
-              tableContainer.style.WebkitOverflowScrolling = 'touch'; // 關鍵：恢復 iOS/Android 慣性滑動
-              tableContainer.style.transform = 'translateZ(0)';       // 關鍵：強迫開啟 3D 硬體加速
+              tableContainer.style.WebkitOverflowScrolling = 'touch'; 
+              tableContainer.style.transform = 'translateZ(0)';        
 
               const table = tableContainer.querySelector('table');
 
-              let topScroll = document.getElementById('top-scrollbar-container');
+              // 依據角色給予不同的捲軸 ID，避免店長模式跟總部模式的 ID 互相污染
+              const scrollIdPrefix = (currentUserRole === 'HQ') ? 'hq' : 'indiv';
+              let topScroll = document.getElementById(`${scrollIdPrefix}-top-scrollbar-container`);
+              
               if (!topScroll) {
                   topScroll = document.createElement('div');
-                  topScroll.id = 'top-scrollbar-container';
+                  topScroll.id = `${scrollIdPrefix}-top-scrollbar-container`;
                   
-                  // 頂部捲軸也加上相同的絲滑設定
                   topScroll.style.position = 'sticky';
-                  topScroll.style.top = '-16px'; 
+                  topScroll.style.top = (currentUserRole === 'HQ') ? '0' : '-16px'; 
                   topScroll.style.zIndex = '40';
                   topScroll.style.backgroundColor = '#fff';
                   topScroll.style.overflowX = 'auto';
@@ -3924,17 +3841,15 @@ function showMaintenanceShield(message) {
                   topScroll.style.WebkitOverflowScrolling = 'touch'; 
                   
                   const dummy = document.createElement('div');
-                  dummy.id = 'top-scrollbar-dummy';
+                  dummy.id = `${scrollIdPrefix}-top-scrollbar-dummy`;
                   dummy.style.height = '1px'; 
                   topScroll.appendChild(dummy);
 
                   tableContainer.parentNode.insertBefore(topScroll, tableContainer);
 
-                  // 👑 絲滑魔法 2：防震盪交通警察 (避免上下捲軸互相死鎖)
                   let isSyncingTop = false;
                   let isSyncingTable = false;
 
-                  // 加入 { passive: true }，保證滑動事件不會阻塞畫面渲染
                   topScroll.addEventListener('scroll', () => { 
                       if (!isSyncingTop) {
                           isSyncingTable = true;
@@ -3952,7 +3867,7 @@ function showMaintenanceShield(message) {
                   }, { passive: true });
               }
 
-              const dummy = document.getElementById('top-scrollbar-dummy');
+              const dummy = document.getElementById(`${scrollIdPrefix}-top-scrollbar-dummy`);
               if (dummy && table) {
                   dummy.style.width = table.scrollWidth + 'px'; 
               }
