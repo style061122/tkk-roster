@@ -268,7 +268,7 @@
       <div id="adminSection" class="main-container" style="display:none; background-color: #f4f6f9; min-height: 80vh;">
         
         <div class="d-flex align-items-center justify-content-center mb-3 p-2 bg-white rounded shadow-sm border border-primary">
-            <h4 class="fw-bolder text-primary mb-0">👑 營運中心</h4>
+            <h4 class="fw-bolder text-primary mb-0" id="adminTitle">👑 營運中心</h4>
             <span class="badge bg-secondary ms-2 fs-6 shadow-sm">唯讀查核模式</span>
         </div>
         
@@ -288,13 +288,13 @@
                             <option value="next" id="adminOptNext">次月預排</option>
                         </select>
                     </div>
-                    <div class="col-6">
+                    <div class="col-6" id="adminCompanyCol">
                         <label class="fw-bold text-muted small mb-1">選擇公司</label>
                         <select id="adminCompanySelect" class="form-select fw-bold border-info shadow-sm" onchange="updateAdminStoreOptions()">
                             <option value="">請選擇</option>
                         </select>
                     </div>
-                    <div class="col-12 mt-2">
+                    <div class="col-12 mt-2" id="adminStoreCol">
                         <label class="fw-bold text-muted small mb-1">查核門市</label>
                         <div class="input-group shadow-sm">
                             <select id="adminStoreSelect" class="form-select fw-bold border-success">
@@ -5119,7 +5119,7 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${r.sys_overtimeHrs || ""}</td>
                       <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>Q
                   </tr>
               `;
           });
