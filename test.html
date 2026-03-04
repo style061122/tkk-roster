@@ -3108,6 +3108,10 @@ function showMaintenanceShield(message) {
               // ==========================================
               let targetH = parseFloat(meta.hrs) || 0;
               let salaryStr = isHourly ? "時薪制" : "月薪制"; // ★ 直接用全域開關判斷，絕對不會空掉
+              // ★ 擷取該員工的歸屬部門 (從第一筆資料中抓取 store 屬性)
+              let empStore = (data.data && data.data.length > 0) ? String(data.data[0].store || "") : "";
+              // ★ 智慧判斷：只要部門名稱「不包含」門市兩個字，且有值，就認定是總公司員工！
+              let isHQEmployee = (empStore !== "" && !empStore.includes("門市"));
               
               let hBadge = '';
               // ★ 關鍵微創：如果是總公司身分，或是時薪制，個人班表一律顯示「累計應有」
