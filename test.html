@@ -3110,7 +3110,11 @@ function showMaintenanceShield(message) {
               let salaryStr = isHourly ? "時薪制" : "月薪制"; // ★ 直接用全域開關判斷，絕對不會空掉
               
               let hBadge = '';
-              if (!isHourly) {
+              // ★ 關鍵微創：如果是總公司身分，或是時薪制，個人班表一律顯示「累計應有」
+              if (currentUserRole === 'HQ' || isHourly) {
+                  hBadge = `<span class="badge bg-success shadow-sm align-middle ms-1" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
+              } else {
+                  // 只有店長/督導身分且為月薪制時，才顯示差額提醒
                   if (targetH > 0) {
                       let diff = hrs - targetH;
                       let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
@@ -3118,8 +3122,6 @@ function showMaintenanceShield(message) {
                   } else {
                       hBadge = `<span class="badge bg-primary shadow-sm align-middle ms-1" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)}</span>`;
                   }
-              } else {
-                  hBadge = `<span class="badge bg-success shadow-sm align-middle ms-1" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
               }
 
               let salaryBadge = `<span class="badge bg-dark rounded-pill align-middle ms-2" style="font-size: 0.75rem;">${salaryStr}</span>`;
