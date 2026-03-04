@@ -3094,6 +3094,15 @@ function showMaintenanceShield(message) {
 
               // ★ 判斷是否為時薪人員 (從員工 API 傳回的資料判斷)
               let isHourly = data.isHourly === true;
+              // ★ 新增：透過資料中的單位名稱 (store) 來探測是否為總部人員
+              let isHQEmployee = false;
+              if (data.data && data.data.length > 0 && data.data[0].store) {
+                  let storeName = String(data.data[0].store);
+                  // 如果單位名稱不包含「店」或「門市」，就判定他是總部人員
+                  if (!storeName.includes('店') && !storeName.includes('門市')) {
+                      isHQEmployee = true;
+                  }
+              }
 
               // 讀取後端基本統計
               if (data.stats) {
@@ -3107,15 +3116,11 @@ function showMaintenanceShield(message) {
               // ★ 產生標題與「應有(H)」徽章 (完美移植店長版)
               // ==========================================
               let targetH = parseFloat(meta.hrs) || 0;
-              let salaryStr = isHourly ? "時薪制" : "月薪制"; // ★ 直接用全域開關判斷，絕對不會空掉
-              // ★ 擷取該員工的歸屬部門 (從第一筆資料中抓取 store 屬性)
-              let empStore = (data.data && data.data.length > 0) ? String(data.data[0].store || "") : "";
-              // ★ 智慧判斷：只要部門名稱「不包含」門市兩個字，且有值，就認定是總公司員工！
-              let isHQEmployee = (empStore !== "" && !empStore.includes("門市"));
-              
+              let salaryStr = isHourly ? "時薪制" : "月薪制"; // ★ 直接用全域開關判斷，絕對不會空
+    
               let hBadge = '';
-              // ★ 關鍵微創：如果是總公司身分，或是時薪制，個人班表一律顯示「累計應有」
-              if (currentUserRole === 'HQ' || isHourly) {
+              // ★ 關鍵微創：加上 isHQEmployee 判斷，即使是透過個人連結進入，總部人員也只會看到「累計應有」
+              if (currentUserRole === 'HQ' || isHourly || isHQEmployee) {
                   hBadge = `<span class="badge bg-success shadow-sm align-middle ms-1" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
               } else {
                   // 只有店長/督導身分且為月薪制時，才顯示差額提醒
