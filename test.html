@@ -1000,9 +1000,15 @@ function showMaintenanceShield(message) {
 
           if (currentUserRole === 'ADMIN') {
               // 營運視角 (A畫面)
-              if(adminSec) adminSec.style.display = 'block';
-              if(typeof initAdminFilters === 'function') initAdminFilters(); // 呼叫營運專屬函數
-          } 
+              if(adminSec) {
+                  adminSec.style.display = 'block';
+                  // ★ 關鍵微創：確保選單恢復顯示（防止被上一次 HQ 登入狀態遮蔽）
+                  document.getElementById('adminTitle').innerText = "👑 營運中心";
+                  document.getElementById('adminCompanyCol').style.display = 'block';
+                  document.getElementById('adminStoreCol').style.display = 'block';
+              }
+              if(typeof initAdminFilters === 'function') initAdminFilters(); 
+          }
           else if (currentUserRole === 'HQ') {
               // 總公司視角：直接飛進營運中心 (A畫面)
               if(adminSec) {
@@ -1042,7 +1048,11 @@ function showMaintenanceShield(message) {
         document.getElementById('selectName').innerHTML = ""; 
         document.getElementById('selectDay').innerHTML = "";
         document.getElementById('staffTable').innerHTML = "";
-        switchMode('date'); 
+        // ★ 關鍵微創：登出時將報表顯示區徹底清空
+        const adminReport = document.getElementById('adminDefaultReportArea');
+        if (adminReport) adminReport.innerHTML = '<div class="text-center text-muted fw-bold py-5">請先選擇人員載入資料...</div>';
+        
+        switchMode('date');
         
         // ★ 隱藏所有工作區域，避免殘留
         document.getElementById('appSection').style.display = 'none';
