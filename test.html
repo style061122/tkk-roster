@@ -336,50 +336,46 @@
             
             <div id="adminDefaultReportArea" class="mt-3"></div>
             
-        <div id="hqSection" class="main-container" style="display:none; background-color: #f4f6f9; min-height: 80vh;">
-        
-        <div class="d-flex align-items-center justify-content-center mb-3 p-2 bg-white rounded shadow-sm border border-primary">
-            <h4 class="fw-bolder text-primary mb-0" id="hqTitle">後勤部門</h4>
-            <span class="badge bg-secondary ms-2 fs-6 shadow-sm">專屬查核看板</span>
         </div>
-        
-        <div class="d-flex flex-wrap gap-2 mb-3 pb-3 border-bottom border-2 border-primary w-100 justify-content-between align-items-center">
-            <div class="d-flex gap-2">
-                <select id="hqMonthSelect" class="form-select form-select-sm fw-bold border-primary shadow-sm" style="width: auto;" onchange="loadHQData()">
+
+    <div id="hqSection" class="main-container" style="display:none; padding: 15px;">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3 pb-2 border-bottom gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold text-primary mb-0" id="hqTitle">後勤部門</h3>
+                <span class="badge bg-dark">專屬看板</span>
+            </div>
+            
+            <div class="d-flex align-items-center gap-2 w-100-mobile flex-wrap justify-content-end">
+                <select id="hqMonthSelect" class="form-select fw-bold border-primary shadow-sm" style="width: 140px;" onchange="loadHQData()">
                     <option value="current" id="hqOptCurrent">當月班表</option>
                     <option value="next" id="hqOptNext">次月預排</option>
                 </select>
-                <button class="btn btn-outline-success btn-sm fw-bold shadow-sm" onclick="loadHQData()">🔄 載入資料</button>
-            </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-secondary btn-sm fw-bold shadow-sm" onclick="handleChangePassword()">🔑 密碼變更</button>
-                <button type="button" class="btn btn-outline-danger btn-sm fw-bold shadow-sm" onclick="logout()">登出系統</button>
+                <button class="btn btn-success fw-bold shadow-sm text-nowrap" onclick="loadHQData()">🔄 重整</button>
+                <button class="btn btn-secondary fw-bold shadow-sm text-nowrap" onclick="handleChangePassword()">🔑 密碼變更</button>
+                <button class="btn btn-outline-danger fw-bold shadow-sm text-nowrap" onclick="logout()">登出</button>
             </div>
         </div>
 
-        <div class="mb-3 mt-2">
-            <button class="btn btn-dark w-100 fw-bold shadow-sm d-flex justify-content-between align-items-center p-3" style="border-radius: 12px; font-size: 1.1rem;" onclick="openHQDispatchModal()">
-                <span>➕ 總部人員支援派遣</span>
-                <span id="hqDispatchBadge" class="badge bg-light text-dark rounded-pill fs-6">0 筆</span>
-            </button>
-        </div>
-
-        <div class="row g-2 mb-3">
-            <div class="col-6">
-                <button class="btn btn-warning fw-bold shadow-sm w-100 h-100 py-2 d-flex flex-column align-items-center justify-content-center text-dark" style="border-width: 2px; border-radius: 10px; cursor: default;">
-                    <span class="fs-4 mb-1">👤</span><span style="font-size:0.85rem;">系統狀態</span>
-                </button>
-            </div>
-            <div class="col-6">
-                <button class="btn btn-outline-primary fw-bold shadow-sm w-100 h-100 py-2 d-flex flex-column align-items-center justify-content-center" onclick="openMonthlyReport()" style="border-width: 2px; border-radius: 10px;">
-                    <span class="fs-4 mb-1">📊</span><span style="font-size:0.85rem;">月統計</span>
-                </button>
-            </div>
-        </div>
-        
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-body p-2 p-md-3" id="hqDefaultReportArea">
-                <div class="text-center text-muted fw-bold py-5">請先選擇人員載入資料...</div>
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-2 p-md-3">
+                <div class="mb-3 d-flex align-items-center flex-wrap gap-2 bg-light p-2 rounded border">
+                    <label class="fw-bold text-dark ms-1">👤 選擇人員：</label>
+                    <select id="hqIndivSelect" class="form-select w-auto fw-bold border-primary shadow-sm" onchange="renderHQTable()"></select>
+                </div>
+                
+                <div id="hqStatsArea" class="mb-3"></div>
+                
+                <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px;">
+                    <table class="table table-sm table-striped table-hover text-center align-middle mb-0" style="font-size: 0.9em;">
+                        <thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th>日期</th><th>狀態</th><th>應有時段</th><th>應有H</th><th>加班時段</th><th>超時時段<br><small class="text-warning">(勿打卡)</small></th><th>跨店支援</th>
+                                <th>系統狀態</th><th>上班卡</th><th>下班卡</th><th>請假</th><th>假別</th><th>加班</th><th>加班時數</th><th>異常</th><th>註記</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hqTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -992,35 +988,36 @@ function showMaintenanceShield(message) {
         }).catch(err => errorHandler(err));
       }
 
-      // ★ 路由分配器
+      // ★ 新增：路由分配器
       function routeByRole() {
           document.getElementById('loginSection').style.display = 'none';
           document.getElementById('modeSelectionSection').style.display = 'none';
           document.getElementById('appSection').style.display = 'none';
-          
+          // 如果您有新增 adminSection 和 hqSection 的 HTML，請把它們的 ID 也寫進來確保先隱藏
           const adminSec = document.getElementById('adminSection');
           if(adminSec) adminSec.style.display = 'none';
           const hqSec = document.getElementById('hqSection');
           if(hqSec) hqSec.style.display = 'none';
 
           if (currentUserRole === 'ADMIN') {
+              // 營運視角 (A畫面)
               if(adminSec) adminSec.style.display = 'block';
-              if(typeof initAdminFilters === 'function') initAdminFilters(); 
+              if(typeof initAdminFilters === 'function') initAdminFilters(); // 呼叫營運專屬函數
           } 
           else if (currentUserRole === 'HQ') {
+              // 後勤視角 (B畫面)
               if(hqSec) {
                   document.getElementById('hqTitle').innerText = currentStore;
                   hqSec.style.display = 'block';
-                  if(typeof loadHQData === 'function') loadHQData(); 
+                  if(typeof loadHQData === 'function') loadHQData(); // 呼叫後勤專屬函數
               }
           } 
           else {
-              // 店長視角 (C畫面)：修復顯示邏輯
+              // 店長視角 (C畫面)
               document.getElementById('displayStoreName').innerText = currentStore;
               
               const savedMonthMode = sessionStorage.getItem('tkk_month_mode');
               if (savedMonthMode) {
-                  document.getElementById('appSection').style.display = 'block'; // ★ 確保主畫面有顯示
                   enterMode(savedMonthMode);
               } else {
                   document.getElementById('modeSelectionSection').style.display = 'block';
@@ -2577,7 +2574,7 @@ function showMaintenanceShield(message) {
 
           summaryBar.innerHTML = html;
       }
-      // ==========================================
+      /// ==========================================
       // ★ 核心引擎：產生月統計與全店戰情 HTML (督導/店長共用)
       // ==========================================
       function generateMonthlyReportHTML() {
@@ -2602,9 +2599,6 @@ function showMaintenanceShield(message) {
           let storeLvDetails = {};  
           let storeOutStoreTotals = {}; 
           let storeInStoreTotals = {};  
-          // 🌟 新增：全店預計與已申請加班明細
-          let storeZDetails = {};
-          let storeODetails = {};
 
           myStaffNames.forEach((name, idx) => {
               let pData = currentData.filter(r => r.name === name && r.store === currentStore);
@@ -2710,14 +2704,6 @@ function showMaintenanceShield(message) {
               storeTotZ_norm += sumZ_norm; storeTotZ_nat += sumZ_nat;
               storeTotO_norm += sumO_norm; storeTotO_nat += sumO_nat;
               storeTotAA += sumAA; storeTotLv += totalLeaveHrs; storeSupOut += sumSupOut;
-
-              // 🌟 寫入全店 Z 與 O 明細 (依人名)
-              if (sumZ_norm > 0 || sumZ_nat > 0) {
-                  storeZDetails[name] = { norm: sumZ_norm, nat: sumZ_nat, total: sumZ_norm + sumZ_nat, isHourly: !isMonthly };
-              }
-              if (sumO_norm > 0 || sumO_nat > 0) {
-                  storeODetails[name] = { norm: sumO_norm, nat: sumO_nat, total: sumO_norm + sumO_nat, isHourly: !isMonthly };
-              }
 
               let hBadge = '';
               if (isMonthly) {
@@ -2838,22 +2824,11 @@ function showMaintenanceShield(message) {
           // 🌟 第四部分：組合「全店戰情卡片」(精細化大小與彈出明細)
           // ==========================================
           const buildStorePersonList = (dict, colorCode) => Object.entries(dict).map(([n, data]) => `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.85rem;">👤 ${n}</span><span class="fw-bolder" style="color:${colorCode}; font-size:0.95rem;">${data.total.toFixed(1)}H</span></div><div class="text-muted" style="font-size:0.8rem; padding-left:10px;">${data.items.join('<br>')}</div></div>`).join('');
-          
-          // 🌟 Z 與 O 專用明細產生器 (分離總時數與 xx+xx)
-          const buildStoreZOrOList = (dict, colorCode) => Object.entries(dict).map(([n, data]) => {
-              let splitStr = data.isHourly ? "" : `<span class="text-muted fw-normal ms-2" style="font-size:0.8rem;">${data.norm.toFixed(1)}+${data.nat.toFixed(1)}</span>`;
-              return `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.85rem;">👤 ${n}</span><span class="fw-bolder" style="color:${colorCode}; font-size:0.95rem;">${data.total.toFixed(1)}H${splitStr}</span></div></div>`;
-          }).join('');
-
           const buildStoreSimpleList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
           const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
 
           let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
           let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時紀錄</div>';
-          // 🌟 產生 Z 與 O 彈出明細
-          let storeZHtml = buildStoreZOrOList(storeZDetails, '#997404') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無預計加班紀錄</div>';
-          let storeOHtml = buildStoreZOrOList(storeODetails, '#0f5132') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無已申請加班紀錄</div>';
-
           let storeOutHtml = buildStoreSimpleList(storeOutStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
           let storeInHtml = buildStoreSimpleList(storeInStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
           let fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
@@ -2884,22 +2859,18 @@ function showMaintenanceShield(message) {
                               <div class="fw-bolder ${storeTotAA>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${storeTotAA.toFixed(1)}H</div>
                           </div>
                       </div>
-                      
                       <div class="col">
-                          <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: #fffaf0; border-color: #ffc107 !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-z">
-                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #fffaf0; border-color: #ffc107 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#997404;">預計加班</div>
-                              <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}</div>
+                              <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}H</div>
                           </div>
                       </div>
                       <div class="col">
-                          <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: #d1e7dd; border-color: #198754 !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-o">
-                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #d1e7dd; border-color: #198754 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#0f5132;">已申請加班</div>
-                              <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}</div>
+                              <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}H</div>
                           </div>
                       </div>
-
                       <div class="col">
                           <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${storeSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-out">
                               <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
@@ -2924,17 +2895,13 @@ function showMaintenanceShield(message) {
                   
                   <div class="collapse" id="store-dashboard-lv"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f0fbfd; border-color: #17a2b8 !important; line-height:1.5;">${storeLvHtml}</div></div>
                   <div class="collapse" id="store-dashboard-aa"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5;">${storeAaHtml}</div></div>
-                  
-                  <div class="collapse" id="store-dashboard-z"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.5;">${storeZHtml}</div></div>
-                  <div class="collapse" id="store-dashboard-o"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #d1e7dd; border-color: #198754 !important; line-height:1.5;">${storeOHtml}</div></div>
-                  
                   <div class="collapse" id="store-dashboard-out"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeOutHtml}</div></div>
                   <div class="collapse" id="store-dashboard-in"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeInHtml}</div></div>
                   <div class="collapse" id="store-dashboard-abn"><div class="p-2 rounded small border-start border-4 mb-1 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">${fullAbnHtml}</div></div>
               </div></div>`;
 
               let finalHtml = '';
-              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店統計</option>`;
+              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店戰情雷達</option>`;
               if (optMonthly) navOptions += `<optgroup label="🔵 正職月薪">${optMonthly}</optgroup>`;
               if (optHourly) navOptions += `<optgroup label="🟢 兼職時薪">${optHourly}</optgroup>`;
               
@@ -2976,7 +2943,7 @@ function showMaintenanceShield(message) {
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
           currentStore = targetStore; currentMonthMode = monthMode;
-          showLoading(true, "讀取資料中...");
+          showLoading(true, "載入戰情資料中...");
           callApi('getStoreData', { store: targetStore, monthMode: monthMode }).then(res => {
               showLoading(false);
               if (res.success) {
@@ -3041,21 +3008,10 @@ function showMaintenanceShield(message) {
         btn.disabled = (errors.length > 0); btn.classList.toggle('btn-success', errors.length === 0); btn.classList.toggle('btn-secondary', errors.length > 0);
       }
       function showIndividualStatus() {
-         const select = document.getElementById('indivSelect'); 
-         select.innerHTML = ''; 
-         
-         let names = [...new Set(currentData.filter(r => r.store === currentStore).map(r=>r.name))];
-         if (names.length === 0) {
-             Swal.fire('提示', '目前門市無人員資料', 'info');
-             return;
-         }
-         
-         names.forEach(n => select.innerHTML+=`<option value="${n}">${n}</option>`); 
-         
-         // 強制選取第一個人並渲染
-         select.value = names[0];
+         const select = document.getElementById('indivSelect'); select.innerHTML = ''; 
+         // ★ 微創：系統狀態選單，也只抓自家門市員工
+         [...new Set(currentData.filter(r => r.store === currentStore).map(r=>r.name))].forEach(n => select.innerHTML+=`<option>${n}</option>`); 
          renderIndividualTable(); 
-         
          new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
       // ==========================================
@@ -3614,21 +3570,14 @@ function showMaintenanceShield(message) {
           }
       }
       // ==========================================
-      // ★ 終極系統狀態表 (完美雙棲版：店長/總部/督導共用)
+      // ★ 終極系統狀態表 (修復：絕對釘選 + 解決破圖蓋字 + 雙捲軸)
       // ==========================================
       function renderIndividualTable() {
-          const selectEl = document.getElementById('indivSelect');
-          if (!selectEl) return;
-          const name = selectEl.value;
-          
+          const name = document.getElementById('indivSelect').value;
           const tbody = document.getElementById('indivTableBody'); 
-          const thead = document.getElementById('indivTableHead');
-          const statsDiv = document.getElementById('indivStats');
-          if (!tbody || !thead || !statsDiv) return;
-
           tbody.innerHTML = '';
-          const qrContainer = document.getElementById('qrCodeContainer');
-          if (qrContainer) qrContainer.style.display = 'none';
+          const statsDiv = document.getElementById('indivStats');
+          document.getElementById('qrCodeContainer').style.display = 'none';
           
           const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
           if (pData.length === 0) return;
@@ -3636,9 +3585,10 @@ function showMaintenanceShield(message) {
           let hrs=0, rest=0, reg=0, nat=0, empty=0;
           let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0;
           let totalLeaveHrs=0;
-          let abnormalDetails = []; 
+          let abnormalDetails = []; // ★ 改用陣列來收集異常明細
           let userKey = pData[0].pKey || ""; 
           
+          // ★ 判斷是否為時薪人員
           let isHourly = pData.length > 0 && pData[0].salaryType && String(pData[0].salaryType).includes("時薪");
 
           pData.forEach(r => {
@@ -3653,11 +3603,13 @@ function showMaintenanceShield(message) {
               
               if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
               
+              // 預計加班 (Z)
               if (!isHourly && s === '國' && z > 0) {
                   let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                   totalZ_nat += natZ; totalZ_norm += normZ;
               } else { totalZ_norm += z; }
 
+              // 已申請加班 (O)
               if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
                   let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
                   totalO_nat += natO; totalO_norm += normO;
@@ -3667,8 +3619,10 @@ function showMaintenanceShield(message) {
                   r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
               }
               
+              // ★ 統計請假時數
               totalLeaveHrs += parseFloat(r.sys_leaveHrs) || 0;
               
+              // ★ 收集異常明細 (格式化日期)
               let sysAbnormal = String(r.sys_abnormal || "").trim();
               if (sysAbnormal !== "") {
                   let shortDate = r.date;
@@ -3680,6 +3634,7 @@ function showMaintenanceShield(message) {
               }
           });
 
+          // ★ 決定顯示字串 (時薪不秀 +0)
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
           let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
           
@@ -3690,7 +3645,7 @@ function showMaintenanceShield(message) {
           let btnHtml = "";
           let personalLink = "";
 
-          // ★ 修復 1：總公司也要有 QR Code！只要有金鑰就給！
+          // 產生按鈕與連結
           if (userKey && userKey.length > 3) {
               personalLink = `${currentBaseUrl}?mode=personal&key=${userKey}`;
               btnHtml = `
@@ -3708,29 +3663,27 @@ function showMaintenanceShield(message) {
                 </div>`;
           }
           
+          // ==========================================
+          // ★ 產生「應有(H)」專屬徽章 (完美移植月統計樣式)
+          // ==========================================
           let targetH = parseFloat(monthlyTargets.hrs) || 0;
           let salaryType = pData.length > 0 ? (pData[0].salaryType || "") : "";
-          let badgeType = 'bg-dark'; 
+          let badgeType = isHourly ? 'bg-dark' : 'bg-dark'; // 月薪時薪都用深色底較有質感
           let hBadge = '';
           
-          // ★ 修復 2：總公司的「應有」一律顯示累計！
-          if (currentUserRole === 'HQ') {
-              hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
-          } else {
-              // 店長/督導維持原判斷邏輯
-              if (!isHourly) {
-                  if (targetH > 0) {
-                      let diff = hrs - targetH;
-                      let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
-                      hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)} (${diffText})</span>`;
-                  } else {
-                      hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)}</span>`;
-                  }
+          if (!isHourly) {
+              if (targetH > 0) {
+                  let diff = hrs - targetH;
+                  let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
+                  hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)} (${diffText})</span>`;
               } else {
-                  hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
+                  hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)}</span>`;
               }
+          } else {
+              hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
           }
 
+          // ★ 組裝最終 HTML (將網格改為 row-cols-md-4 四等份)
           statsDiv.innerHTML = `
               <div class="d-flex align-items-center flex-wrap gap-1 mb-2 mt-1 ps-1">
                   <span class="badge ${badgeType} rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
@@ -3739,16 +3692,83 @@ function showMaintenanceShield(message) {
 
               <div class="w-100">
                   <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
-                      <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #f8f9fa; border-color: #dee2e6 !important;"><div class="fw-bold mb-1" style="font-size: 0.75rem; color:#6c757d;">排休狀態</div><div class="fw-bold" style="font-size: 0.85rem; color:#495057;">休 <span class="text-primary">${rest}</span> <span class="text-muted mx-1">|</span> 例 <span class="text-success">${reg}</span> <span class="text-muted mx-1">|</span> 國 <span class="text-danger">${nat}</span> <span class="text-muted mx-1">|</span> 空 <span class="text-secondary">${empty}</span></div></div></div>
-                      <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalLeaveHrs > 0 ? '#e0f8f5' : '#f8f9fa'}; border-color: ${totalLeaveHrs > 0 ? '#bcebe3' : '#dee2e6'} !important;"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">請假</div><div class="fw-bold" style="font-size: 1rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">${totalLeaveHrs > 0 ? totalLeaveHrs.toFixed(1) + 'H' : '0.0'}</div></div></div>
-                      <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalAA > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${totalAA > 0 ? '#f5c2c7' : '#dee2e6'} !important;"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">超時</div><div class="fw-bold ${totalAA > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1rem;">${totalAA > 0 ? totalAA.toFixed(1) : '0.0'}</div></div></div>
-                      <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalSupOut > 0 ? '#e0cffc' : '#f8f9fa'}; border-color: ${totalSupOut > 0 ? '#d3bbfb' : '#dee2e6'} !important;"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalSupOut > 0 ? '#3d1a87' : '#6c757d'};">跨店支援</div><div class="fw-bold ${totalSupOut > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1rem;">${totalSupOut > 0 ? totalSupOut.toFixed(1) : '0.0'}</div></div></div>
-                      <div class="col-12 col-md"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm border position-relative" style="background-color: #fff3cd; border-color: #ffecb5 !important;"><div class="d-flex flex-row justify-content-center align-items-center gap-4"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:#997404; font-size: 0.85rem;">預計加班</span><span class="fw-bold text-dark" style="font-size: 1.1rem;">${zDisplay}</span></div><div style="width: 1px; height: 30px; background-color: #ffe69c;"></div><div class="d-flex flex-column align-items-center"><span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size: 1.1rem;">${oDisplay}</span></div></div></div></div>
-                      <div class="col-12 col-md"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="background-color: ${abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;"><div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2"><span class="fw-bold" style="color:${abnormalDetails.length > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span><span class="fw-bold ${abnormalDetails.length > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalDetails.length > 0 ? abnormalDetails.length + ' 筆' : '無'}</span></div></div></div>
+                      
+                      <div class="col">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: #f8f9fa; border-color: #dee2e6 !important;">
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#6c757d;">排休狀態</div>
+                              <div class="fw-bold" style="font-size: 0.85rem; color:#495057;">
+                                  休 <span class="text-primary">${rest}</span> <span class="text-muted mx-1">|</span>
+                                  例 <span class="text-success">${reg}</span> <span class="text-muted mx-1">|</span>
+                                  國 <span class="text-danger">${nat}</span> <span class="text-muted mx-1">|</span>
+                                  空 <span class="text-secondary">${empty}</span>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <div class="col">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalLeaveHrs > 0 ? '#e0f8f5' : '#f8f9fa'}; border-color: ${totalLeaveHrs > 0 ? '#bcebe3' : '#dee2e6'} !important;">
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">請假</div>
+                              <div class="fw-bold" style="font-size: 1rem; color: ${totalLeaveHrs > 0 ? '#0b8273' : '#6c757d'};">${totalLeaveHrs > 0 ? totalLeaveHrs.toFixed(1) + 'H' : '0.0'}</div>
+                          </div>
+                      </div>
+                      
+                      <div class="col">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalAA > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${totalAA > 0 ? '#f5c2c7' : '#dee2e6'} !important;">
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">超時</div>
+                              <div class="fw-bold ${totalAA > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1rem;">${totalAA > 0 ? totalAA.toFixed(1) : '0.0'}</div>
+                          </div>
+                      </div>
+
+                      <div class="col">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalSupOut > 0 ? '#e0cffc' : '#f8f9fa'}; border-color: ${totalSupOut > 0 ? '#d3bbfb' : '#dee2e6'} !important;">
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalSupOut > 0 ? '#3d1a87' : '#6c757d'};">跨店支援</div>
+                              <div class="fw-bold ${totalSupOut > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1rem;">${totalSupOut > 0 ? totalSupOut.toFixed(1) : '0.0'}</div>
+                          </div>
+                      </div>
+
+                      <div class="col-12 col-md">
+                          <div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm border" style="background-color: #fff3cd; border-color: #ffecb5 !important;">
+                              <div class="d-flex flex-row justify-content-center align-items-center gap-4">
+                                  <div class="d-flex flex-column align-items-center">
+                                      <span class="fw-bold" style="color:#997404; font-size: 0.85rem;">預計加班</span>
+                                      <span class="fw-bold text-dark" style="font-size: 1.1rem;">${zDisplay}</span>
+                                  </div>
+                                  <div style="width: 1px; height: 30px; background-color: #ffe69c;"></div>
+                                  <div class="d-flex flex-column align-items-center">
+                                      <span class="fw-bold text-success" style="font-size: 0.85rem;">已申請</span>
+                                      <span class="fw-bold text-dark" style="font-size: 1.1rem;">${oDisplay}</span>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="col-12 col-md">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#indiv-abnormal">
+                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                              <div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2">
+                                  <span class="fw-bold" style="color:${abnormalDetails.length > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
+                                  <span class="fw-bold ${abnormalDetails.length > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalDetails.length > 0 ? abnormalDetails.length + ' 筆' : '無'}</span>
+                              </div>
+                          </div>
+                      </div>
                   </div>
+                  
+                  <div class="collapse" id="indiv-abnormal">
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.85rem;">
+                          ${abnormalDetails.length > 0 ? `<strong class="text-danger">異常明細:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
+                      </div>
+                  </div>
+
                   ${btnHtml}
               </div>`;
           
+          const thead = document.querySelector('#indivModal table thead');
+          const tableEl = document.querySelector('#indivModal table');
+          if(tableEl) tableEl.classList.remove('mobile-card-mode');
+          
+          // ==========================================
+          // ★ 核心修復：完全無死角的 Sticky CSS (用 box-shadow 取代 border 防止破圖)
+          // ==========================================
           const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
           const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
           const thStyleRight = "position: sticky; top: 0; z-index: 20; background-color: #212529; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #495057; border: none;";
@@ -3795,7 +3815,7 @@ function showMaintenanceShield(message) {
                   if(isNaN(sF)) sF = 0; let currTime = sF;
                   if (hVal > 0) { let endT = currTime + hVal + restVal; strH = `${ft(currTime)}-${ft(endT)}${restVal > 0 ? `(休${restVal})` : ""}`; currTime = endT; }
                   if (zVal > 0) { let zRest = (hVal === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
-                  if (aaVal > 0) { let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; let endT = currTime + aa + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
+                  if (aaVal > 0) { let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; let endT = currTime + aaVal + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
               }
 
               let supStrs = [];
@@ -3811,7 +3831,7 @@ function showMaintenanceShield(message) {
 
               const tdLeftCorner = `position: sticky; left: 0; z-index: 10; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
               const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
-              const tdRight = `background-color: #fff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
+              const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
 
               tbody.innerHTML += `
                   <tr>
@@ -3823,7 +3843,7 @@ function showMaintenanceShield(message) {
                       <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
                       <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
                       
-                      <td style="${tdRight}">${r.sys_status || ""}</td>
+                      <td style="${tdRight}">${r.sys_status}</td>
                       <td style="${tdRight}">${sysIn}</td>
                       <td style="${tdRight}">${sysOut}</td>
                       <td style="${tdRight}">${sysLeaveRange}</td>
@@ -3831,39 +3851,36 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${r.sys_overtimeHrs || ""}</td>
                       <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
+                      <td class="text-muted small" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.log}</td>
                   </tr>
               `;
           });
 
           // ==========================================
-          // ★ 6. 終極絲滑體驗：硬體加速與雙捲軸防震盪 (自動判斷容器)
+          // ★ 6. 終極絲滑體驗：硬體加速與防震盪捲軸同步
           // ==========================================
           setTimeout(() => {
-              // 依據角色判斷要抓取哪一個表格容器
-              const containerId = (currentUserRole === 'HQ') ? '#indivTableContainer' : '#indivModal .table-responsive';
-              const tableContainer = document.querySelector(containerId);
+              const tableContainer = document.querySelector('#indivModal .table-responsive');
               if (!tableContainer) return;
               
-              tableContainer.style.maxHeight = (currentUserRole === 'HQ') ? '65vh' : '80vh'; 
+              // 👑 絲滑魔法 1：啟動手機原生慣性滑動與 GPU 渲染
+              tableContainer.style.maxHeight = '80vh'; 
               tableContainer.style.overflowY = 'auto';
               tableContainer.style.overflowX = 'auto';
               tableContainer.style.borderBottom = '2px solid #dee2e6';
-              tableContainer.style.WebkitOverflowScrolling = 'touch'; 
-              tableContainer.style.transform = 'translateZ(0)';        
+              tableContainer.style.WebkitOverflowScrolling = 'touch'; // 關鍵：恢復 iOS/Android 慣性滑動
+              tableContainer.style.transform = 'translateZ(0)';       // 關鍵：強迫開啟 3D 硬體加速
 
               const table = tableContainer.querySelector('table');
 
-              // 依據角色給予不同的捲軸 ID，避免店長模式跟總部模式的 ID 互相污染
-              const scrollIdPrefix = (currentUserRole === 'HQ') ? 'hq' : 'indiv';
-              let topScroll = document.getElementById(`${scrollIdPrefix}-top-scrollbar-container`);
-              
+              let topScroll = document.getElementById('top-scrollbar-container');
               if (!topScroll) {
                   topScroll = document.createElement('div');
-                  topScroll.id = `${scrollIdPrefix}-top-scrollbar-container`;
+                  topScroll.id = 'top-scrollbar-container';
                   
+                  // 頂部捲軸也加上相同的絲滑設定
                   topScroll.style.position = 'sticky';
-                  topScroll.style.top = (currentUserRole === 'HQ') ? '0' : '-16px'; 
+                  topScroll.style.top = '-16px'; 
                   topScroll.style.zIndex = '40';
                   topScroll.style.backgroundColor = '#fff';
                   topScroll.style.overflowX = 'auto';
@@ -3873,15 +3890,17 @@ function showMaintenanceShield(message) {
                   topScroll.style.WebkitOverflowScrolling = 'touch'; 
                   
                   const dummy = document.createElement('div');
-                  dummy.id = `${scrollIdPrefix}-top-scrollbar-dummy`;
+                  dummy.id = 'top-scrollbar-dummy';
                   dummy.style.height = '1px'; 
                   topScroll.appendChild(dummy);
 
                   tableContainer.parentNode.insertBefore(topScroll, tableContainer);
 
+                  // 👑 絲滑魔法 2：防震盪交通警察 (避免上下捲軸互相死鎖)
                   let isSyncingTop = false;
                   let isSyncingTable = false;
 
+                  // 加入 { passive: true }，保證滑動事件不會阻塞畫面渲染
                   topScroll.addEventListener('scroll', () => { 
                       if (!isSyncingTop) {
                           isSyncingTable = true;
@@ -3899,7 +3918,7 @@ function showMaintenanceShield(message) {
                   }, { passive: true });
               }
 
-              const dummy = document.getElementById(`${scrollIdPrefix}-top-scrollbar-dummy`);
+              const dummy = document.getElementById('top-scrollbar-dummy');
               if (dummy && table) {
                   dummy.style.width = table.scrollWidth + 'px'; 
               }
@@ -4926,62 +4945,155 @@ function showMaintenanceShield(message) {
               showLoading(false);
               if (res.success) {
                   currentData = res.data || []; 
-                  monthlyTargets = res.targets || {}; currentParams = res.params || {};
+                  monthlyTargets = res.targets || {}; 
                   
-                  // 計算這間總部單位派出去的支援筆數 (顯示在按鈕徽章)
-                  let hqDispatchCount = 0;
-                  currentData.forEach(r => {
-                      if (r.supports && r.supports.length > 0) {
-                          hqDispatchCount += r.supports.length;
-                      }
-                  });
-                  const badge = document.getElementById('hqDispatchBadge');
-                  if (badge) badge.innerText = hqDispatchCount + " 筆";
-                  
-                  // 取得部門人員名單
+                  const select = document.getElementById('hqIndivSelect'); 
+                  select.innerHTML = ''; 
                   let names = [...new Set(currentData.filter(r => r.store === currentStore).map(r=>r.name))];
                   
-                  const reportArea = document.getElementById('hqDefaultReportArea');
-                  
                   if(names.length === 0) {
-                      reportArea.innerHTML = '<div class="text-center py-5 text-muted fw-bold">本月無人員資料</div>';
+                      select.innerHTML = '<option>無人員</option>';
+                      document.getElementById('hqStatsArea').innerHTML = '';
+                      document.getElementById('hqTableBody').innerHTML = '<tr><td colspan="16" class="text-center py-5 text-muted fw-bold">本月無資料</td></tr>';
                       return;
                   }
                   
-                  // ★ 核心：準備一個跟店長彈窗裡一模一樣的 HTML 結構，塞進 HQ 的下方容器！
-                  reportArea.innerHTML = `
-                      <div class="mb-3 d-flex align-items-center flex-wrap gap-2">
-                          <label class="fw-bold">選擇人員：</label>
-                          <select id="indivSelect" class="form-select w-auto" onchange="renderIndividualTable()"></select>
-                          <div id="indivStats" class="stat-info" style="flex-grow: 1;"></div>
-                          <span id="totalOvertimeDisplay" style="margin-left: auto; color: #dc3545; font-weight: bold; font-size: 1.2em;"></span>
-                      </div>
-                      <div id="qrCodeContainer" class="text-center mb-3 p-3 border rounded bg-light" style="display: none;">
-                          <h6 class="fw-bold text-success mb-3">📱 請員工使用手機掃描下方 QR Code</h6>
-                          <div id="qrCodeCanvas" class="d-flex justify-content-center align-items-center bg-white p-2 mx-auto border shadow-sm" style="width: 200px; height: 200px;"></div>
-                          <button class="btn btn-sm btn-secondary mt-3" onclick="document.getElementById('qrCodeContainer').style.display='none'">關閉 QR碼</button>
-                      </div>
-                      <div class="table-responsive" id="indivTableContainer" style="max-height: 65vh; border-radius: 8px; border: 1px solid #dee2e6;">
-                          <table class="table table-sm table-striped table-bordered text-center" style="font-size: 0.9em; margin-bottom: 0;">
-                              <thead id="indivTableHead" class="table-dark" style="position: sticky; top: 0; z-index: 10;">
-                              </thead>
-                              <tbody id="indivTableBody"></tbody>
-                          </table>
-                      </div>
-                  `;
-
-                  // 把名字塞進下拉選單
-                  const select = document.getElementById('indivSelect'); 
-                  select.innerHTML = ''; 
                   names.forEach(n => select.innerHTML+=`<option value="${n}">${n}</option>`); 
-                  
-                  // ★ 呼叫共用的系統狀態渲染引擎！
-                  renderIndividualTable(); 
-
+                  renderHQTable(); 
               } else {
                   Swal.fire('錯誤', '資料讀取失敗: ' + res.message, 'error');
               }
           }).catch(err => errorHandler(err));
+      }
+
+      function renderHQTable() {
+          const name = document.getElementById('hqIndivSelect').value;
+          const tbody = document.getElementById('hqTableBody'); 
+          tbody.innerHTML = '';
+          const statsDiv = document.getElementById('hqStatsArea');
+          
+          const pData = currentData.filter(r => r.name === name).sort((a,b)=>a.date.localeCompare(b.date));
+          if (pData.length === 0) return;
+
+          let hrs=0, rest=0, reg=0, nat=0, empty=0;
+          let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0, totalLeaveHrs=0, abnormalCount=0;
+          let isHourly = pData.length > 0 && pData[0].salaryType && String(pData[0].salaryType).includes("時薪");
+          let abnormalDetails = [];
+
+          pData.forEach(r => {
+              let s = r.input_status || "";
+              let h = parseFloat(r.calc_hours) || 0;
+              let z = parseFloat(r.input_est_overtime) || 0;
+              let o = parseFloat(r.sys_overtimeHrs) || 0; 
+              let aa = parseFloat(r.calc_excess) || 0;
+              let sysStatus = r.sys_status || ""; 
+
+              hrs += h; totalAA += aa;
+              if (s === '休') rest++; else if (s === '例') reg++; else if (s === '國') nat++; else if (s === '空班') empty++;
+              
+              if (!isHourly && s === '國' && z > 0) {
+                  let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
+                  totalZ_nat += natZ; totalZ_norm += normZ;
+              } else { totalZ_norm += z; }
+
+              if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
+                  let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
+                  totalO_nat += natO; totalO_norm += normO;
+              } else { totalO_norm += o; }
+
+              if (r.supports && r.supports.length > 0) {
+                  r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
+              }
+              
+              totalLeaveHrs += parseFloat(r.sys_leaveHrs) || 0;
+              let sysAbnormal = String(r.sys_abnormal || "").trim();
+              if (sysAbnormal !== "") {
+                  let shortDate = r.date.split('/').slice(1).join('/');
+                  abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                  abnormalCount++;
+              }
+          });
+
+          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
+          let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
+          let salaryType = pData[0].salaryType || "";
+          
+          statsDiv.innerHTML = `
+              <div class="d-flex align-items-center flex-wrap gap-1 mb-2 ps-1">
+                  <span class="badge bg-dark rounded-pill" style="font-size:0.75rem;">${salaryType}</span>
+              </div>
+              <div class="w-100">
+                  <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: #f8f9fa; border-color: #dee2e6!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:#6c757d;">排休狀態</div><div class="fw-bold" style="font-size:0.85rem; color:#495057;">休 <span class="text-primary">${rest}</span> | 例 <span class="text-success">${reg}</span> | 國 <span class="text-danger">${nat}</span> | 空 <span class="text-secondary">${empty}</span></div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalLeaveHrs>0?'#e0f8f5':'#f8f9fa'}; border-color: ${totalLeaveHrs>0?'#bcebe3':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalLeaveHrs>0?'#0b8273':'#6c757d'};">請假</div><div class="fw-bold" style="font-size:1rem; color:${totalLeaveHrs>0?'#0b8273':'#6c757d'};">${totalLeaveHrs>0?totalLeaveHrs.toFixed(1)+'H':'0.0'}</div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${totalAA>0?'#f5c2c7':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalAA>0?'#842029':'#6c757d'};">超時</div><div class="fw-bold ${totalAA>0?'text-danger':'text-muted'}" style="font-size:1rem;">${totalAA>0?totalAA.toFixed(1):'0.0'}</div></div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm" style="background: ${totalSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${totalSupOut>0?'#d3bbfb':'#dee2e6'}!important;"><div class="fw-bold mb-1" style="font-size:0.75rem; color:${totalSupOut>0?'#3d1a87':'#6c757d'};">跨店支援</div><div class="fw-bold ${totalSupOut>0?'text-dark':'text-muted'}" style="font-size:1rem;">${totalSupOut>0?totalSupOut.toFixed(1):'0.0'}</div></div></div>
+                      <div class="col-12 col-md"><div class="p-2 rounded h-100 d-flex flex-column justify-content-center shadow-sm border" style="background: #fff3cd; border-color: #ffecb5!important;"><div class="d-flex flex-row justify-content-center align-items-center gap-4"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:#997404; font-size:0.85rem;">預計加班</span><span class="fw-bold text-dark" style="font-size:1.1rem;">${zDisplay}</span></div><div style="width:1px; height:30px; background:#ffe69c;"></div><div class="d-flex flex-column align-items-center"><span class="fw-bold text-success" style="font-size:0.85rem;">已申請</span><span class="fw-bold text-dark" style="font-size:1.1rem;">${oDisplay}</span></div></div></div></div>
+                      <div class="col-12 col-md"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor:pointer; background: ${abnormalCount>0?'#ffffff':'#f8f9fa'}; border-color: ${abnormalCount>0?'#dc3545':'#dee2e6'}!important; border-width: ${abnormalCount>0?'2px':'1px'}!important;" data-bs-toggle="collapse" data-bs-target="#hq-abnormal"><div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size:0.75rem;">▾</div><div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2"><span class="fw-bold" style="color:${abnormalCount>0?'#dc3545':'#6c757d'}; font-size:0.85rem;">異常狀況</span><span class="fw-bold ${abnormalCount>0?'text-danger':'text-muted'}" style="font-size:1.1rem;">${abnormalCount>0?abnormalCount+' 筆':'無'}</span></div></div></div>
+                  </div>
+                  <div class="collapse" id="hq-abnormal">
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.85rem;">
+                          ${abnormalCount > 0 ? `<strong class="text-danger">異常明細:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
+                      </div>
+                  </div>
+              </div>`;
+
+          const ft = (t) => {
+              if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val);
+          };
+
+          pData.forEach(r => {
+              let sVal = r.input_start; let eVal = r.input_end;     
+              let restVal = parseFloat(r.input_rest) || 0; let hVal = parseFloat(r.calc_hours) || 0;
+              let zVal = parseFloat(r.input_est_overtime) || 0; let aaVal = parseFloat(r.calc_excess) || 0;
+              let status = r.input_status;
+              let strH = "-", strZ = "-", strAA = "-";
+
+              if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
+                  let sF = String(sVal).includes(':') ? timeToFloat(sVal) : parseFloat(sVal);
+                  if(isNaN(sF)) sF = 0; let currTime = sF;
+                  if (hVal > 0) { let endT = currTime + hVal + restVal; strH = `${ft(currTime)}-${ft(endT)}${restVal > 0 ? `(休${restVal})` : ""}`; currTime = endT; }
+                  if (zVal > 0) { let zRest = (h === 0) ? restVal : 0; let endT = currTime + zVal + zRest; strZ = `${ft(currTime)}-${ft(endT)}${zRest > 0 ? `(休${zRest})` : ""}`; currTime = endT; }
+                  if (aaVal > 0) { let aaRest = (h === 0 && z === 0) ? restVal : 0; let endT = currTime + aa + aaRest; strAA = `${ft(currTime)}-${ft(endT)}${aaRest > 0 ? `(休${aaRest})` : ""}`; }
+              }
+
+              let supStrs = [];
+              if(r.supports && r.supports.length > 0) {
+                  r.supports.forEach(s => { supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${s.supportStore} ${s.startEnd.replace('~','-')}(${s.hrs}H)</span>`); });
+              }
+              let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
+
+              let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : ""; let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
+              let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : ""; let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+              let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
+              let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
+
+              const tdLeftCorner = `position: sticky; left: 0; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
+              const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
+              const tdRight = `background-color: #fff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
+
+              tbody.innerHTML += `
+                  <tr>
+                      <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
+                      <td class="fw-bold" style="${tdLeft} color:#084298;">${status}</td>
+                      <td style="${tdLeft}">${strH}</td>
+                      <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
+                      <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
+                      <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
+                      <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
+                      
+                      <td style="${tdRight}">${r.sys_status || ""}</td>
+                      <td style="${tdRight}">${sysIn}</td>
+                      <td style="${tdRight}">${sysOut}</td>
+                      <td style="${tdRight}">${sysLeaveRange}</td>
+                      <td style="${tdRight}">${r.sys_leaveType||""}</td>
+                      <td style="${tdRight}">${sysOtRange}</td>
+                      <td class="fw-bold text-success" style="${tdRight}">${r.sys_overtimeHrs || ""}</td>
+                      <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
+                  </tr>
+              `;
+          });
       }
         // ==========================================
       // 🚀 神級引擎：總部人員跨維度派遣系統
@@ -5094,14 +5206,14 @@ function showMaintenanceShield(message) {
                               <div class="fw-bold text-dark" style="font-size: 0.9rem;">🗓️ ${shortDate} ➔ 📍 ${sup.supportStore}</div>
                               <div class="text-muted" style="font-size: 0.8rem;">時段: ${sup.startEnd.replace('~','-')} (休${sup.rest}) 共 ${sup.hrs}H</div>
                           </div>
-                          <button class="btn btn-sm btn-outline-danger fw-bold rounded-circle px-2" onclick="removeHQSupportItem('${row.date}', '${empName}', ${idx})" title="撤回此支援">✕</button>
+                          <button class="btn btn-sm btn-outline-danger fw-bold rounded-circle px-2" onclick="removeHQSupportItem('${row.date}', '${empName}', ${idx})" title="撤回此派遣">✕</button>
                       </div>`;
                   });
               }
           });
 
           if (!hasHistory) {
-              listArea.innerHTML = `<div class="alert alert-light border text-center text-muted mb-0">該員本月尚無支援紀錄</div>`;
+              listArea.innerHTML = `<div class="alert alert-light border text-center text-muted mb-0">該員本月尚無派遣紀錄</div>`;
           } else {
               listArea.innerHTML = html;
           }
@@ -5177,7 +5289,7 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          showLoading(true, "儲存跨單位支援中...");
+          showLoading(true, "儲存跨維度派遣中...");
           
           // ★ 關鍵魔法：欺騙後端，假裝我們是這家總部單位在存檔！
           callApi('saveStoreData', { 
@@ -5189,7 +5301,7 @@ function showMaintenanceShield(message) {
           }).then(res => {
               showLoading(false);
               if (res.status === 'SUCCESS' || res.status === 'PARTIAL') {
-                  Swal.fire('成功', '總部支援已儲存並生效！', 'success').then(() => {
+                  Swal.fire('成功', '總部支援派遣已儲存並生效！', 'success').then(() => {
                       bootstrap.Modal.getInstance(document.getElementById('hqDispatchModal')).hide();
                       loadAdminData(); // ★ 存檔後自動重整督導當前看的這家門市，瞬間看到外援進來！
                   });
