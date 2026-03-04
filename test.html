@@ -2731,12 +2731,19 @@ function showMaintenanceShield(message) {
               }
 
               let hBadge = '';
-              if (isMonthly) {
+              // ★ 關鍵微創：如果是總公司身分，或是時薪制，月統計報表一律顯示「累計應有」
+              if (currentUserRole === 'HQ' || !isMonthly) {
+                  hBadge = `<span class="badge bg-success ms-1 shadow-sm" style="font-size:0.7rem;">累計應有: ${sumH.toFixed(1)}</span>`;
+              } else {
+                  // 只有店長/督導身分且為月薪制時，才顯示差額 (XXH) 計算
                   if (targetH > 0) {
-                      let diff = sumH - targetH; let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
+                      let diff = sumH - targetH; 
+                      let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
                       hBadge = `<span class="badge bg-primary ms-1 shadow-sm" style="font-size:0.7rem;">應有: ${sumH.toFixed(1)} (${diffText})</span>`;
-                  } else { hBadge = `<span class="badge bg-primary ms-1 shadow-sm" style="font-size:0.7rem;">應有: ${sumH.toFixed(1)}</span>`; }
-              } else { hBadge = `<span class="badge bg-success ms-1 shadow-sm" style="font-size:0.7rem;">累計應有: ${sumH.toFixed(1)}</span>`; }
+                  } else { 
+                      hBadge = `<span class="badge bg-primary ms-1 shadow-sm" style="font-size:0.7rem;">應有: ${sumH.toFixed(1)}</span>`; 
+                  }
+              }
 
               let supportOutHtml = '';
               if (sumSupOut > 0) {
