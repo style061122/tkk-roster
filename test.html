@@ -3714,14 +3714,18 @@ function showMaintenanceShield(message) {
           }
           
           // ==========================================
-          // ★ 產生「應有(H)」專屬徽章 (完美移植月統計樣式)
+          // ★ 產生「應有(H)」專屬徽章 (總公司身分優化版)
           // ==========================================
           let targetH = parseFloat(monthlyTargets.hrs) || 0;
           let salaryType = pData.length > 0 ? (pData[0].salaryType || "") : "";
-          let badgeType = isHourly ? 'bg-dark' : 'bg-dark'; // 月薪時薪都用深色底較有質感
+          let badgeType = 'bg-dark'; 
           let hBadge = '';
           
-          if (!isHourly) {
+          // ★ 關鍵判斷：如果是總公司身分，或是時薪制，一律顯示「累計應有」
+          if (currentUserRole === 'HQ' || isHourly) {
+              hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
+          } else {
+              // 只有店長/督導身分且為月薪制時，才顯示差額 (XXH) 提示
               if (targetH > 0) {
                   let diff = hrs - targetH;
                   let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
@@ -3729,8 +3733,6 @@ function showMaintenanceShield(message) {
               } else {
                   hBadge = `<span class="badge bg-primary shadow-sm" style="font-size: 0.85rem;">應有: ${hrs.toFixed(1)}</span>`;
               }
-          } else {
-              hBadge = `<span class="badge bg-success shadow-sm" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
           }
 
           // ★ 組裝最終 HTML (將網格改為 row-cols-md-4 四等份)
