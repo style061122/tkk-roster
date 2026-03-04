@@ -2574,7 +2574,7 @@ function showMaintenanceShield(message) {
 
           summaryBar.innerHTML = html;
       }
-      // ==========================================
+      /// ==========================================
       // ★ 核心引擎：產生月統計與全店戰情 HTML (督導/店長共用)
       // ==========================================
       function generateMonthlyReportHTML() {
@@ -2862,13 +2862,13 @@ function showMaintenanceShield(message) {
                       <div class="col">
                           <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #fffaf0; border-color: #ffc107 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#997404;">預計加班</div>
-                              <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}</div>
+                              <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}H</div>
                           </div>
                       </div>
                       <div class="col">
                           <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #d1e7dd; border-color: #198754 !important;">
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#0f5132;">已申請加班</div>
-                              <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}</div>
+                              <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}H</div>
                           </div>
                       </div>
                       <div class="col">
@@ -2901,7 +2901,7 @@ function showMaintenanceShield(message) {
               </div></div>`;
 
               let finalHtml = '';
-              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店統計</option>`;
+              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店戰情雷達</option>`;
               if (optMonthly) navOptions += `<optgroup label="🔵 正職月薪">${optMonthly}</optgroup>`;
               if (optHourly) navOptions += `<optgroup label="🟢 兼職時薪">${optHourly}</optgroup>`;
               
@@ -2920,7 +2920,8 @@ function showMaintenanceShield(message) {
               return finalHtml;
 
           }
-        // 獨立出原本的開彈窗邏輯
+
+      // 獨立出原本的開彈窗邏輯
       function openMonthlyReport() {
           if (!currentData || currentData.length === 0) {
               Swal.fire('系統訊息', '目前尚無班表資料可供結算', 'info');
@@ -2942,7 +2943,7 @@ function showMaintenanceShield(message) {
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
           currentStore = targetStore; currentMonthMode = monthMode;
-          showLoading(true, "讀取資料中...");
+          showLoading(true, "載入戰情資料中...");
           callApi('getStoreData', { store: targetStore, monthMode: monthMode }).then(res => {
               showLoading(false);
               if (res.success) {
