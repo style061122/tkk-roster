@@ -2573,7 +2573,7 @@ function showMaintenanceShield(message) {
 
           summaryBar.innerHTML = html;
       }
-      /// ==========================================
+      // ==========================================
       // ★ 核心引擎：產生月統計與全店戰情 HTML (督導/店長共用)
       // ==========================================
       function generateMonthlyReportHTML() {
@@ -2598,6 +2598,9 @@ function showMaintenanceShield(message) {
           let storeLvDetails = {};  
           let storeOutStoreTotals = {}; 
           let storeInStoreTotals = {};  
+          // 🌟 新增：全店預計與已申請加班明細
+          let storeZDetails = {};
+          let storeODetails = {};
 
           myStaffNames.forEach((name, idx) => {
               let pData = currentData.filter(r => r.name === name && r.store === currentStore);
@@ -2703,6 +2706,14 @@ function showMaintenanceShield(message) {
               storeTotZ_norm += sumZ_norm; storeTotZ_nat += sumZ_nat;
               storeTotO_norm += sumO_norm; storeTotO_nat += sumO_nat;
               storeTotAA += sumAA; storeTotLv += totalLeaveHrs; storeSupOut += sumSupOut;
+
+              // 🌟 寫入全店 Z 與 O 明細 (依人名)
+              if (sumZ_norm > 0 || sumZ_nat > 0) {
+                  storeZDetails[name] = { norm: sumZ_norm, nat: sumZ_nat, total: sumZ_norm + sumZ_nat, isHourly: !isMonthly };
+              }
+              if (sumO_norm > 0 || sumO_nat > 0) {
+                  storeODetails[name] = { norm: sumO_norm, nat: sumO_nat, total: sumO_norm + sumO_nat, isHourly: !isMonthly };
+              }
 
               let hBadge = '';
               if (isMonthly) {
@@ -2823,11 +2834,22 @@ function showMaintenanceShield(message) {
           // 🌟 第四部分：組合「全店戰情卡片」(精細化大小與彈出明細)
           // ==========================================
           const buildStorePersonList = (dict, colorCode) => Object.entries(dict).map(([n, data]) => `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.85rem;">👤 ${n}</span><span class="fw-bolder" style="color:${colorCode}; font-size:0.95rem;">${data.total.toFixed(1)}H</span></div><div class="text-muted" style="font-size:0.8rem; padding-left:10px;">${data.items.join('<br>')}</div></div>`).join('');
+          
+          // 🌟 Z 與 O 專用明細產生器 (分離總時數與 xx+xx)
+          const buildStoreZOrOList = (dict, colorCode) => Object.entries(dict).map(([n, data]) => {
+              let splitStr = data.isHourly ? "" : `<span class="text-muted fw-normal ms-2" style="font-size:0.8rem;">${data.norm.toFixed(1)}+${data.nat.toFixed(1)}</span>`;
+              return `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.85rem;">👤 ${n}</span><span class="fw-bolder" style="color:${colorCode}; font-size:0.95rem;">${data.total.toFixed(1)}H${splitStr}</span></div></div>`;
+          }).join('');
+
           const buildStoreSimpleList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
           const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
 
           let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
           let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時紀錄</div>';
+          // 🌟 產生 Z 與 O 彈出明細
+          let storeZHtml = buildStoreZOrOList(storeZDetails, '#997404') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無預計加班紀錄</div>';
+          let storeOHtml = buildStoreZOrOList(storeODetails, '#0f5132') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無已申請加班紀錄</div>';
+
           let storeOutHtml = buildStoreSimpleList(storeOutStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
           let storeInHtml = buildStoreSimpleList(storeInStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
           let fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
@@ -2858,18 +2880,22 @@ function showMaintenanceShield(message) {
                               <div class="fw-bolder ${storeTotAA>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${storeTotAA.toFixed(1)}H</div>
                           </div>
                       </div>
+                      
                       <div class="col">
-                          <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #fffaf0; border-color: #ffc107 !important;">
+                          <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: #fffaf0; border-color: #ffc107 !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-z">
+                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#997404;">預計加班</div>
                               <div class="fw-bolder text-dark" style="font-size: 1rem;">${storeZDisplay}H</div>
                           </div>
                       </div>
                       <div class="col">
-                          <div class="p-1 rounded h-100 border shadow-sm d-flex flex-column justify-content-center" style="background: #d1e7dd; border-color: #198754 !important;">
+                          <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: #d1e7dd; border-color: #198754 !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-o">
+                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                               <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#0f5132;">已申請加班</div>
                               <div class="fw-bolder text-success" style="font-size: 1rem;">${storeODisplay}H</div>
                           </div>
                       </div>
+
                       <div class="col">
                           <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${storeSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#store-dashboard-out">
                               <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
@@ -2894,13 +2920,17 @@ function showMaintenanceShield(message) {
                   
                   <div class="collapse" id="store-dashboard-lv"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f0fbfd; border-color: #17a2b8 !important; line-height:1.5;">${storeLvHtml}</div></div>
                   <div class="collapse" id="store-dashboard-aa"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5;">${storeAaHtml}</div></div>
+                  
+                  <div class="collapse" id="store-dashboard-z"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.5;">${storeZHtml}</div></div>
+                  <div class="collapse" id="store-dashboard-o"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #d1e7dd; border-color: #198754 !important; line-height:1.5;">${storeOHtml}</div></div>
+                  
                   <div class="collapse" id="store-dashboard-out"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeOutHtml}</div></div>
                   <div class="collapse" id="store-dashboard-in"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeInHtml}</div></div>
                   <div class="collapse" id="store-dashboard-abn"><div class="p-2 rounded small border-start border-4 mb-1 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">${fullAbnHtml}</div></div>
               </div></div>`;
 
               let finalHtml = '';
-              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店戰情雷達</option>`;
+              let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店統計</option>`;
               if (optMonthly) navOptions += `<optgroup label="🔵 正職月薪">${optMonthly}</optgroup>`;
               if (optHourly) navOptions += `<optgroup label="🟢 兼職時薪">${optHourly}</optgroup>`;
               
@@ -2942,7 +2972,7 @@ function showMaintenanceShield(message) {
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
           currentStore = targetStore; currentMonthMode = monthMode;
-          showLoading(true, "載入戰情資料中...");
+          showLoading(true, "讀取資料中...");
           callApi('getStoreData', { store: targetStore, monthMode: monthMode }).then(res => {
               showLoading(false);
               if (res.success) {
@@ -5205,14 +5235,14 @@ function showMaintenanceShield(message) {
                               <div class="fw-bold text-dark" style="font-size: 0.9rem;">🗓️ ${shortDate} ➔ 📍 ${sup.supportStore}</div>
                               <div class="text-muted" style="font-size: 0.8rem;">時段: ${sup.startEnd.replace('~','-')} (休${sup.rest}) 共 ${sup.hrs}H</div>
                           </div>
-                          <button class="btn btn-sm btn-outline-danger fw-bold rounded-circle px-2" onclick="removeHQSupportItem('${row.date}', '${empName}', ${idx})" title="撤回此派遣">✕</button>
+                          <button class="btn btn-sm btn-outline-danger fw-bold rounded-circle px-2" onclick="removeHQSupportItem('${row.date}', '${empName}', ${idx})" title="撤回此支援">✕</button>
                       </div>`;
                   });
               }
           });
 
           if (!hasHistory) {
-              listArea.innerHTML = `<div class="alert alert-light border text-center text-muted mb-0">該員本月尚無派遣紀錄</div>`;
+              listArea.innerHTML = `<div class="alert alert-light border text-center text-muted mb-0">該員本月尚無支援紀錄</div>`;
           } else {
               listArea.innerHTML = html;
           }
@@ -5288,7 +5318,7 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          showLoading(true, "儲存跨維度派遣中...");
+          showLoading(true, "儲存跨單位支援中...");
           
           // ★ 關鍵魔法：欺騙後端，假裝我們是這家總部單位在存檔！
           callApi('saveStoreData', { 
@@ -5300,7 +5330,7 @@ function showMaintenanceShield(message) {
           }).then(res => {
               showLoading(false);
               if (res.status === 'SUCCESS' || res.status === 'PARTIAL') {
-                  Swal.fire('成功', '總部支援派遣已儲存並生效！', 'success').then(() => {
+                  Swal.fire('成功', '總部支援已儲存並生效！', 'success').then(() => {
                       bootstrap.Modal.getInstance(document.getElementById('hqDispatchModal')).hide();
                       loadAdminData(); // ★ 存檔後自動重整督導當前看的這家門市，瞬間看到外援進來！
                   });
