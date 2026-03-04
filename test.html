@@ -911,43 +911,81 @@ function showMaintenanceShield(message) {
            const savedStore = sessionStorage.getItem('tkk_store');
            const savedToken = sessionStorage.getItem('tkk_token');
            
+           // =========================================
+           // 💡 讀取記憶吐司 (快取清單)
+           // =========================================
+           const cachedListStr = localStorage.getItem('tkk_store_list');
+           let cachedData = null;
+           try { if (cachedListStr) cachedData = JSON.parse(cachedListStr); } catch(e) {}
+
            if (savedStore && savedToken) {
-               // 自動恢復登入
+               // 【情境 A：已登入狀態】
                currentStore = savedStore;
                currentToken = savedToken;
                document.getElementById('displayStoreName').innerText = savedStore;
                document.getElementById('loginSection').style.display = 'none';
                
-               // ★ 檢查是否有記憶的月份模式
+               currentUserRole = sessionStorage.getItem('tkk_role') || "STORE";
+               try { allowedStoresList = JSON.parse(sessionStorage.getItem('tkk_allowed')) || []; } catch(e) {}
                const savedMonthMode = sessionStorage.getItem('tkk_month_mode');
                
-               showLoading(true, "系統載入中..."); 
-               callApi('getStoreList').then(res => { 
-                   showLoading(false); 
-                   if (res.success) {
-                       let resData = res.data;
-                       if (resData && resData.companies) {
-                           allStoreData = resData.companies;
-                           if (resData.currentMonth) setMonthTitles(resData.currentMonth);
-                       } else {
-                           allStoreData = resData || {};
-                       }
-                       
-                       // ★ 恢復角色與權限記憶
-                       currentUserRole = sessionStorage.getItem('tkk_role') || "STORE";
-                       try { allowedStoresList = JSON.parse(sessionStorage.getItem('tkk_allowed')) || []; } catch(e) {}
-                       
-                       // ★ 智慧導航：依據角色派發路由！
-                       routeByRole();
-                   } 
-               }).catch(err => {
-               });
+               if (cachedData) {
+                   // ★ 秒進系統：有快取，瞬間設定變數並分配路由！(不轉圈圈)
+                   let resData = cachedData;
+                   if (resData.companies) {
+                       allStoreData = resData.companies;
+                       if (resData.currentMonth) setMonthTitles(resData.currentMonth);
+                   } else { allStoreData = resData || {}; }
+                   
+                   routeByRole();
+                   
+                   // 背景靜默更新 (偷偷去要新資料，不打擾畫面)
+                   callApi('getStoreList').then(res => {
+                       if (res.success) localStorage.setItem('tkk_store_list', JSON.stringify(res.data));
+                   }).catch(()=>{});
+               } else {
+                   // 沒快取才走老路 (第一次載入)
+                   showLoading(true, "系統載入中..."); 
+                   callApi('getStoreList').then(res => { 
+                       showLoading(false); 
+                       if (res.success) {
+                           localStorage.setItem('tkk_store_list', JSON.stringify(res.data)); // 寫入快取
+                           let resData = res.data;
+                           if (resData && resData.companies) {
+                               allStoreData = resData.companies;
+                               if (resData.currentMonth) setMonthTitles(resData.currentMonth);
+                           } else { allStoreData = resData || {}; }
+                           routeByRole();
+                       } 
+                   }).catch(err => { showLoading(false); });
+               }
            } else {
-               showLoading(true, "連線中...");
+               // 【情境 B：未登入狀態 (準備打密碼)】
+               if (cachedData) {
+                   // ★ 秒開畫面：有快取，瞬間畫出下拉選單！
+                   initLogin(cachedData); 
+               } else {
+                   showLoading(true, "連線中...");
+               }
+
+               // 無論有沒有快取，都在背景去要一次最新資料 (確保公告和清單是最新的)
                callApi('getStoreList').then(res => {
-                   if (res.success) initLogin(res.data);
-                   else { showLoading(false); Swal.fire('錯誤', '無法取得門市清單', 'error'); }
-               }).catch(err => errorHandler(err));
+                   if (res.success) {
+                       localStorage.setItem('tkk_store_list', JSON.stringify(res.data)); // 更新快取
+                       if (!cachedData) {
+                           // 如果剛才沒快取，現在才解開轉圈圈並畫畫面
+                           initLogin(res.data);
+                       } else {
+                           // 如果已經秒開了畫面，只要偷偷更新公告文字就好，不打斷輸入
+                           if (res.data.notice) {
+                               const noticeDiv = document.getElementById('loginNotice');
+                               if (noticeDiv) { noticeDiv.innerText = res.data.notice; noticeDiv.style.display = 'block'; }
+                           }
+                       }
+                   } else {
+                       if (!cachedData) { showLoading(false); Swal.fire('錯誤', '無法取得門市清單', 'error'); }
+                   }
+               }).catch(err => { if(!cachedData) errorHandler(err); });
            }
         }
       };
