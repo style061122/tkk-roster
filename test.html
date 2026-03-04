@@ -2973,7 +2973,13 @@ function showMaintenanceShield(message) {
       // 獨立出督導首頁的直接注入邏輯
       function loadAdminData() {
           const monthMode = document.getElementById('adminMonthSelect').value;
-          const targetStore = document.getElementById('adminStoreSelect').value;
+          
+          // ★ 關鍵微創：自動判斷要讀取選單還是讀取登入身分
+          let targetStore = document.getElementById('adminStoreSelect').value;
+          if (currentUserRole === 'HQ') {
+              targetStore = currentStore; // 總公司直接用自己的單位名稱
+          }
+
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
           currentStore = targetStore; currentMonthMode = monthMode;
