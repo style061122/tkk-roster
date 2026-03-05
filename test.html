@@ -1411,9 +1411,6 @@ function showMaintenanceShield(message) {
                      icon: 'success', title: '儲存成功', html: htmlMsg, confirmButtonText: '確認', allowOutsideClick: false 
                  }).then((result) => { 
                      if (result.isConfirmed) {
-                         // ==========================================
-                         // ★ 新增：目的地保護機制 (提取為共用函數)
-                         // ==========================================
                          const preserveDestination = () => {
                              if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
                              if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
@@ -1424,13 +1421,36 @@ function showMaintenanceShield(message) {
                              }
                          };
 
-                         preserveDestination(); // 成功時執行保護
+                         preserveDestination(); 
+                         
+                         // ★★★ 極速魔術：No-Reload 快照更新 ★★★
+                         // 1. 洗掉所有髒標記
                          currentData.forEach(r => r.isModified = false);
-                         loadData();
+                         
+                         // 2. 將目前的記憶體狀態，認定為最新的「純淨快照」！
+                         window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
+                         
+                         // 3. ★ 處理月份跳轉 (如果存檔前是按了切換月份)
+                         if (window.tempMonthMode) {
+                             let nextM = window.tempMonthMode;
+                             window.tempMonthMode = null;
+                             enterMode(nextM); // 只有切換月份才需要重新載入
+                             return;
+                         }
+                         
+                         // 4. ★ 處理大分類跳轉
+                         if (window.pendingSwitchMode) {
+                             let m = window.pendingSwitchMode;
+                             window.pendingSwitchMode = null;
+                             switchMode(m); // 瞬間切換畫面，不讀取！
+                         } else {
+                             // 5. 留在原畫面，直接瞬間重繪，省下 15 秒！
+                             renderTable();
+                         }
                      }
                  });
              }
-             else if (res.status === 'FAILED' && res.message.includes("強制登出")) { 
+             else if (res.status === 'FAILED' && res.message.includes("強制登出")) {
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
              }
              else if (res.status === 'PARTIAL') { 
