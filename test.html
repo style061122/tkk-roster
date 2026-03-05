@@ -1068,6 +1068,10 @@ function showMaintenanceShield(message) {
               if (savedMonthMode) {
                   enterMode(savedMonthMode);
               } else {
+                  // ★ 單忍者狙擊魔術：只抓 90% 機率會點擊的「當月班表」，保護伺服器不超載！
+                  window.bgFetchPromises = {
+                      'current': callApi('getStoreData', { store: currentStore, monthMode: 'current' })
+                  };
                   document.getElementById('modeSelectionSection').style.display = 'block';
               }
           }
@@ -1619,12 +1623,23 @@ function showMaintenanceShield(message) {
 
       function loadData() {
         if (!currentStore) return;
+        
+        // ★ 魔術接收端：檢查忍者有沒有出發或帶回包裹？
+        let dataPromise;
+        if (window.bgFetchPromises && window.bgFetchPromises[currentMonthMode]) {
+            dataPromise = window.bgFetchPromises[currentMonthMode];
+            window.bgFetchPromises[currentMonthMode] = null; // ★ 拿走包裹後就銷毀紀錄，確保下次「重新整理」時會去拿最新的資料
+        } else {
+            // 備用方案：如果沒有忍者，或是按了重新整理，就乖乖走大門去要資料
+            dataPromise = callApi('getStoreData', { store: currentStore, monthMode: currentMonthMode });
+        }
+
         showLoading(true, "讀取資料中...");
-        // ★ 核心：把 currentMonthMode 傳給後端
-        callApi('getStoreData', { store: currentStore, monthMode: currentMonthMode }).then(res => {
+        // 將原本的 callApi 替換為 dataPromise
+        dataPromise.then(res => {
              showLoading(false);
-             if (res.success) {
-                 currentData = res.data || []; 
+             if (res && res.success) {
+                 currentData = res.data || [];
                  // ★★★ 終極無損快照：在拿到最新資料的瞬間，立刻備份一份最乾淨的狀態！★★★
                  window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                  monthlyTargets = res.targets || {}; 
