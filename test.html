@@ -3167,15 +3167,9 @@ function showMaintenanceShield(message) {
 
               // ★ 判斷是否為時薪人員 (從員工 API 傳回的資料判斷)
               let isHourly = data.isHourly === true;
-              // ★ 新增：透過資料中的單位名稱 (store) 來探測是否為總部人員
-              let isHQEmployee = false;
-              if (data.data && data.data.length > 0 && data.data[0].store) {
-                  let storeName = String(data.data[0].store);
-                  // 如果單位名稱不包含「店」或「門市」，就判定他是總部人員
-                  if (!storeName.includes('店') && !storeName.includes('門市')) {
-                      isHQEmployee = true;
-                  }
-              }
+              
+              // ★ 終極修復：直接讀取後端的 isStoreStaff 標記！若不是門市人員，就是總部人員
+              let isHQEmployee = (data.isStoreStaff === false);
 
               // 讀取後端基本統計
               if (data.stats) {
