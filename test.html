@@ -5439,8 +5439,9 @@ function showMaintenanceShield(message) {
               store: hqTargetUnit, 
               inputData: inputData, 
               forceSave: false,
-              token: currentToken, // Token 依然用督導的，後端已放行
-              monthMode: currentMonthMode
+              token: currentToken, 
+              monthMode: currentMonthMode,
+              isSupportDispatch: true // ★ 告訴後端這是派發支援，略過請假/加班檢查
           }).then(res => {
               showLoading(false);
               if (res.status === 'SUCCESS' || res.status === 'PARTIAL') {
