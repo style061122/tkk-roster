@@ -2761,7 +2761,7 @@ function showMaintenanceShield(message) {
                   else if (s === '國') { if (z > 0) detailNat.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`); else detailNat.push(`🗓️ ${shortDate}`); }
                   else if (s === '空班') { if (aa > 0) detailEmpty.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`); else detailEmpty.push(`🗓️ ${shortDate}`); }
 
-                  if (aa > 0) aaDetails.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`); 
+                  if (aa > 0) aaDetails.push(`🗓️ ${shortDate} 共${aa.toFixed(1)}H`);
 
                   if (isMonthly && s === '國' && z > 0) {
                       let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
@@ -2878,7 +2878,7 @@ function showMaintenanceShield(message) {
                       <div class="collapse" id="${cardId}-status"><div class="p-2 bg-white rounded text-muted small border-start border-3 border-secondary mb-1 shadow-sm" style="line-height:1.5; font-size: 0.8rem;">${detailWork.length>0?`<strong style="color:#084298;">上班:</strong><br>${detailWork.join('<br>')}<br>`:''}${detailRest.length>0?`<strong style="color:#997404;">排休:</strong><br>${detailRest.join('<br>')}<br>`:''}${detailReg.length>0?`<strong style="color:#198754;">例假:</strong><br>${detailReg.join('<br>')}<br>`:''}${detailNat.length>0?`<strong style="color:#dc3545;">國定:</strong><br>${detailNat.join('<br>')}<br>`:''}${detailEmpty.length>0?`<strong style="color:#6c757d;">空班:</strong><br>${detailEmpty.join('<br>')}<br>`:''}${(detailWork.length===0&&detailRest.length===0&&detailReg.length===0&&detailNat.length===0&&detailEmpty.length===0)?'無排班紀錄':''}</div></div>
                       <div class="collapse" id="${cardId}-leave"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #17a2b8 !important; line-height:1.5; font-size: 0.8rem;">${Object.keys(leaveDetails).length>0?leaveHtml:'<span class="text-black-50 opacity-75">無請假紀錄</span>'}</div></div>
                       <div class="collapse" id="${cardId}-overtime"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.5; font-size: 0.8rem;">${zDetails.length>0?`<strong style="color:#997404;">預計加班:</strong><br>${zDetails.join('<br>')}<br><br>`:''}${oDetails.length>0?`<strong class="text-success">已申請加班:</strong><br>${oDetails.join('<br>')}`:''}${(zDetails.length===0&&oDetails.length===0)?'<span class="text-black-50 opacity-75">無加班紀錄</span>':''}</div></div>
-                      <div class="collapse" id="${cardId}-aa"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">${aaDetails.length>0?`<strong class="text-danger">超時:</strong><br>${aaDetails.join('<br>')}`:'<span class="text-black-50 opacity-75">無超時紀錄</span>'}</div></div>
+                      <div class="collapse" id="${cardId}-aa"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">${aaDetails.length>0?`<strong class="text-danger">獎金時數:</strong><br>${aaDetails.join('<br>')}`:'<span class="text-black-50 opacity-75">無獎金時數紀錄</span>'}</div></div>
                       <div class="collapse" id="${cardId}-support"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5; font-size: 0.8rem;">${sumSupOut>0?supportOutHtml:'<span class="text-black-50 opacity-75">無跨店支援紀錄</span>'}</div></div>
                       <div class="collapse" id="${cardId}-abnormal"><div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">${abnormalDetails.length>0?`<strong class="text-danger">異常:</strong><br>${abnormalDetails.join('<br>')}`:'<span class="text-black-50 opacity-75">無異常紀錄</span>'}</div></div>
                   </div>
@@ -2959,7 +2959,7 @@ function showMaintenanceShield(message) {
           const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
 
           let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
-          let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時紀錄</div>';
+          let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無獎金時數紀錄</div>';
           // 🌟 產生 Z 與 O 彈出明細
           let storeZHtml = buildStoreZOrOList(storeZDetails, '#997404') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無預計加班紀錄</div>';
           let storeOHtml = buildStoreZOrOList(storeODetails, '#0f5132') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無已申請加班紀錄</div>';
@@ -3424,7 +3424,7 @@ function showMaintenanceShield(message) {
                       
                       <div class="col">
                           <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="cursor: pointer; background-color: ${totalAA > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${totalAA > 0 ? '#f5c2c7' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-aa">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">超時 ▾</div>
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">獎金時數 ▾</div>
                               <div class="fw-bold ${totalAA > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1rem;">${totalAA > 0 ? totalAA.toFixed(1) : '0.0'}</div>
                           </div>
                       </div>
@@ -3527,7 +3527,7 @@ function showMaintenanceShield(message) {
                       <th style="${thStyleLeft}">應有時段</th>
                       <th style="${thStyleLeft}">應有H</th>
                       <th style="${thStyleLeft}">加班時段</th>
-                      <th style="${thStyleLeft}">獎金時段<br><small style="font-size:0.65rem; color:#d0e2ff;">(勿打卡)</small></th>
+                      <th style="${thStyleLeft}">獎金時數</th>
                       <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
                       
                       <th style="${thStyleRight}">系統狀態</th>
@@ -3640,7 +3640,7 @@ function showMaintenanceShield(message) {
                           <td style="${tdLeft}">${strH}</td>
                           <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
                           <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
-                          <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
+                          <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545; font-weight:bold;">${aaVal > 0 ? aaVal.toFixed(1) : "-"}</td>
                           <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
                           
                           <td style="${tdRight}">${r.sys_status || ""}</td>
