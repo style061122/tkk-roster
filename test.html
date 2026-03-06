@@ -2880,7 +2880,7 @@ function showMaintenanceShield(message) {
                       <div class="collapse" id="${cardId}-overtime"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.5; font-size: 0.8rem;">${zDetails.length>0?`<strong style="color:#997404;">預計加班:</strong><br>${zDetails.join('<br>')}<br><br>`:''}${oDetails.length>0?`<strong class="text-success">已申請加班:</strong><br>${oDetails.join('<br>')}`:''}${(zDetails.length===0&&oDetails.length===0)?'<span class="text-black-50 opacity-75">無加班紀錄</span>':''}</div></div>
                       <div class="collapse" id="${cardId}-aa">
                       <div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
-                          ${aaDetails.length > 0 ? `<strong class="text-danger">獎金時數:</strong><br>${aaDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無獎金時數紀錄</span>'}
+                          ${aaDetails.length > 0 ? `<strong class="text-danger">超時:</strong><br>${aaDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無超時紀錄</span>'}
                       </div>
                   </div>
                       <div class="collapse" id="${cardId}-support"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5; font-size: 0.8rem;">${sumSupOut>0?supportOutHtml:'<span class="text-black-50 opacity-75">無跨店支援紀錄</span>'}</div></div>
