@@ -1323,8 +1323,9 @@ function showMaintenanceShield(message) {
             inputData: inputData, 
             forceSave: force,
             token: currentToken,
-            monthMode: currentMonthMode, // ★ 將狀態送給後端
-            syncVersion: window.currentSyncVersion // ★ 遞交整理券給後端海關
+            monthMode: currentMonthMode, 
+            // ★ 終極保險：確保它絕對不會是 undefined
+            syncVersion: window.currentSyncVersion || "" 
         })
           .then(res => {
              showLoading(false); 
