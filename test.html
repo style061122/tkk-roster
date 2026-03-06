@@ -1323,7 +1323,8 @@ function showMaintenanceShield(message) {
             inputData: inputData, 
             forceSave: force,
             token: currentToken,
-            monthMode: currentMonthMode // ★ 將狀態送給後端
+            monthMode: currentMonthMode, // ★ 將狀態送給後端
+            syncVersion: window.currentSyncVersion // ★ 遞交整理券給後端海關
         })
           .then(res => {
              showLoading(false); 
@@ -1465,13 +1466,29 @@ function showMaintenanceShield(message) {
              } 
              else if (res.status === 'FAILED') { 
                  Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => {
-                     // ★ 失敗時：也要保護目的地！
+                     if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
+                     if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
+                     if (!window.tempStatusFilter) window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
+                     if (window.tempMode) { window.pendingSwitchMode = window.tempMode; window.tempMode = null; }
+                     loadData(); 
+                 }); 
+             }
+             // ★★★ 樂觀鎖：專屬優雅退件與強制重整 ★★★
+             else if (res.status === 'OUTDATED_SYNC') {
+                 Swal.fire({
+                     icon: 'warning',
+                     title: '資料已過期',
+                     text: '⚠️ 系統已同步手動排班資料，為避免覆蓋，已為您載入最新畫面。',
+                     confirmButtonText: '確認',
+                     allowOutsideClick: false
+                 }).then(() => {
+                     // 保護目的地，並重新載入最新資料
                      if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
                      if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
                      if (!window.tempStatusFilter) window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
                      if (window.tempMode) { window.pendingSwitchMode = window.tempMode; window.tempMode = null; }
                      loadData();
-                 }); 
+                 });
              }
              else { 
                  Swal.fire('系統訊息', res.message || '發生未知錯誤', 'error').then(() => {
@@ -1662,6 +1679,7 @@ function showMaintenanceShield(message) {
                  currentData = res.data || [];
                  // ★★★ 終極無損快照：在拿到最新資料的瞬間，立刻備份一份最乾淨的狀態！★★★
                  window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
+                 window.currentSyncVersion = res.syncVersion || ""; // ★ 記下現在的系統版本號
                  monthlyTargets = res.targets || {}; 
                  currentParams = res.params || {};
                  
