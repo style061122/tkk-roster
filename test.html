@@ -4540,6 +4540,10 @@ function showMaintenanceShield(message) {
                       let hasIn = r.sys_clockIn && String(r.sys_clockIn).trim() !== "";
                       let hasOut = r.sys_clockOut && String(r.sys_clockOut).trim() !== "";
                       let punchStr = (hasIn || hasOut) ? `${r.sys_clockIn || ""} ~ ${r.sys_clockOut || ""}` : "無打卡";
+                      
+                      // ★ 抓取系統異常內容
+                      let sysAbnormal = String(r.sys_abnormal || "").trim();
+                      let abnormalHtml = sysAbnormal ? `<br><span class="text-danger fw-bold">${sysAbnormal}</span>` : "";
 
                       // 2. 依照狀態分流處理顏色與明細/異常
                       if (status === '上班') {
@@ -4554,17 +4558,22 @@ function showMaintenanceShield(message) {
                           if (hasLeave) {
                               // 【情境 B & C：有請假】
                               mainLabel += `<br><span style="color:#fd7e14; font-size:0.75rem;">(請假)</span>`;
-                              detailHtml = `${punchStr}<br>${r.sys_leaveType || "請假"} (${r.sys_leave})`;
+                              detailHtml = `${punchStr}<br>${r.sys_leaveType || "請假"} (${r.sys_leave})${abnormalHtml}`;
                           } else if (!hasIn && !hasOut && rDateObj < todayObj) {
                               // 【情境 D：缺勤】
                               mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(缺勤)</span>`;
-                              detailHtml = `無打卡<br>無請假`;
+                              detailHtml = `無打卡<br>無請假${abnormalHtml}`;
                           } else {
                               // 【情境 A：正常】
+                              // ★ 如果有異常，在標籤上加上 (異常)
+                              if (sysAbnormal !== "") {
+                                  mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(異常)</span>`;
+                              }
+                              
                               if (hasIn || hasOut) {
-                                  detailHtml = `${punchStr}`;
+                                  detailHtml = `${punchStr}${abnormalHtml}`;
                               } else {
-                                  detailHtml = `排班：${dStart}~${dEnd}`; 
+                                  detailHtml = `排班：${dStart}~${dEnd}${abnormalHtml}`; 
                               }
                           }
                       } 
@@ -4576,8 +4585,14 @@ function showMaintenanceShield(message) {
                           } else { 
                               bg = '#f8d7da'; color = '#842029'; border = '#f5c2c7'; 
                           }
+                          
+                          // ★ 非上班狀態如果有打卡異常，也一併顯示
+                          if (sysAbnormal !== "") {
+                              mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(異常)</span>`;
+                          }
+                          
                           // 點開一樣顯示打卡明細 (有打卡就秀時間，沒打卡就秀無打卡)
-                          detailHtml = `${punchStr}`; 
+                          detailHtml = `${punchStr}${abnormalHtml}`; 
                       }
 
                       dayIn[d].push({
