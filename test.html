@@ -3298,7 +3298,7 @@ function showMaintenanceShield(message) {
                               let aaRest = (h === 0 && z === 0) ? restVal : 0; 
                               let endT = currTime + aa + aaRest; 
                               let rTag = aaRest > 0 ? ` 休${aaRest}` : "";
-                              strAA = `(${ft(currTime)}~${ft(endT)}${rTag})`; 
+                              strAA = ""; // ★ 拔除時段字串
                           }
                       }
 
