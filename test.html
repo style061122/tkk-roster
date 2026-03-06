@@ -2761,7 +2761,7 @@ function showMaintenanceShield(message) {
                   else if (s === '國') { if (z > 0) detailNat.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`); else detailNat.push(`🗓️ ${shortDate}`); }
                   else if (s === '空班') { if (aa > 0) detailEmpty.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`); else detailEmpty.push(`🗓️ ${shortDate}`); }
 
-                  if (aa > 0) aaDetails.push(`🗓️ ${shortDate} 共${aa.toFixed(1)}H`);
+                  if (aa > 0) aaDetails.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`);
 
                   if (isMonthly && s === '國' && z > 0) {
                       let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
@@ -2963,7 +2963,7 @@ function showMaintenanceShield(message) {
           const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
 
           let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
-          let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無獎金時數紀錄</div>';
+          let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時時數紀錄</div>';
           // 🌟 產生 Z 與 O 彈出明細
           let storeZHtml = buildStoreZOrOList(storeZDetails, '#997404') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無預計加班紀錄</div>';
           let storeOHtml = buildStoreZOrOList(storeODetails, '#0f5132') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無已申請加班紀錄</div>';
