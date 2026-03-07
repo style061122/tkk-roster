@@ -1670,6 +1670,13 @@ function showMaintenanceShield(message) {
                   window.tempMonthMode = targetMode; 
                   // ★ 鎖定當下狀態以利存檔
                   window.lockedSaveState = lastSafeFilters;
+                  
+                  // ★ 視覺引導：存檔前先清空時光機的日期，確保切過去時回到 1 號
+                  window.tempFilterWeek = null; 
+                  window.tempStatusFilter = null;
+                  lastSafeFilters.day = ""; 
+                  lastSafeFilters.week = "";
+
                   await saveData(false);
                   window.lockedSaveState = null;
               } else if (result.isDenied) {
@@ -1678,9 +1685,15 @@ function showMaintenanceShield(message) {
                   if (window.cleanSnapshot) {
                       currentData = JSON.parse(JSON.stringify(window.cleanSnapshot));
                   }
+                  // ★ 視覺引導：清空時光機的日期，確保切過去時回到 1 號
+                  lastSafeFilters.day = ""; 
+                  lastSafeFilters.week = "";
                   enterMode(targetMode);
               }
           } else {
+              // ★ 視覺引導：清空時光機的日期，確保切過去時回到 1 號
+              lastSafeFilters.day = ""; 
+              lastSafeFilters.week = "";
               enterMode(targetMode);
           }
       };
@@ -1793,8 +1806,17 @@ function showMaintenanceShield(message) {
 
       function initDaySelect(year, month) {
         const select = document.getElementById('selectDay'); select.innerHTML = '';
-        const daysInMonth = new Date(year, month, 0).getDate(); const today = new Date().getDate();
-        for(let d=1; d<=daysInMonth; d++) { let selected = (d === today) ? "selected" : ""; select.innerHTML += `<option value="${d}" ${selected}>${d} 日</option>`; }
+        // ★ 防呆結界：如果目前是次月預排模式，天數最高鎖定在 7 號！
+        let daysInMonth = new Date(year, month, 0).getDate(); 
+        if (currentMonthMode === 'next') daysInMonth = Math.min(daysInMonth, 7);
+        
+        const today = new Date().getDate();
+        for(let d=1; d<=daysInMonth; d++) { 
+            // 在次月模式下，預設選 1 號；當月模式則選今天
+            let isDefault = (currentMonthMode === 'next') ? (d === 1) : (d === today);
+            let selected = isDefault ? "selected" : ""; 
+            select.innerHTML += `<option value="${d}" ${selected}>${d} 日</option>`; 
+        }
       }
 
       function initNameSelect() {
@@ -4266,7 +4288,13 @@ function showMaintenanceShield(message) {
       function initWeekSelect(y, m) {
           const weekSelect = document.getElementById('selectWeek');
           if (!weekSelect) return;
-          weekSelect.innerHTML = '<option value="ALL">全月展開 (不建議)</option>';
+          
+          // ★ 防呆結界：如果是次月預排，不給「全月展開」的選項
+          if (currentMonthMode !== 'next') {
+              weekSelect.innerHTML = '<option value="ALL">全月展開 (不建議)</option>';
+          } else {
+              weekSelect.innerHTML = '';
+          }
           
           const lastDay = new Date(y, m, 0).getDate();
           let currentStart = 1;
@@ -4284,12 +4312,18 @@ function showMaintenanceShield(message) {
           const isCurrentMonth = (today.getFullYear() === Number(y) && (today.getMonth() + 1) === Number(m));
           const todayD = today.getDate();
           
-          // ★ 修改：週別文字去掉 0，改為 1, 2, 3 格式
-          chunks.forEach(c => {
-              let displayM = parseInt(m); // 轉為整數，自動去掉 0
+          chunks.forEach((c, index) => {
+              // ★ 防呆結界：如果目前是次月預排模式，只保留第一週！
+              if (currentMonthMode === 'next' && index > 0) return;
+
+              let displayM = parseInt(m); 
               let text = (c.start === c.end) ? `${displayM}/${c.start}` : `${displayM}/${c.start}~${displayM}/${c.end}`;
               let val = `${c.start}-${c.end}`;
-              let selected = (isCurrentMonth && todayD >= c.start && todayD <= c.end) ? "selected" : "";
+              
+              // 在次月模式下，強制選定第一週；當月模式則選包含今天的那一週
+              let isDefault = (currentMonthMode === 'next') ? (index === 0) : (isCurrentMonth && todayD >= c.start && todayD <= c.end);
+              let selected = isDefault ? "selected" : "";
+              
               weekSelect.innerHTML += `<option value="${val}" ${selected}>${text}</option>`;
           });
       }
