@@ -1425,11 +1425,37 @@ function showMaintenanceShield(message) {
 
                          preserveDestination(); 
                          
-                         // ★★★ 極速魔術：No-Reload 快照更新 ★★★
+                         // ==========================================
+                         // ★★★ 0 秒延遲魔術：收下後端的回執聯並瞬間貼上 ★★★
+                         // ==========================================
+                         if (res.updatedLogs && Array.isArray(res.updatedLogs)) {
+                             res.updatedLogs.forEach(logItem => {
+                                 // 1. 更新前端的深層記憶體 (currentData)
+                                 let targetRow = currentData.find(r => r.name === logItem.name && r.date === logItem.date);
+                                 if (targetRow) {
+                                     targetRow.log = logItem.newLog; // 將後端算出的最新 Q 欄文字蓋上去
+                                 }
+                                 
+                                 // 2. 同步更新「當下畫面上」的 DOM 元素，讓店長不用等重繪就能看到字變了！
+                                 let tr = document.querySelector(`tr[data-name="${logItem.name}"][data-date="${logItem.date}"]`);
+                                 if (tr) {
+                                     let qBox = tr.querySelector('.q-log-box');
+                                     if (qBox) {
+                                         qBox.innerHTML = logItem.newLog || '<span class="text-muted">無</span>';
+                                         
+                                         // 順便把因為錯誤而產生的紅底拔掉 (如果有)
+                                         if (!logItem.newLog.includes("失敗") && !logItem.newLog.includes("退件")) {
+                                             tr.classList.remove('row-reject');
+                                         }
+                                     }
+                                 }
+                             });
+                         }
+
                          // 1. 洗掉所有髒標記
                          currentData.forEach(r => r.isModified = false);
                          
-                         // 2. 將目前的記憶體狀態，認定為最新的「純淨快照」！
+                         // 2. 將包含最新 Q 欄註記的記憶體，認定為最新的「純淨快照」！
                          window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                          
                          // 3. ★ 處理月份跳轉 (如果存檔前是按了切換月份)
