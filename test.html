@@ -722,9 +722,8 @@ function showMaintenanceShield(message) {
               });
 
               if (result.isConfirmed) {
-                  // ★ 1. 啟動絕對安全鎖：強制綁定存檔對象為原本的員工 (100% 記憶體層級，0 延遲風險)
-                  // 使用您原本的 lastSafeFilters 作為安全鎖的資料來源
-                  window.lockedSaveState = lastSafeFilters;
+                  // ★ 1. 啟動絕對安全鎖：深層拷貝最真實的畫面狀態
+                  window.lockedSaveState = JSON.parse(JSON.stringify(window.lastRenderedState || lastSafeFilters));
 
                   // ★ 2. 預約目的地：先告訴系統，等一下存檔完重新載入時，要降落在哪個員工
                   if (filterType === 'name') window.tempFilterName = targetValue;
@@ -1668,17 +1667,18 @@ function showMaintenanceShield(message) {
               if (result.isConfirmed) {
                   // ★ 預約目的地：告訴系統存檔完後要去哪個月
                   window.tempMonthMode = targetMode; 
-                  // ★ 鎖定當下狀態以利存檔
-                  window.lockedSaveState = lastSafeFilters;
                   
-                  // ★ 視覺引導：存檔前先清空時光機的日期，確保切過去時回到 1 號
+                  // ★ 終極修復：深層拷貝畫面上最真實的狀態給存檔引擎，斷開記憶體連動防污染！
+                  window.lockedSaveState = JSON.parse(JSON.stringify(window.lastRenderedState || lastSafeFilters));
+
+                  await saveData(false);
+                  
+                  // ★ 存檔完成後，解除安全鎖並清空時光機，確保切過去時回到 1 號
+                  window.lockedSaveState = null;
                   window.tempFilterWeek = null; 
                   window.tempStatusFilter = null;
                   lastSafeFilters.day = ""; 
                   lastSafeFilters.week = "";
-
-                  await saveData(false);
-                  window.lockedSaveState = null;
               } else if (result.isDenied) {
                   // ★ 瞬間洗白記憶體，恢復未輸入前的樣子，然後直接切換
                   pendingUnsaved = false;
@@ -1845,18 +1845,18 @@ function showMaintenanceShield(message) {
               });
 
               if (result.isConfirmed) {
-                  // ★ 1. 啟動安全鎖：強制綁定存檔對象為當下畫面的狀態
-                  window.lockedSaveState = lastSafeFilters;
+                  // ★ 1. 啟動安全鎖：深層拷貝最真實的畫面狀態
+                  window.lockedSaveState = JSON.parse(JSON.stringify(window.lastRenderedState || lastSafeFilters));
                   
                   // ★ 2. 預約目的地：記住店長想去的大分類 (例如 date 或 error)
                   window.tempMode = mode; 
 
-                  // 點擊儲存：強制存檔，(存檔成功後 saveData 裡面會自動 loadData 並重繪)
+                  // 點擊儲存：強制存檔
                   await saveData(false);
                   
                   // 存完解除安全鎖
                   window.lockedSaveState = null;
-                  return; // 存檔後會自動重載，不再往下執行
+                  return; 
               } else if (result.isDenied) {
                   // ★★★ 大師級優雅還原：瞬間讀取快照 (0 流量！) ★★★
                   pendingUnsaved = false;
