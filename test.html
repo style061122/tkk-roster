@@ -3306,7 +3306,10 @@ function showMaintenanceShield(message) {
 
               // 1. 數據統計引擎與明細收集 (完美移植月統計邏輯)
               let detailWork=[], detailRest=[], detailReg=[], detailNat=[], detailEmpty=[];
-              let zDetails = [], oDetails = [], aaDetails = [], leaveDetails = {}, abnormalDetails = [];
+              let aaDetails = [], leaveDetails = {}, abnormalDetails = [];
+              // ★ 新增：Z 與 O 的分類抽屜 (個人版)
+              let zGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
+              let oGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let supportOutGroups = {};
 
               const getStartFloat = (t) => {
@@ -3398,24 +3401,27 @@ function showMaintenanceShield(message) {
 
                       if (aa > 0) aaDetails.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`); 
 
-                      // Z 與 O 拆分與明細
-                      if (!isHourly && s === '國' && z > 0) {
-                          let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
+                      // ★ 改版：Z 預計加班分類投遞 (個人版)
+                      if (z > 0) {
+                          let natZ = 0, normZ = z;
+                          if (!isHourly && s === '國') { natZ = Math.min(z, 8); normZ = Math.max(0, z - 8); }
+                          else { normZ = z; }
                           totalZ_nat += natZ; totalZ_norm += normZ;
-                          zDetails.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
-                      } else if (z > 0) { 
-                          totalZ_norm += z; 
-                          zDetails.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
+                          let stName = (s === '上班') ? '平日' : ((s === '休') ? '休息日' : ((s === '國') ? '國定假日' : '其他'));
+                          zGroups[stName].norm += normZ; zGroups[stName].nat += natZ;
+                          zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                       }
 
+                      // ★ 改版：O 已申請加班分類投遞 (狀態判斷一律跟隨 D 欄的 s)
                       let oTimeStr = sysOtRange ? `(${sysOtRange.replace(/-/g, '~')}) ` : "";
-                      if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
-                          let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
+                      if (o > 0) {
+                          let natO = 0, normO = o;
+                          if (!isHourly && s === '國') { natO = Math.min(o, 8); normO = Math.max(0, o - 8); }
+                          else { normO = o; }
                           totalO_nat += natO; totalO_norm += normO;
-                          oDetails.push(`🗓️ ${shortDate} ${oTimeStr}共${o.toFixed(1)}H`); 
-                      } else if (o > 0) { 
-                          totalO_norm += o; 
-                          oDetails.push(`🗓️ ${shortDate} ${oTimeStr}共${o.toFixed(1)}H`);
+                          let stName = (s === '上班') ? '平日' : ((s === '休') ? '休息日' : ((s === '國') ? '國定假日' : '其他'));
+                          oGroups[stName].norm += normO; oGroups[stName].nat += natO;
+                          oGroups[stName].items.push(`🗓️ ${shortDate} ${oTimeStr}共${o.toFixed(1)}H`);
                       }
 
                       // 請假明細
@@ -3479,6 +3485,31 @@ function showMaintenanceShield(message) {
               }
 
               let cardId = `pCard`; // 個人版專用 ID
+
+              // ★ 產生個人版的 Z 與 O 分類明細 HTML (上下合併)
+              const buildGroupHtml = (groups, color) => {
+                  let html = "";
+                  const order = ['平日', '休息日', '國定假日', '其他'];
+                  order.forEach(k => {
+                      if(groups[k] && groups[k].items.length > 0) {
+                          let g = groups[k];
+                          let dTotal = isHourly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
+                          html += `<div class="mt-1 fw-bold" style="color:${color}; font-size: 0.85rem;">${k} ${dTotal}</div>`;
+                          html += `<div class="text-muted ps-2 mb-1" style="font-size: 0.8rem;">${g.items.join('<br>')}</div>`;
+                      }
+                  });
+                  return html;
+              };
+              let zHtml = buildGroupHtml(zGroups, '#997404');
+              let oHtml = buildGroupHtml(oGroups, '#0f5132');
+              let overtimeCardHtml = '';
+              if (zHtml || oHtml) {
+                  if (zHtml) overtimeCardHtml += `<strong style="color:#997404; font-size: 0.9rem;">預計加班:</strong>${zHtml}`;
+                  if (zHtml && oHtml) overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
+                  if (oHtml) overtimeCardHtml += `<strong style="color:#0f5132; font-size: 0.9rem;">已申請加班:</strong>${oHtml}`;
+              } else {
+                  overtimeCardHtml = '<span class="text-black-50 opacity-75">無加班紀錄</span>';
+              }
 
               document.getElementById('personalStats').innerHTML = `
               <div class="w-100 mb-3">
@@ -3562,10 +3593,8 @@ function showMaintenanceShield(message) {
                   </div>
 
                   <div class="collapse" id="${cardId}-overtime">
-                      <div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.5; font-size: 0.8rem;">
-                          ${zDetails.length > 0 ? `<strong style="color:#997404;">預計加班:</strong><br>${zDetails.join('<br>')}<br><br>` : ''}
-                          ${oDetails.length > 0 ? `<strong class="text-success">已申請加班:</strong><br>${oDetails.join('<br>')}` : ''}
-                          ${(zDetails.length===0 && oDetails.length===0) ? '<span class="text-black-50 opacity-75">無加班紀錄</span>' : ''}
+                      <div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fffaf0; border-color: #ffc107 !important; line-height:1.5;">
+                          ${overtimeCardHtml}
                       </div>
                   </div>
 
