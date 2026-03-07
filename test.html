@@ -4316,14 +4316,19 @@ function showMaintenanceShield(message) {
           const todayD = today.getDate();
           
           chunks.forEach((c, index) => {
-              // ★ 防呆結界：如果目前是次月預排模式，只保留第一週！
-              if (currentMonthMode === 'next' && index > 0) return;
+              // ★ 終極防呆結界：如果是次月預排，只要這週的「起點」超過 7 號就直接丟棄！
+              if (currentMonthMode === 'next' && c.start > 7) return;
 
               let displayM = parseInt(m); 
-              let text = (c.start === c.end) ? `${displayM}/${c.start}` : `${displayM}/${c.start}~${displayM}/${c.end}`;
-              let val = `${c.start}-${c.end}`;
               
-              // 在次月模式下，強制選定第一週；當月模式則選包含今天的那一週
+              // ★ 智慧截斷：如果這週的「終點」超過 7 號，強制縮短到 7 號 (例如 2~8 會變成 2~7)
+              let actualEnd = (currentMonthMode === 'next' && c.end > 7) ? 7 : c.end;
+              
+              // 使用校正後的 actualEnd 來顯示文字與設定 value
+              let text = (c.start === actualEnd) ? `${displayM}/${c.start}` : `${displayM}/${c.start}~${displayM}/${actualEnd}`;
+              let val = `${c.start}-${actualEnd}`;
+              
+              // 在次月模式下，依然預設跳到第一週；當月模式則選包含今天的那一週
               let isDefault = (currentMonthMode === 'next') ? (index === 0) : (isCurrentMonth && todayD >= c.start && todayD <= c.end);
               let selected = isDefault ? "selected" : "";
               
