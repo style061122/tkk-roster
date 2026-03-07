@@ -1736,7 +1736,8 @@ function showMaintenanceShield(message) {
                  let noticeText = `📅 系統將於 ${nextMonth}月${closeDay}日 09:00 進行班表關帳，請於關帳前完成(請假/加班/忘打)申請並簽核完成。`;
                  document.getElementById('closingNotice').innerText = noticeText;
 
-                 if(document.getElementById('selectDay').options.length === 0) initDaySelect(year, month);
+                 // ★ 終極修復：拔除 if 偷懶條件，強制每次載入資料都重新建立日期選單！
+                 initDaySelect(year, month);
                  initNameSelect(); 
                  
                  // ==========================================
@@ -1973,9 +1974,11 @@ function showMaintenanceShield(message) {
         // ★ 新增：自動初始化週別選單 (確保選單與當前顯示月份同步)
         // ==========================================
         const weekSelect = document.getElementById('selectWeek');
-        if (weekSelect && weekSelect.getAttribute('data-loaded') !== `${y}-${m}`) {
+        // ★ 終極修復：把 currentMonthMode 加入檢查條件，確保切換月份時一定會重新繪製週別選單
+        const weekCacheKey = `${y}-${m}-${currentMonthMode}`;
+        if (weekSelect && weekSelect.getAttribute('data-loaded') !== weekCacheKey) {
             initWeekSelect(y, m);
-            weekSelect.setAttribute('data-loaded', `${y}-${m}`);
+            weekSelect.setAttribute('data-loaded', weekCacheKey);
         }
 
         let targetData = [], targetName = "";
