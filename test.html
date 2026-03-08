@@ -3020,13 +3020,15 @@ function showMaintenanceShield(message) {
           if (allStores.length === 0) return `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">此區目前無排班資料</div>`;
 
           let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rSupOut=0, rSupIn=0, rAbn=0;
-          let lvD={}, aaD={}, zD={}, oD={}, outD={}, inD={}, abnD={};
+          let lvD={}, aaD={}, zD={}, oD={}, outD={}, inD={};
+          // ★ 新增：全區異常多重分流群組
+          let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '其他': {} };
 
           allStores.forEach(st => {
               lvD[st]=0; aaD[st]={total:0, emps:{}}; 
               zD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}}; 
               oD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}};
-              outD[st]=0; inD[st]=0; abnD[st]=0;
+              outD[st]=0; inD[st]=0; 
           });
 
           // 第一圈：計算各店請假、超時、加班與跨店出
@@ -3040,7 +3042,16 @@ function showMaintenanceShield(message) {
               if(aa>0) { rAA+=aa; aaD[st].total+=aa; aaD[st].emps[r.name]=(aaD[st].emps[r.name]||0)+aa; }
               if(z>0) { let natZ=0, normZ=z; if(!isHourly&&s==='國'){natZ=Math.min(z,8);normZ=Math.max(0,z-8);} rZ_nat+=natZ; rZ_norm+=normZ; zD[st].total+=z; zD[st].norm+=normZ; zD[st].nat+=natZ; zD[st].groups[sName]+=z; }
               if(o>0) { let natO=0, normO=o; if(!isHourly&&sysStatus.includes('國定假日')){natO=Math.min(o,8);normO=Math.max(0,o-8);} rO_nat+=natO; rO_norm+=normO; oD[st].total+=o; oD[st].norm+=normO; oD[st].nat+=natO; oD[st].groups[sName]+=o; }
-              if(sysAbn!=="") { rAbn++; abnD[st]++; }
+              // ★ 異常分流判定 (方案一：多重影分身法)
+              if (sysAbn !== "") { 
+                  rAbn++; // 總筆數 (以列為單位) 不變，維持外面卡片數字準確
+                  let matched = false;
+                  if (sysAbn.includes('未打卡')) { abnGroups['未打卡'][st] = (abnGroups['未打卡'][st] || 0) + 1; matched = true; }
+                  if (sysAbn.includes('打卡異常')) { abnGroups['打卡異常'][st] = (abnGroups['打卡異常'][st] || 0) + 1; matched = true; }
+                  if (sysAbn.includes('遲到')) { abnGroups['遲到'][st] = (abnGroups['遲到'][st] || 0) + 1; matched = true; }
+                  if (!matched) { abnGroups['其他'][st] = (abnGroups['其他'][st] || 0) + 1; }
+              }
+
               if(r.supports && r.supports.length>0) { r.supports.forEach(sup => { let sh=parseFloat(sup.hrs)||0; if(sup.supportStore !== st) { rSupOut+=sh; outD[st]+=sh; } }); }
           });
 
@@ -3058,7 +3069,25 @@ function showMaintenanceShield(message) {
 
           // 全區彈窗 HTML 組裝器
           const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
-          const bAbn = (d) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1]} 筆</span></div>`).join('');
+          
+          // ★ 產生全區異常多重分組 HTML (加入溫馨提示)
+          const buildAbnGroupHtml = (groups) => {
+              let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 同一排班若有多項異常，將於各分類中獨立計算</div>`;
+              let hasData = false;
+              ['未打卡', '打卡異常', '遲到', '其他'].forEach(k => {
+                  let stores = groups[k];
+                  if(Object.keys(stores).length > 0) {
+                      hasData = true;
+                      html += `<div class="mb-2"><div class="fw-bold text-danger border-bottom border-danger border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">🚨 ${k}</div>`;
+                      Object.entries(stores).forEach(([store, count]) => {
+                          html += `<div class="d-flex justify-content-between text-dark ms-2 mb-1" style="font-size:0.8rem;"><span>📍 ${store}</span><span class="fw-bolder text-danger">${count} 筆</span></div>`;
+                      });
+                      html += `</div>`;
+                  }
+              });
+              return hasData ? html : "";
+          };
+
           const bAA = (d) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
           const bZO = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].groups).filter(g=>g[1]>0).map(g=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>${g[0]}</span><span>${g[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
 
@@ -3116,7 +3145,7 @@ function showMaintenanceShield(message) {
                   <div class="collapse" id="reg-o"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #d1e7dd; border-color: #198754 !important;">${bZO(oD,'#0f5132')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-out"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bSimple(outD,'#3d1a87')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-in"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bSimple(inD,'#592c9b')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
-                  <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #fffcfc; border-color: #dc3545 !important;">${bAbn(abnD)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #fffcfc; border-color: #dc3545 !important;">${buildAbnGroupHtml(abnGroups)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
               </div>
           </div>`;
           
