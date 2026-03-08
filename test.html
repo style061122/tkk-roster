@@ -4775,7 +4775,7 @@ function showMaintenanceShield(message) {
               
               dropdownHtml = `
               <div class="mb-3 d-flex align-items-center flex-nowrap gap-1 bg-light p-2 rounded border shadow-sm border-info">
-                  <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇檢視門市：</label>
+                  <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇門市：</label>
                   <input type="text" class="form-control form-control-sm fw-bold border-primary flex-grow-1" list="${datalistId}" value="${renderStore}" placeholder="點擊下拉或輸入關鍵字..." onchange="openMonthlyView(this.value)" onclick="this.value=''">
                   <datalist id="${datalistId}">${listOpts}</datalist>
               </div>`;
