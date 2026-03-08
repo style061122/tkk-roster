@@ -3166,8 +3166,189 @@ function showMaintenanceShield(message) {
               if (!htmlMonthly && !htmlHourly && !htmlOutbound && !htmlInbound) finalHtml += `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">本月目前沒有任何排班與支援資料</div>`;
 
               return finalHtml;
-
           }
+        // ==========================================
+      // 👑 全區總覽專屬引擎：計算全區加總 + 產生各店卡片
+      // ==========================================
+      function generateRegionReportHTML() {
+          let allStores = [...new Set(currentData.map(r => r.store))].filter(s => s !== "");
+          if (allStores.length === 0) return `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">此區目前無排班資料</div>`;
+
+          let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rSupOut=0, rSupIn=0, rAbn=0;
+          let lvD={}, aaD={}, zD={}, oD={}, outD={}, inD={}, abnD={};
+
+          allStores.forEach(st => {
+              lvD[st]=0; aaD[st]={total:0, emps:{}}; 
+              zD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}}; 
+              oD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}};
+              outD[st]=0; inD[st]=0; abnD[st]=0;
+          });
+
+          // 第一圈：計算本店外派、請假、超時、加班
+          currentData.forEach(r => {
+              let st = r.store; if(!allStores.includes(st)) return;
+              let s = r.input_status || "", z = parseFloat(r.input_est_overtime)||0, aa = parseFloat(r.calc_excess)||0, o = parseFloat(r.sys_overtimeHrs)||0, lv = parseFloat(r.sys_leaveHrs)||0;
+              let sysAbn = String(r.sys_abnormal||"").trim(); let sysStatus = String(r.sys_status||""); let isHourly = r.salaryType&&r.salaryType.includes("時薪");
+              let sName = (s==='上班')?'平日':(s==='休'?'休息日':(s==='國'?'國定假日':'其他'));
+
+              if(lv>0) { rLv+=lv; lvD[st]+=lv; }
+              if(aa>0) { rAA+=aa; aaD[st].total+=aa; aaD[st].emps[r.name]=(aaD[st].emps[r.name]||0)+aa; }
+              if(z>0) { let natZ=0, normZ=z; if(!isHourly&&s==='國'){natZ=Math.min(z,8);normZ=Math.max(0,z-8);} rZ_nat+=natZ; rZ_norm+=normZ; zD[st].total+=z; zD[st].norm+=normZ; zD[st].nat+=natZ; zD[st].groups[sName]+=z; }
+              if(o>0) { let natO=0, normO=o; if(!isHourly&&sysStatus.includes('國定假日')){natO=Math.min(o,8);normO=Math.max(0,o-8);} rO_nat+=natO; rO_norm+=normO; oD[st].total+=o; oD[st].norm+=normO; oD[st].nat+=natO; oD[st].groups[sName]+=o; }
+              if(sysAbn!=="") { rAbn++; abnD[st]++; }
+              if(r.supports && r.supports.length>0) { r.supports.forEach(sup => { let sh=parseFloat(sup.hrs)||0; if(sup.supportStore !== st) { rSupOut+=sh; outD[st]+=sh; } }); }
+          });
+
+          // 第二圈：跨店支援接收方計算 (Inbound)
+          currentData.forEach(r => {
+              if(r.supports && r.supports.length>0) {
+                  r.supports.forEach(sup => {
+                      let sh = parseFloat(sup.hrs)||0;
+                      if(allStores.includes(sup.supportStore) && r.store !== sup.supportStore) {
+                          rSupIn+=sh; inD[sup.supportStore]+=sh;
+                      }
+                  });
+              }
+          });
+
+          // 彈窗 HTML 組裝器 (完美對接您的需求)
+          const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
+          const bAbn = (d) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1]} 筆</span></div>`).join('');
+          const bAA = (d) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
+          const bZO = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].groups).filter(g=>g[1]>0).map(g=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>${g[0]}</span><span>${g[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
+
+          let zDisp = `${rZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${rZ_nat.toFixed(1)}</small>`;
+          let oDisp = `${rO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${rO_nat.toFixed(1)}</small>`;
+
+          let html = `
+          <div class="card shadow-sm border-0 rounded-4 mb-4 report-item" style="background-color: #ffffff; border: 3px solid #0d6efd !important;">
+              <div class="card-body p-1 p-md-2">
+                  <div class="d-flex align-items-center justify-content-center mb-2 pb-1 border-bottom">
+                      <h5 class="fw-bolder text-primary mb-0">👑 ${currentStore}</h5>
+                      <span class="badge bg-dark ms-2 shadow-sm" style="font-size: 0.65rem;">全區總計</span>
+                  </div>
+                  <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rLv>0?'#e0f8f5':'#f8f9fa'}; border-color: ${rLv>0?'#bcebe3':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-lv">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rLv>0?'#0b8273':'#6c757d'};">區請假總計</div>
+                          <div class="fw-bolder" style="font-size: 1rem; color:${rLv>0?'#0b8273':'#6c757d'};">${rLv.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${rAA>0?'#f5c2c7':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-aa">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rAA>0?'#842029':'#6c757d'};">區超時總計</div>
+                          <div class="fw-bolder ${rAA>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${rAA.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: #fffaf0; border-color: #ffc107 !important;" data-bs-toggle="collapse" data-bs-target="#reg-z">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#997404;">區預計加班</div>
+                          <div class="fw-bolder text-dark" style="font-size: 1rem;">${zDisp}</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: #d1e7dd; border-color: #198754 !important;" data-bs-toggle="collapse" data-bs-target="#reg-o">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#0f5132;">區已申請加班</div>
+                          <div class="fw-bolder text-success" style="font-size: 1rem;">${oDisp}</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${rSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-out">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rSupOut>0?'#3d1a87':'#6c757d'};">區跨店(出)</div>
+                          <div class="fw-bolder ${rSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${rSupOut.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rSupIn>0?'#f4f0fd':'#f8f9fa'}; border-color: ${rSupIn>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-in">
+                          <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rSupIn>0?'#592c9b':'#6c757d'};">區友店(入)</div>
+                          <div class="fw-bolder" style="color:${rSupIn>0?'#6f42c1':'#6c757d'}; font-size: 1rem;">${rSupIn.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col-12"><div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${rAbn>0?'#ffffff':'#f8f9fa'}; border-color: ${rAbn>0?'#dc3545':'#dee2e6'} !important; border-width: ${rAbn>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#reg-abn">
+                          <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${rAbn>0?'#dc3545':'#6c757d'};">⚠️ 全區異常一覽</div>
+                          <div class="fw-bolder ${rAbn>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${rAbn>0?rAbn+' 筆':'無'} <span class="text-muted" style="font-size: 0.75rem;">▾</span></div>
+                      </div></div>
+                  </div>
+                  <div class="collapse" id="reg-lv"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f0fbfd; border-color: #17a2b8 !important;">${bSimple(lvD,'#0b8273')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-aa"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #fff5f5; border-color: #dc3545 !important;">${bAA(aaD)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-z"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #fffaf0; border-color: #ffc107 !important;">${bZO(zD,'#997404')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-o"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #d1e7dd; border-color: #198754 !important;">${bZO(oD,'#0f5132')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-out"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bSimple(outD,'#3d1a87')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-in"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bSimple(inD,'#592c9b')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #fffcfc; border-color: #dc3545 !important;">${bAbn(abnD)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+              </div>
+          </div>`;
+          
+          html += `<div class="mb-2 d-flex align-items-center flex-nowrap gap-1 bg-light p-1 rounded border shadow-sm position-sticky top-0" style="z-index: 1020; margin-top: -5px; border-color: #6c757d !important;"><label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 快速跳轉：</label><select class="form-select form-select-sm fw-bold border-secondary flex-grow-1" style="cursor: pointer;" onchange="filterMonthlyReport(this.value)"><option value="ALL">顯示全部</option><option value="report-section-store-dashboard">👑 全區總覽</option>`;
+          allStores.forEach((st, idx) => { html += `<option value="store-card-${idx}">🏢 ${st}</option>`; });
+          html += `</select></div>`;
+
+          html += `<h5 class="fw-bold mb-2 mt-4 px-1 report-category-header" style="color:#495057;">🏢 管轄各店總計</h5>`;
+          allStores.forEach((st, idx) => { html += buildStoreDashboardCard(st, `store-card-${idx}`); });
+
+          return html;
+      }
+
+      // 產生單店統計卡片 (完美複刻原本的「全店總計」外觀)
+      function buildStoreDashboardCard(targetStore, uid) {
+          let pDataAll = currentData.filter(r => r.store === targetStore);
+          if (pDataAll.length === 0) return "";
+          let myStaffNames = [...new Set(pDataAll.map(r => r.name))];
+          
+          let sLv=0, sAA=0, sZ_norm=0, sZ_nat=0, sO_norm=0, sO_nat=0, sSupOut=0, sSupIn=0, sAbn=0;
+          pDataAll.forEach(r => {
+              let s = r.input_status || "", z = parseFloat(r.input_est_overtime)||0, aa = parseFloat(r.calc_excess)||0, o = parseFloat(r.sys_overtimeHrs)||0, lv = parseFloat(r.sys_leaveHrs)||0;
+              let isHourly = r.salaryType&&r.salaryType.includes("時薪");
+              if(lv>0) sLv+=lv;
+              if(aa>0) sAA+=aa;
+              if(z>0) { let natZ=0, normZ=z; if(!isHourly&&s==='國'){natZ=Math.min(z,8);normZ=Math.max(0,z-8);} sZ_nat+=natZ; sZ_norm+=normZ; }
+              if(o>0) { let natO=0, normO=o; if(!isHourly&&String(r.sys_status).includes('國定假日')){natO=Math.min(o,8);normO=Math.max(0,o-8);} sO_nat+=natO; sO_norm+=normO; }
+              if(String(r.sys_abnormal).trim()!=="") sAbn++;
+              if(r.supports) r.supports.forEach(sup => { if(sup.supportStore !== targetStore) sSupOut += (parseFloat(sup.hrs)||0); });
+          });
+
+          currentData.forEach(r => {
+              if(r.store !== targetStore && r.supports) {
+                  r.supports.forEach(sup => { if(sup.supportStore === targetStore) sSupIn += (parseFloat(sup.hrs)||0); });
+              }
+          });
+
+          let zDisplay = `${sZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sZ_nat.toFixed(1)}</small>`;
+          let oDisplay = `${sO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sO_nat.toFixed(1)}</small>`;
+
+          return `
+          <div id="${uid}" class="card shadow-sm border-0 rounded-4 mb-3 report-item" style="background-color: #ffffff; border: 2px solid #6c757d !important; scroll-margin-top: 60px;">
+              <div class="card-body p-1 p-md-2">
+                  <div class="d-flex align-items-center justify-content-center mb-2 pb-1 border-bottom">
+                      <h6 class="fw-bolder text-dark mb-0">🏢 ${targetStore}</h6>
+                  </div>
+                  <div class="row row-cols-2 row-cols-md-4 g-1 text-center mb-1">
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="background: ${sLv>0?'#e0f8f5':'#f8f9fa'}; border-color: ${sLv>0?'#bcebe3':'#dee2e6'} !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${sLv>0?'#0b8273':'#6c757d'};">請假總計</div>
+                          <div class="fw-bolder" style="font-size: 1rem; color:${sLv>0?'#0b8273':'#6c757d'};">${sLv.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="background: ${sAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${sAA>0?'#f5c2c7':'#dee2e6'} !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${sAA>0?'#842029':'#6c757d'};">超時總計</div>
+                          <div class="fw-bolder ${sAA>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${sAA.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="background: #fffaf0; border-color: #ffc107 !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#997404;">預計加班</div>
+                          <div class="fw-bolder text-dark" style="font-size: 1rem;">${zDisplay}</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="background: #d1e7dd; border-color: #198754 !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:#0f5132;">已申請加班</div>
+                          <div class="fw-bolder text-success" style="font-size: 1rem;">${oDisplay}</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="background: ${sSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${sSupOut>0?'#d3bbfb':'#dee2e6'} !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${sSupOut>0?'#3d1a87':'#6c757d'};">跨店(出)</div>
+                          <div class="fw-bolder ${sSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${sSupOut.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="background: ${sSupIn>0?'#f4f0fd':'#f8f9fa'}; border-color: ${sSupIn>0?'#d3bbfb':'#dee2e6'} !important;">
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${sSupIn>0?'#592c9b':'#6c757d'};">友店(入)</div>
+                          <div class="fw-bolder" style="color:${sSupIn>0?'#6f42c1':'#6c757d'}; font-size: 1rem;">${sSupIn.toFixed(1)}H</div>
+                      </div></div>
+                      <div class="col-12"><div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-center align-items-center" style="background: ${sAbn>0?'#ffffff':'#f8f9fa'}; border-color: ${sAbn>0?'#dc3545':'#dee2e6'} !important; border-width: ${sAbn>0?'2px':'1px'} !important; min-height: 48px;">
+                          <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${sAbn>0?'#dc3545':'#6c757d'};">⚠️ 異常一覽</div>
+                          <div class="fw-bolder ms-3 ${sAbn>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${sAbn>0?sAbn+' 筆':'無'}</div>
+                      </div></div>
+                  </div>
+              </div>
+          </div>`;
+      }
 
       // 獨立出原本的開彈窗邏輯
       function openMonthlyReport() {
@@ -3187,18 +3368,24 @@ function showMaintenanceShield(message) {
       // 獨立出督導首頁的直接注入邏輯
       function loadAdminData() {
           const monthMode = document.getElementById('adminMonthSelect').value;
-          
-          // ★ 關鍵微創：自動判斷要讀取選單還是讀取登入身分
           let targetStore = document.getElementById('adminStoreSelect').value;
+          
           if (currentUserRole === 'HQ') {
-              targetStore = currentStore; // 總公司直接用自己的單位名稱
+              targetStore = currentStore; 
           }
 
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
-          currentStore = targetStore; currentMonthMode = monthMode;
+          // ★ 判斷是否為全區總覽模式，若是，將允許清單組合成字串傳給後端
+          window.isRegionOverview = (targetStore === 'ALL_STORES');
+          let apiStoreParam = window.isRegionOverview ? allowedStoresList.join(',') : targetStore;
+
+          currentMonthMode = monthMode;
+          // 不要覆寫督導自己的名字，只紀錄當前查看目標
+          window.viewingStore = targetStore; 
+
           showLoading(true, "讀取資料中...");
-          callApi('getStoreData', { store: targetStore, monthMode: monthMode }).then(res => {
+          callApi('getStoreData', { store: apiStoreParam, monthMode: monthMode }).then(res => {
               showLoading(false);
               if (res.success) {
                   currentData = res.data || []; monthlyTargets = res.targets || {}; currentParams = res.params || {};
@@ -3215,11 +3402,13 @@ function showMaintenanceShield(message) {
                   const badge = document.getElementById('adminDispatchBadge');
                   if (badge) badge.innerText = hqDispatchCount + " 筆";
 
-                  // 直接將月統計 HTML 注入到下方容器
                   const reportArea = document.getElementById('adminDefaultReportArea');
                   if (reportArea) {
                       reportArea.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-primary" role="status"></div></div>';
-                      setTimeout(() => { reportArea.innerHTML = generateMonthlyReportHTML(); }, 50);
+                      setTimeout(() => { 
+                          // ★ 智慧分流：判斷要畫「全區報表」還是「單店報表」
+                          reportArea.innerHTML = window.isRegionOverview ? generateRegionReportHTML() : generateMonthlyReportHTML(window.viewingStore); 
+                      }, 50);
                   }
               } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
           }).catch(err => errorHandler(err));
@@ -5220,10 +5409,12 @@ function showMaintenanceShield(message) {
           
           let allowedComps = new Set();
           
-          // 智慧漏斗：過濾出營運有權限的區域
           if (allowedStoresList === "ALL") {
               Object.keys(allStoreData).forEach(c => allowedComps.add(c));
-          } else if (Array.isArray(allowedStoresList)) {
+          } else if (Array.isArray(allowedStoresList) && allowedStoresList.length > 0) {
+              // ★ 核心升級：如果是一般督導，把自己的名字加進去當作第一個「全區群組」！
+              compSelect.innerHTML += `<option value="SUPERVISOR_ALL" style="color:#0d6efd; font-weight:bold;">👑 ${currentStore} (全區總覽)</option>`;
+
               Object.keys(allStoreData).forEach(comp => {
                   let storesInComp = allStoreData[comp];
                   let hasAccess = storesInComp.some(s => allowedStoresList.includes(s));
@@ -5241,7 +5432,11 @@ function showMaintenanceShield(message) {
           const storeSelect = document.getElementById('adminStoreSelect');
           storeSelect.innerHTML = '<option value="">請選擇門市</option>';
           
-          if (comp && allStoreData[comp]) {
+          if (comp === 'SUPERVISOR_ALL') {
+              // ★ 選擇自己時，強制鎖定為全體門市
+              storeSelect.innerHTML += `<option value="ALL_STORES">🏢 全體門市總覽</option>`;
+              storeSelect.value = "ALL_STORES";
+          } else if (comp && allStoreData[comp]) {
               let storesInComp = allStoreData[comp];
               storesInComp.forEach(store => {
                   if (allowedStoresList === "ALL" || allowedStoresList.includes(store)) {
