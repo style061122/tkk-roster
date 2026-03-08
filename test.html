@@ -929,17 +929,19 @@ function showMaintenanceShield(message) {
                const savedMonthMode = sessionStorage.getItem('tkk_month_mode');
                
                if (cachedData) {
-                   // ★ 秒進系統：有快取，瞬間設定變數並分配路由！(不轉圈圈)
-                   let resData = cachedData;
-                   if (resData.companies) {
-                       allStoreData = resData.companies;
-                       if (resData.currentMonth) setMonthTitles(resData.currentMonth);
-                   } else { allStoreData = resData || {}; }
-                   
-                   routeByRole();
-                   
-                   // 背景靜默更新 (偷偷去要新資料，不打擾畫面)
-                   callApi('getStoreList').then(res => {
+                     // ★ 秒進系統：有快取，瞬間設定變數並分配路由！(不轉圈圈)
+                     let resData = cachedData;
+                     if (resData.companies) {
+                         allStoreData = resData.companies;
+                         if (resData.currentMonth) setMonthTitles(resData.currentMonth);
+                     } else { allStoreData = resData || {}; }
+                     
+                     // ★ 致命 Bug 修復：解除快取秒進時，強制關閉載入畫面的幽靈幕布！
+                     showLoading(false);
+                     routeByRole();
+                     
+                     // 背景靜默更新 (偷偷去要新資料，不打擾畫面)
+                     callApi('getStoreList').then(res => {
                        if (res.success) localStorage.setItem('tkk_store_list', JSON.stringify(res.data));
                    }).catch(()=>{});
                } else {
