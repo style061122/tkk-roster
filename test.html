@@ -2435,9 +2435,9 @@ function showMaintenanceShield(message) {
                   errMsg = `❌ 本月應有將達 ${finalCalcH}H (超出上限 ${maxMonthH}H)。請調降上班時間或不排班`;
               } else if (outH < 0.5 && outH > 0) {
                   errMsg = `❌ 狀態為「上班」時，應有時數(H)至少需保留 0.5 小時，請調降預計加班(Z)`;
-              } else if (outH >= 8 && restVal < 1) {
+              } else if (outH > 8 && restVal < 1) {
                   errMsg = `❌ 應有時數達 8 小時以上，休息時間至少需 1 小時 (目前休 ${restVal})`;
-              } else if (outH >= 4 && restVal < 0.5) {
+              } else if (outH > 4 && restVal < 0.5) {
                   errMsg = `❌ 應有時數達 4 小時以上，休息時間至少需 0.5 小時 (目前休 ${restVal})`;
               } else if (!isCascade && outH > maxDailyH) {
                   errMsg = `❌ 單日應有時數不可超過 ${maxDailyH} 小時，請增加預計加班(Z)`;
