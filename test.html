@@ -4752,13 +4752,33 @@ function showMaintenanceShield(message) {
           }
       }
       // ==========================================
-      // ★ 終極整月檢視 (駐店動態 + 智慧時段扣除 + 高質感純色網格)
+      // ★ 終極整月檢視 (支援全區切換與智慧搜尋電梯)
       // ==========================================
-      function openMonthlyView() {
+      window.openMonthlyView = function(selectedStore) {
           const area = document.getElementById('monthlyCalendarArea');
           if (!currentData || currentData.length === 0) {
               area.innerHTML = '<div class="alert alert-warning text-center">目前無資料可顯示</div>';
               return;
+          }
+
+          // ★ 核心升級：決定要畫哪家店的日曆，並產生智慧搜尋選單
+          let renderStore = currentStore;
+          let dropdownHtml = '';
+
+          if (window.isRegionOverview) {
+              // 如果沒傳入指定門市，預設抓管轄清單的第一家
+              renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
+              
+              // 建立可輸入搜尋的 Datalist (如同月統計的電梯)
+              let datalistId = "calStoreJumpList";
+              let listOpts = allowedStoresList.map(s => `<option value="${s}">${s}</option>`).join('');
+              
+              dropdownHtml = `
+              <div class="mb-3 d-flex align-items-center flex-nowrap gap-1 bg-light p-2 rounded border shadow-sm border-info">
+                  <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇檢視門市：</label>
+                  <input type="text" class="form-control form-control-sm fw-bold border-primary flex-grow-1" list="${datalistId}" value="${renderStore}" placeholder="點擊下拉或輸入關鍵字..." onchange="openMonthlyView(this.value)" onclick="this.value=''">
+                  <datalist id="${datalistId}">${listOpts}</datalist>
+              </div>`;
           }
 
           let targetYear = monthlyTargets.year;
@@ -4802,7 +4822,8 @@ function showMaintenanceShield(message) {
               let startVal = r.input_start || "";
               let endVal = r.input_end || "";
               let status = r.input_status || "";
-              let isOwnStaff = (r.store === currentStore);
+              // ★ 變數替換 1：改用 renderStore 判斷是否為自家員工
+              let isOwnStaff = (r.store === renderStore);
 
               // 先將原本的上下班時間定義為初始的「自家時段」
               let sF = getStartFloat(startVal);
@@ -4833,7 +4854,8 @@ function showMaintenanceShield(message) {
                       // 如果支援時段本身跨夜 (或經過上面的校正後導致結束小於起點)
                       if (supE < supS) supE += 24;
 
-                      if (isOwnStaff && sup.supportStore !== currentStore) {
+                      // ★ 變數替換 2：改用 renderStore
+                      if (isOwnStaff && sup.supportStore !== renderStore) {
                           // 本店員工去外店
                           
                           // ★ 魔法發生點：把外出的時段從「自家時段」中扣除
@@ -4857,7 +4879,8 @@ function showMaintenanceShield(message) {
                           outDetails.push(`${sup.supportStore} ${sup.startEnd.replace('~', '-')}`);
                           if (supS < minOutStart) minOutStart = supS;
 
-                      } else if (!isOwnStaff && sup.supportStore === currentStore) {
+                      // ★ 變數替換 3：改用 renderStore
+                      } else if (!isOwnStaff && sup.supportStore === renderStore) {
                           // 友店員工來本店 (直接加進駐店區)
                           
                           // ★ 將數字轉回乾淨的時間字串 (例如 9.5 -> 9:30, 18.0 -> 18)
@@ -5048,7 +5071,8 @@ function showMaintenanceShield(message) {
           }
 
           html += '</div>';
-          area.innerHTML = html;
+          // ★ 結合下拉選單與日曆本體
+          area.innerHTML = dropdownHtml + html;
 
           // ==========================================
           // ★ 核心 6：底部精美圖例說明 (完全吻合您的色彩定義)
