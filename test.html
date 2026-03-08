@@ -3118,12 +3118,40 @@ function showMaintenanceShield(message) {
               </div>
           </div>`;
           
-          html += `<div class="mb-2 d-flex align-items-center flex-nowrap gap-1 bg-light p-1 rounded border shadow-sm position-sticky top-0" style="z-index: 1020; margin-top: -5px; border-color: #6c757d !important;"><label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 快速跳轉：</label><select class="form-select form-select-sm fw-bold border-secondary flex-grow-1" style="cursor: pointer;" onchange="filterMonthlyReport(this.value)"><option value="ALL">顯示全部</option><option value="region-overview-dashboard">👑 全區總覽</option>`;
-          allStores.forEach((st, idx) => { html += `<option value="reg-st-${idx}">🏢 ${st}</option>`; });;
-          html += `</select></div>`;
+          // ★ 建立電梯樓層的 ID 字典 (讓中文名稱可以對應到 div ID)
+          window.regionJumpMap = {
+              "顯示全部": "ALL",
+              "👑 全區總覽": "region-overview-dashboard"
+          };
+          
+          let datalistHtml = `<datalist id="regionJumpList">
+              <option value="顯示全部"></option>
+              <option value="👑 全區總覽"></option>`;
+          
+          allStores.forEach((st, idx) => { 
+              let label = `🏢 ${st}`;
+              window.regionJumpMap[label] = `reg-st-${idx}`;
+              datalistHtml += `<option value="${label}"></option>`; 
+          });
+          datalistHtml += `</datalist>`;
+
+          // ★ 觸發跳轉的專屬函數
+          window.handleFastJump = function(val) {
+              let targetId = window.regionJumpMap[val];
+              if (targetId) {
+                  filterMonthlyReport(targetId);
+              }
+          };
+
+          // ★ 將 select 換成可輸入的 input list，並加入 onclick 清空功能方便重新搜尋
+          html += `<div class="mb-2 d-flex align-items-center flex-nowrap gap-1 bg-light p-1 rounded border shadow-sm position-sticky top-0" style="z-index: 1020; margin-top: -5px; border-color: #6c757d !important;">
+                      <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 搜尋跳轉：</label>
+                      <input type="text" class="form-control form-control-sm fw-bold border-secondary flex-grow-1" list="regionJumpList" placeholder="點擊下拉或輸入關鍵字..." onchange="handleFastJump(this.value)" onclick="this.value=''">
+                      ${datalistHtml}
+                   </div>`;
 
           html += `<h5 class="fw-bold mb-2 mt-4 px-1 report-category-header" style="color:#495057;">🏢 管轄各店總計</h5>`;
-          // ★★★ 呼叫抽離出來的單店總計元件，保證 100% 與店長畫面一模一樣！★★★
+          // ★★★ Issue 2 終極修復：直接呼叫完美抽離的「單店總計元件」產生 N 張卡片
           allStores.forEach((st, idx) => { html += generateSingleStoreDashboard(st, `reg-st-${idx}`); });
 
           return html;
