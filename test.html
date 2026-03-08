@@ -2990,7 +2990,8 @@ function showMaintenanceShield(message) {
           let htmlStoreDashboard = generateSingleStoreDashboard(currentStore, "store-dashboard");
 
           let finalHtml = '';
-          let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="report-section-store-dashboard">🏢 全店統計</option>`;
+          // ★ 電梯修復：把 value 對齊卡片的 ID
+          let navOptions = `<option value="ALL">顯示全部 (預設)</option><option value="store-dashboard">🏢 全店統計</option>`;
           if (optMonthly) navOptions += `<optgroup label="🔵 正職月薪">${optMonthly}</optgroup>`;
           if (optHourly) navOptions += `<optgroup label="🟢 兼職時薪">${optHourly}</optgroup>`;
           
@@ -3065,7 +3066,7 @@ function showMaintenanceShield(message) {
           let supervisorName = sessionStorage.getItem('tkk_store') || currentStore; 
 
           let html = `
-          <div class="card shadow-sm border-0 rounded-4 mb-4 report-item" style="background-color: #ffffff; border: 3px solid #0d6efd !important;">
+          <div id="region-overview-dashboard" class="card shadow-sm border-0 rounded-4 mb-4 report-item" style="background-color: #ffffff; border: 3px solid #0d6efd !important; scroll-margin-top: 60px;">
               <div class="card-body p-1 p-md-2">
                   <div class="d-flex align-items-center justify-content-center mb-2 pb-1 border-bottom">
                       <h5 class="fw-bolder text-primary mb-0">👑 ${supervisorName}</h5>
@@ -3117,8 +3118,8 @@ function showMaintenanceShield(message) {
               </div>
           </div>`;
           
-          html += `<div class="mb-2 d-flex align-items-center flex-nowrap gap-1 bg-light p-1 rounded border shadow-sm position-sticky top-0" style="z-index: 1020; margin-top: -5px; border-color: #6c757d !important;"><label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 快速跳轉：</label><select class="form-select form-select-sm fw-bold border-secondary flex-grow-1" style="cursor: pointer;" onchange="filterMonthlyReport(this.value)"><option value="ALL">顯示全部</option><option value="report-section-store-dashboard">👑 全區總覽</option>`;
-          allStores.forEach((st, idx) => { html += `<option value="reg-st-${idx}">🏢 ${st}</option>`; });
+          html += `<div class="mb-2 d-flex align-items-center flex-nowrap gap-1 bg-light p-1 rounded border shadow-sm position-sticky top-0" style="z-index: 1020; margin-top: -5px; border-color: #6c757d !important;"><label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 快速跳轉：</label><select class="form-select form-select-sm fw-bold border-secondary flex-grow-1" style="cursor: pointer;" onchange="filterMonthlyReport(this.value)"><option value="ALL">顯示全部</option><option value="region-overview-dashboard">👑 全區總覽</option>`;
+          allStores.forEach((st, idx) => { html += `<option value="reg-st-${idx}">🏢 ${st}</option>`; });;
           html += `</select></div>`;
 
           html += `<h5 class="fw-bold mb-2 mt-4 px-1 report-category-header" style="color:#495057;">🏢 管轄各店總計</h5>`;
