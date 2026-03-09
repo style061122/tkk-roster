@@ -3057,31 +3057,41 @@ function showMaintenanceShield(message) {
               }
 
               // ★ 升級跨店(出)資料收集：除了總時數，也要記錄是哪個員工去的
+              // 邏輯：我們這區的店 (st) 把員工 (r.name) 派去了哪家店 (sup.supportStore)
               if(r.supports && r.supports.length>0) { 
                   r.supports.forEach(sup => { 
                       let sh=parseFloat(sup.hrs)||0; 
-                      if(sup.supportStore !== st) { 
+                      let tgtStore = sup.supportStore;
+                      if(tgtStore !== st) { 
                           rSupOut+=sh; 
-                          // 記錄到目標店家的 outD 統計中
-                          if (!outD[sup.supportStore]) outD[sup.supportStore] = {total:0, emps:{}};
-                          outD[sup.supportStore].total += sh;
-                          outD[sup.supportStore].emps[r.name] = (outD[sup.supportStore].emps[r.name] || 0) + sh;
+                          // 記錄在我們這家店 (st) 的帳上
+                          if (!outD[st]) outD[st] = {total:0, emps:{}};
+                          outD[st].total += sh;
+                          // 記錄明細：【員工姓名】 去了 【目標店名】
+                          let detailName = `${r.name} ➔ ${tgtStore}`;
+                          outD[st].emps[detailName] = (outD[st].emps[detailName] || 0) + sh;
                       } 
                   }); 
               }
           });
 
-          // 第二圈：計算跨店入
+          // 第二圈：計算跨店入 (Inbound)
+          // 邏輯：掃描所有資料，如果「別人」的支援目標是「我們全區內的店」，那就記在「我們全區內的店」的 inD 裡面，且標示是「別人(r.store)的員工(r.name)」來的。
           currentData.forEach(r => {
               if(r.supports && r.supports.length>0) {
                   r.supports.forEach(sup => {
                       let sh = parseFloat(sup.hrs)||0;
+                      // 如果支援的目標店 (sup.supportStore) 在我們這區的清單裡，且不是自己支援自己
                       if(allStores.includes(sup.supportStore) && r.store !== sup.supportStore) {
                           rSupIn+=sh; 
-                          // ★ 升級友店(入)資料收集：記錄是哪位友店員工來的
-                          if (!inD[sup.supportStore]) inD[sup.supportStore] = {total:0, emps:{}};
-                          inD[sup.supportStore].total += sh;
-                          inD[sup.supportStore].emps[r.name] = (inD[sup.supportStore].emps[r.name] || 0) + sh;
+                          let targetStore = sup.supportStore; // 接收支援的店 (我們區的)
+                          let fromStore = r.store;            // 派人來的店 (友店)
+                          
+                          if (!inD[targetStore]) inD[targetStore] = {total:0, emps:{}};
+                          inD[targetStore].total += sh;
+                          // 記錄明細：【友店名稱】 派了 【員工姓名】 來
+                          let detailName = `[${fromStore}] ${r.name}`;
+                          inD[targetStore].emps[detailName] = (inD[targetStore].emps[detailName] || 0) + sh;
                       }
                   });
               }
