@@ -3153,10 +3153,10 @@ function showMaintenanceShield(message) {
                           <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rSupOut>0?'#3d1a87':'#6c757d'};">區跨店(出)</div>
                           <div class="fw-bolder ${rSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${rSupOut.toFixed(1)}H</div>
                       </div></div>
-                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rSupIn>0?'#f4f0fd':'#f8f9fa'}; border-color: ${rSupIn>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-in">
+                      <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rSupIn>0?'#e0fbfc':'#f8f9fa'}; border-color: ${rSupIn>0?'#9eeaf9':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-in">
                           <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
-                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rSupIn>0?'#592c9b':'#6c757d'};">區友店(入)</div>
-                          <div class="fw-bolder" style="color:${rSupIn>0?'#6f42c1':'#6c757d'}; font-size: 1rem;">${rSupIn.toFixed(1)}H</div>
+                          <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rSupIn>0?'#055160':'#6c757d'};">區友店(入)</div>
+                          <div class="fw-bolder" style="color:${rSupIn>0?'#087990':'#6c757d'}; font-size: 1rem;">${rSupIn.toFixed(1)}H</div>
                       </div></div>
                       <div class="col-12"><div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${rAbn>0?'#ffffff':'#f8f9fa'}; border-color: ${rAbn>0?'#dc3545':'#dee2e6'} !important; border-width: ${rAbn>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#reg-abn">
                           <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${rAbn>0?'#dc3545':'#6c757d'};">⚠️ 全區異常一覽</div>
@@ -3382,10 +3382,10 @@ function showMaintenanceShield(message) {
                           </div>
                       </div>
                       <div class="col">
-                          <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeSupIn>0?'#f4f0fd':'#f8f9fa'}; border-color: ${storeSupIn>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${prefixId}-in">
+                          <div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${storeSupIn>0?'#e0fbfc':'#f8f9fa'}; border-color: ${storeSupIn>0?'#9eeaf9':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${prefixId}-in">
                               <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${storeSupIn>0?'#592c9b':'#6c757d'};">友店來援(入)</div>
-                              <div class="fw-bolder" style="color:${storeSupIn>0?'#6f42c1':'#6c757d'}; font-size: 1rem;">${storeSupIn.toFixed(1)}H</div>
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${storeSupIn>0?'#055160':'#6c757d'};">友店來援(入)</div>
+                              <div class="fw-bolder" style="color:${storeSupIn>0?'#087990':'#6c757d'}; font-size: 1rem;">${storeSupIn.toFixed(1)}H</div>
                           </div>
                       </div>
                       <div class="col-12">
@@ -3403,7 +3403,7 @@ function showMaintenanceShield(message) {
                   <div class="collapse" id="${prefixId}-o"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #d1e7dd; border-color: #198754 !important; line-height:1.5;">${storeOHtml}</div></div>
                   
                   <div class="collapse" id="${prefixId}-out"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeOutHtml}</div></div>
-                  <div class="collapse" id="${prefixId}-in"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5;">${storeInHtml}</div></div>
+                  <div class="collapse" id="${prefixId}-in"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm text-start" style="background-color: #e0fbfc; border-color: #0dcaf0 !important; line-height:1.5;">${storeInHtml}</div></div>
                   <div class="collapse" id="${prefixId}-abn"><div class="p-2 rounded small border-start border-4 mb-1 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">${fullAbnHtml}</div></div>
               </div></div>`;
       }
