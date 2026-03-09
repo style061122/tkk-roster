@@ -3020,15 +3020,18 @@ function showMaintenanceShield(message) {
           if (allStores.length === 0) return `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">此區目前無排班資料</div>`;
 
           let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rSupOut=0, rSupIn=0, rAbn=0;
+          // ★ 升級 outD 與 inD 的結構，用來記錄明細
           let lvD={}, aaD={}, zD={}, oD={}, outD={}, inD={};
-          // ★ 新增：全區異常多重分流群組
-          let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '其他': {} };
+          // ★ 新增：全區異常多重分流群組 (加入早退)
+          let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, '其他': {} };
 
           allStores.forEach(st => {
               lvD[st]=0; aaD[st]={total:0, emps:{}}; 
               zD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}}; 
               oD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}};
-              outD[st]=0; inD[st]=0; 
+              // ★ 改為物件結構
+              outD[st]={total:0, emps:{}}; 
+              inD[st]={total:0, emps:{}}; 
           });
 
           // 第一圈：計算各店請假、超時、加班與跨店出
@@ -3049,10 +3052,23 @@ function showMaintenanceShield(message) {
                   if (sysAbn.includes('未打卡')) { abnGroups['未打卡'][st] = (abnGroups['未打卡'][st] || 0) + 1; matched = true; }
                   if (sysAbn.includes('打卡異常')) { abnGroups['打卡異常'][st] = (abnGroups['打卡異常'][st] || 0) + 1; matched = true; }
                   if (sysAbn.includes('遲到')) { abnGroups['遲到'][st] = (abnGroups['遲到'][st] || 0) + 1; matched = true; }
+                  if (sysAbn.includes('早退')) { abnGroups['早退'][st] = (abnGroups['早退'][st] || 0) + 1; matched = true; } // ★ 新增早退
                   if (!matched) { abnGroups['其他'][st] = (abnGroups['其他'][st] || 0) + 1; }
               }
 
-              if(r.supports && r.supports.length>0) { r.supports.forEach(sup => { let sh=parseFloat(sup.hrs)||0; if(sup.supportStore !== st) { rSupOut+=sh; outD[st]+=sh; } }); }
+              // ★ 升級跨店(出)資料收集：除了總時數，也要記錄是哪個員工去的
+              if(r.supports && r.supports.length>0) { 
+                  r.supports.forEach(sup => { 
+                      let sh=parseFloat(sup.hrs)||0; 
+                      if(sup.supportStore !== st) { 
+                          rSupOut+=sh; 
+                          // 記錄到目標店家的 outD 統計中
+                          if (!outD[sup.supportStore]) outD[sup.supportStore] = {total:0, emps:{}};
+                          outD[sup.supportStore].total += sh;
+                          outD[sup.supportStore].emps[r.name] = (outD[sup.supportStore].emps[r.name] || 0) + sh;
+                      } 
+                  }); 
+              }
           });
 
           // 第二圈：計算跨店入
@@ -3061,7 +3077,11 @@ function showMaintenanceShield(message) {
                   r.supports.forEach(sup => {
                       let sh = parseFloat(sup.hrs)||0;
                       if(allStores.includes(sup.supportStore) && r.store !== sup.supportStore) {
-                          rSupIn+=sh; inD[sup.supportStore]+=sh;
+                          rSupIn+=sh; 
+                          // ★ 升級友店(入)資料收集：記錄是哪位友店員工來的
+                          if (!inD[sup.supportStore]) inD[sup.supportStore] = {total:0, emps:{}};
+                          inD[sup.supportStore].total += sh;
+                          inD[sup.supportStore].emps[r.name] = (inD[sup.supportStore].emps[r.name] || 0) + sh;
                       }
                   });
               }
@@ -3070,11 +3090,15 @@ function showMaintenanceShield(message) {
           // 全區彈窗 HTML 組裝器
           const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
           
+          // ★ 新增：支援大標題(店名) + 內容明細(人名) 的 HTML 產生器
+          const bDetailList = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
+
           // ★ 產生全區異常多重分組 HTML (加入溫馨提示)
           const buildAbnGroupHtml = (groups) => {
               let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 同一排班若有多項異常，將於各分類中獨立計算</div>`;
               let hasData = false;
-              ['未打卡', '打卡異常', '遲到', '其他'].forEach(k => {
+              // ★ 把早退加入迴圈
+              ['未打卡', '打卡異常', '遲到', '早退', '其他'].forEach(k => {
                   let stores = groups[k];
                   if(Object.keys(stores).length > 0) {
                       hasData = true;
@@ -3143,8 +3167,8 @@ function showMaintenanceShield(message) {
                   <div class="collapse" id="reg-aa"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #fff5f5; border-color: #dc3545 !important;">${bAA(aaD)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-z"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #fffaf0; border-color: #ffc107 !important;">${bZO(zD,'#997404')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-o"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #d1e7dd; border-color: #198754 !important;">${bZO(oD,'#0f5132')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
-                  <div class="collapse" id="reg-out"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bSimple(outD,'#3d1a87')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
-                  <div class="collapse" id="reg-in"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bSimple(inD,'#592c9b')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-out"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bDetailList(outD,'#3d1a87')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-in"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #e0fbfc; border-color: #0dcaf0 !important;">${bDetailList(inD,'#055160')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #fffcfc; border-color: #dc3545 !important;">${buildAbnGroupHtml(abnGroups)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
               </div>
           </div>`;
