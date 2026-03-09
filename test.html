@@ -3286,7 +3286,11 @@ function showMaintenanceShield(message) {
                       r.supports.forEach(sup => {
                           let sh = parseFloat(sup.hrs)||0;
                           if(sup.supportStore !== targetStore) {
-                              storeSupOut += sh; storeOutStoreTotals[sup.supportStore] = (storeOutStoreTotals[sup.supportStore]||0) + sh;
+                              storeSupOut += sh; 
+                              // ★ 升級跨店(出)：記錄是哪個員工去的
+                              if(!storeOutStoreTotals[sup.supportStore]) storeOutStoreTotals[sup.supportStore] = {total:0, emps:{}};
+                              storeOutStoreTotals[sup.supportStore].total += sh;
+                              storeOutStoreTotals[sup.supportStore].emps[r.name] = (storeOutStoreTotals[sup.supportStore].emps[r.name] || 0) + sh;
                           }
                       });
                   }
@@ -3302,7 +3306,11 @@ function showMaintenanceShield(message) {
                   r.supports.forEach(sup => {
                       if(sup.supportStore === targetStore) {
                           let sh = parseFloat(sup.hrs)||0;
-                          storeSupIn += sh; storeInStoreTotals[r.store] = (storeInStoreTotals[r.store]||0) + sh;
+                          storeSupIn += sh; 
+                          // ★ 升級友店(入)：記錄是哪位友店員工來的
+                          if(!storeInStoreTotals[r.store]) storeInStoreTotals[r.store] = {total:0, emps:{}};
+                          storeInStoreTotals[r.store].total += sh;
+                          storeInStoreTotals[r.store].emps[r.name] = (storeInStoreTotals[r.store].emps[r.name] || 0) + sh;
                       }
                   });
               }
@@ -3321,6 +3329,8 @@ function showMaintenanceShield(message) {
               });
               return `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.85rem;">👤 ${n}</span><span class="fw-bolder" style="color:${colorCode}; font-size:0.95rem;">${data.total.toFixed(1)}H${splitStr}</span></div>${subHtml}</div>`;
           }).join('');
+          // ★ 新增：單店版支援大標題(店名) + 內容明細(人名) 的 HTML 產生器
+          const buildStoreDetailList = (dict, colorCode) => Object.entries(dict).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${colorCode};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
           const buildStoreSimpleList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
           const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
 
@@ -3328,8 +3338,9 @@ function showMaintenanceShield(message) {
           let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時時數紀錄</div>';
           let storeZHtml = buildStoreZOrOList(storeZDetails, '#997404') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無預計加班紀錄</div>';
           let storeOHtml = buildStoreZOrOList(storeODetails, '#0f5132') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無已申請加班紀錄</div>';
-          let storeOutHtml = buildStoreSimpleList(storeOutStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
-          let storeInHtml = buildStoreSimpleList(storeInStoreTotals) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
+          // ★ 替換為新版：呼叫 buildStoreDetailList 帶入對應顏色
+          let storeOutHtml = buildStoreDetailList(storeOutStoreTotals, '#3d1a87') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
+          let storeInHtml = buildStoreDetailList(storeInStoreTotals, '#055160') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
           let fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
 
           let storeZDisplay = `${storeTotZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotZ_nat.toFixed(1)}</small>`;
