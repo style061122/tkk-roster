@@ -2397,12 +2397,20 @@ function showMaintenanceShield(message) {
               // 如果都沒填，代表正常休假，清空計算
               if (!hasTimeInput) {
                   hInput.value = ""; aaInput.value = ""; zSelect.value = "0"; 
-                  // ★ 修改：原本這裡是 msgBox.innerHTML = ""; return;
-                  // 我們把它拿掉，不要 return，讓它繼續往下執行到最後的「寫入記憶體」！
-                  if (status !== "國" || isMonthly) { // 避免洗掉上面時薪國定的提示
-                      msgBox.innerHTML = ""; 
+                  
+                  // ★ 提早觸發防護網：非上班狀態且沒填時間，代表這是一天正常的排休或空班。
+                  // 在我們結束這個函數之前，必須檢查是否違反了一例一休或區間下限！
+                  let earlyErrMsg = checkLawLimits(name, date, isMonthly, isCascade);
+                  if (earlyErrMsg !== "") {
+                      msgBox.innerHTML = `<span class="text-danger fw-bold">${earlyErrMsg}</span>`;
+                      tr.classList.add('row-error'); 
+                      return; // 有錯就擋下
+                  } else {
+                      if (status !== "國" || isMonthly) { // 避免洗掉上面時薪國定的提示
+                          msgBox.innerHTML = ""; 
+                      }
+                      tr.classList.remove('row-error');
                   }
-                  tr.classList.remove('row-error');
               }
           }
 
@@ -2497,7 +2505,7 @@ function showMaintenanceShield(message) {
                   // H 爆表時 (例如 H 額度已負數)，不再幫轉 AA，直接亮紅燈擋死！
                   let finalCalcH = Math.round((safeStatsH + outH) * 10) / 10;
                   errMsg = `❌ 本月應有將達 ${finalCalcH}H (超出上限 ${maxMonthH}H)。請調降上班時間或不排班`;
-              } else if (outH < 0.5 && outH > 0) {
+              } else if (status === "上班" && outH < 0.5) { // ★ 修復：只要是上班，H 就不能小於 0.5 (包含 0)
                   errMsg = `❌ 狀態為「上班」時，應有時數(H)至少需保留 0.5 小時，請調降預計加班(Z)`;
               } else if (outH > 8 && restVal < 1) {
                   errMsg = `❌ 應有時數達 8 小時以上，休息時間至少需 1 小時 (目前休 ${restVal})`;
@@ -2508,38 +2516,9 @@ function showMaintenanceShield(message) {
               } else if (!isCascade && outH < 0) {
                   errMsg = `❌ 預計加班時數(Z) 大於實際工作時間，請調降 Z`;
               }
-              // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
-              if (errMsg === "" && !isMonthly && !isCascade) {
-                  let usage = getWeeklyUsage(name, date);
-                  // 啟動條件：1. 必須是完整7天的在職員工 2. 該週7天已經全部排滿(沒有未選擇的空白日)
-                  if (usage.isFullWeek && usage.emptyRows === 0) {
-                      // 開罰條件：缺乏 1 例 或 缺乏 1 休
-                      if (usage.rest < 1 || usage.reg < 1) {
-                          errMsg = `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
-                      }
-                  }
-              }
-              // ★★★ 月薪人員：區塊防護網 (排滿自動檢查下限) ★★★
-              if (errMsg === "" && isMonthly && !isCascade && monthlyTargets.customRules) {
-                  let currentDay = parseInt(date.split('/')[2]);
-                  // 找出包含當天日期的所有規則
-                  let activeRules = monthlyTargets.customRules.filter(r => currentDay >= r.start && currentDay <= r.end);
-                  
-                  for (let i = 0; i < activeRules.length; i++) {
-                      let rule = activeRules[i];
-                      let usage = getMonthlyBlockUsage(name, rule.start, rule.end);
-                      
-                      // 啟動條件：1. 該區間資料筆數齊全(非破月) 2. 該區間已全部排滿(無未選擇的空白日)
-                      // ★ 移除空班豁免：即使有排「空班」，原本該給的 例/休 下限依然必須滿足！
-                      if (usage.isFullBlock && usage.emptyRows === 0) {
-                          let currentTypeCount = usage.counts[rule.type] || 0;
-                          // 開罰條件：目前數量小於人資規定的下限
-                          if (currentTypeCount < rule.limit) {
-                              errMsg = `❌ [${rule.start}~${rule.end}號] 區間內至少需排 ${rule.limit}天「${rule.type}」(目前僅 ${currentTypeCount}天)，請調整班表`;
-                              break; // 只要有一條規則違規，立刻報錯並中斷檢查
-                          }
-                      }
-                  }
+              // 呼叫統一的法規防護網
+              if (errMsg === "") {
+                  errMsg = checkLawLimits(name, date, isMonthly, isCascade);
               }
               
               outZ = effectiveZ;
@@ -2674,6 +2653,43 @@ function showMaintenanceShield(message) {
           currentData[originalIndex].input_est_overtime = outZ;
           currentData[originalIndex].calc_excess = outAA;
           currentData[originalIndex].cascade_log = cascadeText; // 傳遞給後端的註記
+      }
+    
+       // ★ 獨立出來的法規防護網
+      function checkLawLimits(name, date, isMonthly, isCascade) {
+          if (isCascade) return ""; // 系統自動連動時不檢查
+
+          // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
+          if (!isMonthly) {
+              let usage = getWeeklyUsage(name, date);
+              if (usage.isFullWeek && usage.emptyRows === 0) {
+                  if (usage.rest < 1 || usage.reg < 1) {
+                      return `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
+                  }
+              }
+          } 
+          // ★★★ 月薪人員：區塊防護網 (排滿自動檢查下限) ★★★
+          else if (monthlyTargets.customRules) {
+              let currentDay = parseInt(date.split('/')[2]);
+              let activeRules = monthlyTargets.customRules.filter(r => currentDay >= r.start && currentDay <= r.end);
+              
+              for (let i = 0; i < activeRules.length; i++) {
+                  let rule = activeRules[i];
+                  
+                  // ★ 修復 1：排除「上班」狀態的下限檢查 (允許店長排空班導致上班天數不足)
+                  if (rule.type === "上班") continue;
+
+                  let usage = getMonthlyBlockUsage(name, rule.start, rule.end);
+                  
+                  if (usage.isFullBlock && usage.emptyRows === 0) {
+                      let currentTypeCount = usage.counts[rule.type] || 0;
+                      if (currentTypeCount < rule.limit) {
+                          return `❌ [${rule.start}~${rule.end}號] 區間內至少需排 ${rule.limit}天「${rule.type}」(目前僅 ${currentTypeCount}天)，請調整班表`;
+                      }
+                  }
+              }
+          }
+          return ""; // 沒有錯誤
       }
 
       function refreshHourlyDropdowns(name) {
