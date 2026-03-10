@@ -3226,9 +3226,12 @@ function showMaintenanceShield(message) {
                   if(Object.keys(stores).length > 0) {
                       hasData = true;
                       html += `<div class="mb-2"><div class="fw-bold text-danger border-bottom border-danger border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">🚨 ${k}</div>`;
-                      Object.entries(stores).forEach(([store, count]) => {
+                      
+                      // ★ 異常排行榜魔法：依照筆數 (count, 也就是陣列的第 1 個元素) 由大到小排序
+                      Object.entries(stores).sort((a, b) => b[1] - a[1]).forEach(([store, count]) => {
                           html += `<div class="d-flex justify-content-between text-dark ms-2 mb-1" style="font-size:0.8rem;"><span>📍 ${store}</span><span class="fw-bolder text-danger">${count} 筆</span></div>`;
                       });
+                      
                       html += `</div>`;
                   }
               });
