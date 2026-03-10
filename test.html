@@ -1926,27 +1926,50 @@ function showMaintenanceShield(message) {
          let weekStart = new Date(currDate); weekStart.setDate(currDate.getDate() - adjDay);
          let weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
-          if (currentMode === 'name' || currentMode === 'error') {
-              const rows = document.querySelectorAll('#staffTable tr');
-              rows.forEach(tr => {
+         
+         if (currentMode === 'name' || currentMode === 'error') {
+             const rows = document.querySelectorAll('#staffTable tr');
+             rows.forEach(tr => {
                  let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
                  let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
              });
          }
          let weekData = personData.filter(r => { let d = new Date(r.date); return d >= weekStart && d <= weekEnd; });
-         let usage = { rest: 0, reg: 0 };
-         weekData.forEach(r => { if (r.input_status === '休') usage.rest++; if (r.input_status === '例') usage.reg++; });
+         
+         // ★ 升級回傳物件：加入空班檢查與完整週檢查
+         let usage = { rest: 0, reg: 0, emptyRows: 0, isFullWeek: false };
+         
+         weekData.forEach(r => { 
+             if (r.input_status === '休') usage.rest++; 
+             if (r.input_status === '例') usage.reg++; 
+             if (r.input_status === '') usage.emptyRows++;
+         });
 
-         // ==========================================
-         // ★ 跨月額度繼承引擎 (僅限第一週生效)
-         // ==========================================
-         // 智慧判斷：只要這週的「起點」跟「今天」不在同一個月份，代表這就是跨月的第一週！
+         // 跨月額度繼承引擎
          let isFirstWeek = (weekStart.getMonth() !== currDate.getMonth() || weekStart.getFullYear() !== currDate.getFullYear());
          
-         if (isFirstWeek && monthlyTargets.crossMonthUsage && monthlyTargets.crossMonthUsage[name]) {
-             let pastUsage = monthlyTargets.crossMonthUsage[name];
-             usage.rest += (pastUsage.rest || 0);
-             usage.reg += (pastUsage.reg || 0);
+         if (isFirstWeek) {
+             // 跨月週：本月天數 = 7 - 上個月天數 (利用 weekEnd 的號碼推算)
+             let expectedThisMonthDays = weekEnd.getDate();
+             
+             if (monthlyTargets.crossMonthUsage && monthlyTargets.crossMonthUsage[name]) {
+                 let pastUsage = monthlyTargets.crossMonthUsage[name];
+                 usage.rest += (pastUsage.rest || 0);
+                 usage.reg += (pastUsage.reg || 0);
+                 
+                 // 如果本月天數全滿，且上個月有紀錄，代表是完整 7 天的員工
+                 if (weekData.length === expectedThisMonthDays) {
+                     usage.isFullWeek = true;
+                 }
+             } else {
+                 // 上個月沒紀錄，代表是本月剛到職的破月員工 (豁免防呆)
+                 usage.isFullWeek = false;
+             }
+         } else {
+             // 正常週：只要有 7 筆資料就是完整員工
+             if (weekData.length === 7) {
+                 usage.isFullWeek = true;
+             }
          }
 
          return usage;
@@ -2443,6 +2466,17 @@ function showMaintenanceShield(message) {
                   errMsg = `❌ 單日應有時數不可超過 ${maxDailyH} 小時，請增加預計加班(Z)`;
               } else if (!isCascade && outH < 0) {
                   errMsg = `❌ 預計加班時數(Z) 大於實際工作時間，請調降 Z`;
+              }
+              // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
+              if (errMsg === "" && !isMonthly && !isCascade) {
+                  let usage = getWeeklyUsage(name, date);
+                  // 啟動條件：1. 必須是完整7天的在職員工 2. 該週7天已經全部排滿(沒有未選擇的空白日)
+                  if (usage.isFullWeek && usage.emptyRows === 0) {
+                      // 開罰條件：缺乏 1 例 或 缺乏 1 休
+                      if (usage.rest < 1 || usage.reg < 1) {
+                          errMsg = `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
+                      }
+                  }
               }
               
               outZ = effectiveZ;
