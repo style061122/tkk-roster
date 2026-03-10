@@ -309,7 +309,7 @@
 
         <div id="adminDataArea" style="display: none;">
             
-            <div class="mb-3 px-1 mt-3">
+            <div class="mb-3 px-1 mt-3" id="hqDispatchBtnWrapper">
                 <button class="btn btn-dark w-100 fw-bold shadow-sm d-flex justify-content-between align-items-center p-3" style="border-radius: 12px; font-size: 1.1rem;" onclick="openHQDispatchModal()">
                     <span>➕ 總部人員支援</span>
                     <span id="adminDispatchBadge" class="badge bg-light text-dark rounded-pill fs-6">0 筆</span>
@@ -3594,6 +3594,15 @@ function showMaintenanceShield(message) {
           const sysBtn = document.querySelector('#adminDataArea button[onclick="showIndividualStatus()"]');
           if (sysBtn) {
               sysBtn.parentElement.style.display = window.isRegionOverview ? 'none' : 'block';
+          }
+          
+          // ==========================================
+          // ★ 新增修復：全區總覽 或 總公司身分 時，隱藏「總部人員支援」按鈕
+          // ==========================================
+          const hqDispatchWrapper = document.getElementById('hqDispatchBtnWrapper');
+          if (hqDispatchWrapper) {
+              // 當為「全區總覽」或角色為「總公司(HQ)」時隱藏，反之則顯示
+              hqDispatchWrapper.style.display = (window.isRegionOverview || currentUserRole === 'HQ') ? 'none' : 'block';
           }
 
           showLoading(true, "讀取資料中...");
