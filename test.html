@@ -1985,16 +1985,49 @@ function showMaintenanceShield(message) {
 
       function getRangeUsage(name, type, startDay, endDay) {
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
-          if (currentMode === 'name' || currentMode === 'error') {
-              const rows = document.querySelectorAll('#staffTable tr');
-              rows.forEach(tr => {
-                 let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
+         // ★ 終極修復：無論什麼模式，只要畫面上找得到這個人的行，就優先用畫面上的狀態！
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             if (tr.getAttribute('data-name') === name) {
+                 let d = tr.getAttribute('data-date'); 
+                 let sel = tr.querySelector('.status-select');
+                 let s = sel ? sel.value : ""; 
                  let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
-             });
-         }
+             }
+         });
          let count = 0;
          personData.forEach(r => { let d = parseInt(r.date.split('/')[2]); if (d >= startDay && d <= endDay && r.input_status === type) count++; });
          return count;
+      }
+
+      // ★ 新增：月薪區塊下限防護網專用雷達
+      function getMonthlyBlockUsage(name, startDay, endDay) {
+         let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             if (tr.getAttribute('data-name') === name) {
+                 let d = tr.getAttribute('data-date'); 
+                 let sel = tr.querySelector('.status-select');
+                 let s = sel ? sel.value : ""; 
+                 let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
+             }
+         });
+         
+         let usage = { counts: {}, emptyRows: 0, totalDaysInBlock: 0, isFullBlock: false };
+         personData.forEach(r => {
+             let d = parseInt(r.date.split('/')[2]);
+             if (d >= startDay && d <= endDay) {
+                 usage.totalDaysInBlock++;
+                 let s = r.input_status || "";
+                 if (s === "") usage.emptyRows++;
+                 else usage.counts[s] = (usage.counts[s] || 0) + 1;
+             }
+         });
+         
+         // 檢查是否為完整在職員工 (該區間的資料筆數是否等於區間天數)
+         let expectedDays = endDay - startDay + 1;
+         usage.isFullBlock = (usage.totalDaysInBlock === expectedDays);
+         return usage;
       }
 
       function renderTable() {
@@ -2483,6 +2516,28 @@ function showMaintenanceShield(message) {
                       // 開罰條件：缺乏 1 例 或 缺乏 1 休
                       if (usage.rest < 1 || usage.reg < 1) {
                           errMsg = `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
+                      }
+                  }
+              }
+              // ★★★ 月薪人員：區塊防護網 (排滿自動檢查下限) ★★★
+              if (errMsg === "" && isMonthly && !isCascade && monthlyTargets.customRules) {
+                  let currentDay = parseInt(date.split('/')[2]);
+                  // 找出包含當天日期的所有規則
+                  let activeRules = monthlyTargets.customRules.filter(r => currentDay >= r.start && currentDay <= r.end);
+                  
+                  for (let i = 0; i < activeRules.length; i++) {
+                      let rule = activeRules[i];
+                      let usage = getMonthlyBlockUsage(name, rule.start, rule.end);
+                      
+                      // 啟動條件：1. 該區間資料筆數齊全(非破月) 2. 該區間已全部排滿(無未選擇的空白日)
+                      // ★ 移除空班豁免：即使有排「空班」，原本該給的 例/休 下限依然必須滿足！
+                      if (usage.isFullBlock && usage.emptyRows === 0) {
+                          let currentTypeCount = usage.counts[rule.type] || 0;
+                          // 開罰條件：目前數量小於人資規定的下限
+                          if (currentTypeCount < rule.limit) {
+                              errMsg = `❌ [${rule.start}~${rule.end}號] 區間內至少需排 ${rule.limit}天「${rule.type}」(目前僅 ${currentTypeCount}天)，請調整班表`;
+                              break; // 只要有一條規則違規，立刻報錯並中斷檢查
+                          }
                       }
                   }
               }
