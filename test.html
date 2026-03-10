@@ -1927,13 +1927,21 @@ function showMaintenanceShield(message) {
          let weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
          
-         if (currentMode === 'name' || currentMode === 'error') {
-             const rows = document.querySelectorAll('#staffTable tr');
-             rows.forEach(tr => {
-                 let d = tr.getAttribute('data-date'); let s = tr.querySelector('.status-select').value;
-                 let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
-             });
-         }
+         // ★ 終極修復：無論什麼模式，只要畫面上找得到這個人的行，就優先用畫面上的狀態！
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             // 確保這行是我們要找的這個人
+             if (tr.getAttribute('data-name') === name) {
+                 let d = tr.getAttribute('data-date'); 
+                 let sel = tr.querySelector('.status-select');
+                 // 如果這個下拉選單是 disabled (例如國定假日被鎖死、或被防呆鎖死)，我們還是要去抓它的值，但如果是剛換成空白被鎖的，那它就是空白。
+                 let s = sel ? sel.value : ""; 
+                 
+                 let t = personData.find(x => x.date === d); 
+                 if (t) t.input_status = s; 
+             }
+         });
+         
          let weekData = personData.filter(r => { let d = new Date(r.date); return d >= weekStart && d <= weekEnd; });
          
          // ★ 升級回傳物件：加入空班檢查與完整週檢查
