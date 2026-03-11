@@ -2906,7 +2906,24 @@ function showMaintenanceShield(message) {
                       }
                   }
 
-                  if (s === '上班') { if (h > 0) detailWork.push(`🗓️ ${shortDate} ${strH} 共${h.toFixed(1)}H`); else detailWork.push(`🗓️ ${shortDate}`); }
+                  if (s === '上班') {
+                      if (h > 0) {
+                          let hrsDisplay = `共${h.toFixed(1)}H`;
+                          // ★ 新增：針對月薪制，上班日應有時數超標或不足時，給予醒目提示
+                          if (isMonthly) {
+                              if (h < 8) {
+                                  // 小於 8 小時，紅色粗體警告
+                                  hrsDisplay = `<span class="fw-bolder text-danger">共${h.toFixed(1)}H (不足)</span>`;
+                              } else if (h > 8) {
+                                  // 大於 8 小時，藍色粗體提示
+                                  hrsDisplay = `<span class="fw-bolder text-primary">共${h.toFixed(1)}H (超時)</span>`;
+                              }
+                          }
+                          detailWork.push(`🗓️ ${shortDate} ${strH} ${hrsDisplay}`);
+                      } else {
+                          detailWork.push(`🗓️ ${shortDate}`);
+                      }
+                  }
                   else if (s === '休') { if (z > 0) detailRest.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`); else detailRest.push(`🗓️ ${shortDate}`); }
                   else if (s === '例') { if (aa > 0) detailReg.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`); else detailReg.push(`🗓️ ${shortDate}`); }
                   else if (s === '國') { if (z > 0) detailNat.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`); else detailNat.push(`🗓️ ${shortDate}`); }
