@@ -773,12 +773,7 @@ function showMaintenanceShield(message) {
                   // 正常切換人名：更新該員專屬的狀態選單
                   updateStatusFilterMenu(el.value);
               } 
-              else if (filterType === 'subMode') {
-                  // 正常切換子模式：連動「週別」與「狀態」選單的顯示/隱藏
-                  const isStatusMode = (el.value === 'status');
-                  document.getElementById('selectWeek').classList.toggle('d-none', isStatusMode);
-                  document.getElementById('selectStatusFilter').classList.toggle('d-none', !isStatusMode);
-              }
+              // 原本切換 d-none 的邏輯已經移交給 renderTable 處理，這裡無需再做
 
               updateSafeFilters();
               renderTable();
@@ -2045,6 +2040,17 @@ function showMaintenanceShield(message) {
         if (weekSelect && weekSelect.getAttribute('data-loaded') !== weekCacheKey) {
             initWeekSelect(y, m);
             weekSelect.setAttribute('data-loaded', weekCacheKey);
+        }
+        // ==========================================
+        // ★ 終極修復：每次重繪前，強制校正「週別/狀態」選單的顯示狀態！
+        // 解決防呆退回後，UI 卡在舊狀態的 Bug
+        // ==========================================
+        const subModeSelect = document.getElementById('selectSubMode');
+        const statusSelect = document.getElementById('selectStatusFilter');
+        if (subModeSelect && weekSelect && statusSelect) {
+            const isStatusMode = (subModeSelect.value === 'status');
+            weekSelect.classList.toggle('d-none', isStatusMode);
+            statusSelect.classList.toggle('d-none', !isStatusMode);
         }
 
         let targetData = [], targetName = "";
