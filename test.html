@@ -2913,10 +2913,10 @@ function showMaintenanceShield(message) {
                           if (isMonthly) {
                               if (h < 8) {
                                   // 小於 8 小時，紅色粗體警告
-                                  hrsDisplay = `<span class="fw-bolder text-danger">共${h.toFixed(1)}H (不足)</span>`;
+                                  hrsDisplay = `<span class="fw-bolder text-danger">共${h.toFixed(1)}H </span>`;
                               } else if (h > 8) {
                                   // 大於 8 小時，藍色粗體提示
-                                  hrsDisplay = `<span class="fw-bolder text-primary">共${h.toFixed(1)}H (超時)</span>`;
+                                  hrsDisplay = `<span class="fw-bolder text-primary">共${h.toFixed(1)}H </span>`;
                               }
                           }
                           detailWork.push(`🗓️ ${shortDate} ${strH} ${hrsDisplay}`);
