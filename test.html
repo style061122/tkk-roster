@@ -1100,18 +1100,17 @@ function showMaintenanceShield(message) {
         const hqSec = document.getElementById('hqSection');
         if (hqSec) hqSec.style.display = 'none';
         
-        if(Object.keys(allStoreData).length === 0) {
-            callApi('getStoreList').then(res => { if(res.success) initLogin(res.data); });
+        // ★ 終極修復：登出時直接讀取快取並呼叫 initLogin，確保「公司清單」與「公告」完美同步顯示！
+        const cachedListStr = localStorage.getItem('tkk_store_list');
+        if (cachedListStr) {
+            try {
+                let cachedData = JSON.parse(cachedListStr);
+                initLogin(cachedData); // 交給專業的來畫畫面
+            } catch(e) {
+                callApi('getStoreList').then(res => { if(res.success) initLogin(res.data); });
+            }
         } else {
-            // ★ 終極修復：確保登出時，強制把公司清單畫出來！
-            const coSelect = document.getElementById('loginCompany');
-            coSelect.innerHTML = '<option value="">請選擇公司</option>';
-            Object.keys(allStoreData).forEach(co => { coSelect.innerHTML += `<option value="${co}">${co}</option>`; });
-            document.getElementById('loginStore').innerHTML = '<option value="">請先選擇公司</option>';
-            document.getElementById('loginCompany').value = ""; 
-            
-            document.getElementById('loginSection').style.display = 'block';
-            showLoading(false);
+            callApi('getStoreList').then(res => { if(res.success) initLogin(res.data); });
         }
       }
 
