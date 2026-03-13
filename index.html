@@ -3151,7 +3151,25 @@ function showMaintenanceShield(message) {
       // 👑 督導全區總覽報表引擎 (全區總計 + N張單店總計卡片)
       // ==========================================
       function generateRegionReportHTML() {
-          let allStores = [...new Set(currentData.map(r => r.store))].filter(s => s !== "");
+          // ★ 第一波收集：把有員工的本區店名抓進來
+          let baseStores = currentData.map(r => r.store);
+          
+          // ★ 終極修復 (思路 A)：第二波收集，把那些「沒有員工，但有被本區派人去支援的店」也抓進來
+          // 這樣就能拯救那些幽靈門市，讓它們的「友店(入)」時數能被正確算進去！
+          currentData.forEach(r => {
+              if (r.supports && r.supports.length > 0) {
+                  r.supports.forEach(sup => {
+                      // 只收集那些「在督導管轄權限內 (targetStores 陣列裡)」的支援目標店
+                      // 這裡使用 currentParams['support_stores'] 或是直接靠之後的過濾
+                      baseStores.push(sup.supportStore); 
+                  });
+              }
+          });
+
+          // ★ 最終清單：去重複，並過濾掉空白或不屬於本區權限的店
+          // window.allowedRegionStores 儲存了督導能看的所有店名 (這在載入全區資料時應該有設定，如果沒有，就單純去重複)
+          let allStores = [...new Set(baseStores)].filter(s => s !== "" && (!window.allowedRegionStores || window.allowedRegionStores.includes(s)));
+
           if (allStores.length === 0) return `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">此區目前無排班資料</div>`;
 
           let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rSupOut=0, rSupIn=0, rAbn=0;
