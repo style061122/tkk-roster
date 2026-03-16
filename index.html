@@ -2747,7 +2747,8 @@ function showMaintenanceShield(message) {
 
           // 準備所有的統計變數
           let sumH = 0, sumAA = 0, sumZ_normal = 0, sumZ_national = 0;
-          let sumO_normal = 0, sumO_national = 0, sumSupport = 0; // ★ 修改為 O_normal 與 O_national
+          let sumO_normal = 0, sumO_national = 0;
+          let sumSup_normal = 0, sumSup_aa = 0; // ★ 拆分為 常規支援 與 超時支援
           let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
 
           // ★ 新增時薪判斷
@@ -2758,6 +2759,7 @@ function showMaintenanceShield(message) {
               let h = parseFloat(r.calc_hours) || 0;
               let z = parseFloat(r.input_est_overtime) || 0;
               let aa = parseFloat(r.calc_excess) || 0;
+              let rest = parseFloat(r.input_rest) || 0; // ★ 抓出休息時間供交集計算
               
               // ★ 完美對接：使用您剛剛找到的 sys_overtimeHrs！
               let appliedO = parseFloat(r.sys_overtimeHrs) || 0;
@@ -2766,10 +2768,53 @@ function showMaintenanceShield(message) {
               sumH += h;
               sumAA += aa;
 
-              // 1. 計算支援總時數
+              // ==========================================
+              // 1. 計算支援總時數 (★ 導入 AA 交集演算法)
+              // ==========================================
               if (r.supports && r.supports.length > 0) {
+                  let startVal = r.input_start || "";
+                  let endVal = r.input_end || "";
+                  
+                  // 解析主班表起迄時間
+                  const getFloat = (t) => String(t).includes(':') ? timeToFloat(t) : (parseFloat(t) || 0);
+                  let mainS = getFloat(startVal);
+                  let mainE = getFloat(endVal);
+                  if (mainE < mainS) mainE += 24;
+
+                  // ★ 定義 AA 時段的絕對座標 [aaStart, aaEnd]
+                  let aaStart = mainS;
+                  // 如果有 H 或是 Z，休息時間已被包覆，AA 起點在後面
+                  if (h > 0 || z > 0) {
+                      aaStart = mainS + h + z + rest;
+                  }
+                  let aaEnd = aaStart + aa;
+
                   r.supports.forEach(sup => {
-                      sumSupport += (parseFloat(sup.hrs) || 0);
+                      let sh = parseFloat(sup.hrs) || 0;
+                      if (sh <= 0) return;
+
+                      let supParts = sup.startEnd.split('~');
+                      let supS = getFloat(supParts[0]);
+                      let supE = getFloat(supParts[1]);
+
+                      // 跨夜座標對齊 (同 saveSupportData 邏輯)
+                      if (mainE > 24 && supS < mainS) supS += 24;
+                      if (supE < supS) supE += 24;
+
+                      // ★ 幾何交集比對
+                      let overlapStart = Math.max(supS, aaStart);
+                      let overlapEnd = Math.min(supE, aaEnd);
+                      let overlap = 0;
+
+                      // 若有重疊
+                      if (overlapStart < overlapEnd) {
+                          overlap = overlapEnd - overlapStart;
+                          // 防禦：超時重疊量不可大於該段支援的淨時數
+                          if (overlap > sh) overlap = sh;
+                      }
+
+                      sumSup_aa += overlap;
+                      sumSup_normal += (sh - overlap);
                   });
               }
 
@@ -2839,8 +2884,10 @@ function showMaintenanceShield(message) {
               </div>
 
               <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #e0cffc; border-bottom: 4px solid #6f42c1; min-width: 100px;">
-                  <div style="font-size: 0.75rem; color: #3d1a87; font-weight: 800; letter-spacing: 1px;">支援總時數</div>
-                  <div class="fs-4 fw-bolder text-dark lh-1 mt-1">${sumSupport.toFixed(1)}</div>
+                  <div style="font-size: 0.75rem; color: #3d1a87; font-weight: 800; letter-spacing: 1px;">跨店支援</div>
+                  <div class="fs-4 fw-bolder text-dark lh-1 mt-1">
+                      ${(sumSup_normal + sumSup_aa) > 0 ? `${sumSup_normal.toFixed(1)}${sumSup_aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${sumSup_aa.toFixed(1)}超時</small>` : ''}` : '0.0'}
+                  </div>
               </div>
 
           </div>
@@ -4318,7 +4365,8 @@ function showMaintenanceShield(message) {
           if (pData.length === 0) return;
 
           let hrs=0, rest=0, reg=0, nat=0, empty=0;
-          let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0;
+          let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0;
+          let totalSup_norm=0, totalSup_aa=0; // ★ 拆分為 常規支援 與 超時支援
           let totalLeaveHrs=0;
           let abnormalDetails = []; // ★ 改用陣列來收集異常明細
           let userKey = pData[0].pKey || ""; 
@@ -4332,6 +4380,7 @@ function showMaintenanceShield(message) {
               let z = parseFloat(r.input_est_overtime) || 0;
               let o = parseFloat(r.sys_overtimeHrs) || 0; 
               let aa = parseFloat(r.calc_excess) || 0;
+              let restVal = parseFloat(r.input_rest) || 0; // ★ 抓出休息時間供交集計算
               let sysStatus = r.sys_status || ""; 
 
               hrs += h; totalAA += aa;
@@ -4350,8 +4399,45 @@ function showMaintenanceShield(message) {
                   totalO_nat += natO; totalO_norm += normO;
               } else { totalO_norm += o; }
 
+              // ==========================================
+              // 計算跨店支援 (★ 導入 AA 交集演算法)
+              // ==========================================
               if (r.supports && r.supports.length > 0) {
-                  r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
+                  let startVal = r.input_start || "";
+                  let endVal = r.input_end || "";
+                  
+                  const getFloat = (t) => String(t).includes(':') ? timeToFloat(t) : (parseFloat(t) || 0);
+                  let mainS = getFloat(startVal);
+                  let mainE = getFloat(endVal);
+                  if (mainE < mainS) mainE += 24;
+
+                  let aaStart = mainS;
+                  if (h > 0 || z > 0) aaStart = mainS + h + z + restVal;
+                  let aaEnd = aaStart + aa;
+
+                  r.supports.forEach(sup => {
+                      let sh = parseFloat(sup.hrs) || 0;
+                      if (sh <= 0) return;
+
+                      let supParts = sup.startEnd.split('~');
+                      let supS = getFloat(supParts[0]);
+                      let supE = getFloat(supParts[1]);
+
+                      if (mainE > 24 && supS < mainS) supS += 24;
+                      if (supE < supS) supE += 24;
+
+                      let overlapStart = Math.max(supS, aaStart);
+                      let overlapEnd = Math.min(supE, aaEnd);
+                      let overlap = 0;
+
+                      if (overlapStart < overlapEnd) {
+                          overlap = overlapEnd - overlapStart;
+                          if (overlap > sh) overlap = sh;
+                      }
+
+                      totalSup_aa += overlap;
+                      totalSup_norm += (sh - overlap);
+                  });
               }
               
               // ★ 統計請假時數
@@ -4457,9 +4543,11 @@ function showMaintenanceShield(message) {
                       </div>
 
                       <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalSupOut > 0 ? '#e0cffc' : '#f8f9fa'}; border-color: ${totalSupOut > 0 ? '#d3bbfb' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalSupOut > 0 ? '#3d1a87' : '#6c757d'};">跨店支援</div>
-                              <div class="fw-bold ${totalSupOut > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1rem;">${totalSupOut > 0 ? totalSupOut.toFixed(1) : '0.0'}</div>
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${(totalSup_norm + totalSup_aa) > 0 ? '#e0cffc' : '#f8f9fa'}; border-color: ${(totalSup_norm + totalSup_aa) > 0 ? '#d3bbfb' : '#dee2e6'} !important;">
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${(totalSup_norm + totalSup_aa) > 0 ? '#3d1a87' : '#6c757d'};">跨店支援</div>
+                              <div class="fw-bold ${(totalSup_norm + totalSup_aa) > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1rem;">
+                                  ${(totalSup_norm + totalSup_aa) > 0 ? `${totalSup_norm.toFixed(1)}${totalSup_aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${totalSup_aa.toFixed(1)}超時</small>` : ''}` : '0.0'}
+                              </div>
                           </div>
                       </div>
 
