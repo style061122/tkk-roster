@@ -5582,18 +5582,25 @@ function showMaintenanceShield(message) {
         const validStores = currentParams['support_stores'] || [];
         let hasError = false; 
         
-        // ★ 取得「畫面上」最真實的主班表上下班時間
+        // ★ 取得「畫面上」最真實的主班表上下班時間與休息時間
         const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
         const mainStartRaw = tr.querySelector('.start-select').value;
         const mainEndRaw = tr.querySelector('.end-select').value;
+        const mainRestRaw = parseFloat(tr.querySelector('.rest-select').value) || 0; // ★ 新增：抓取主班表休息時間
 
         // 轉換為小數點 (處理跨夜：如 9~02 變成 9~26)
         let mS = String(mainStartRaw).includes(':') ? timeToFloat(mainStartRaw) : parseFloat(mainStartRaw);
         let mE = String(mainEndRaw).includes(':') ? timeToFloat(mainEndRaw) : parseFloat(mainEndRaw);
         if (mE < mS) mE += 24;
 
+        let mainGross = mE - mS; // ★ 新增：計算主班表毛時數
+
         // 用來檢查「重疊」的暫存陣列
         let validatedIntervals = [];
+
+        // ★ 新增：對帳用變數
+        let totalSupportGross = 0;
+        let totalSupportRest = 0;
 
         entries.forEach((entry, index) => {
             if (hasError) return; 
@@ -5648,19 +5655,44 @@ function showMaintenanceShield(message) {
                 validatedIntervals.push({ start: s, end: e, store: store });
 
                 let hrs = e - s - restVal;
-                if (hrs < 0) {
-                     Swal.fire('錯誤', `[${store}] 支援休息時間大於工作時間，請重新確認！`, 'error');
+                
+                // ★ 修正不合理防禦：休息時間大於「或等於」工作時間
+                if (hrs <= 0) {
+                     Swal.fire('錯誤', `[${store}] 支援休息時間不可大於或等於該段支援時間，請重新確認！`, 'error');
                      hasError = true; return;
                 }
+
+                // ★ 累加毛時數與休息時數 (供後續對帳)
+                totalSupportGross += (e - s);
+                totalSupportRest += restVal;
 
                 tempSupports.push({
                     supportStore: store,
                     startEnd: `${startVal}~${endVal}`,
                     rest: restVal > 0 ? restVal.toString() : "",
-                    hrs: hrs > 0 ? hrs.toFixed(1) : ""
+                    hrs: hrs.toFixed(1)
                 });
             }
         });
+
+        // ==========================================
+        // ★ 新增：防呆 5 - 休息時間守恆定律檢核
+        // ==========================================
+        if (!hasError && tempSupports.length > 0) {
+            // 鐵律 1：上限防禦 (支援休息加總 <= 主班表休息)
+            if (totalSupportRest > mainRestRaw) {
+                Swal.fire('休息時數錯誤', `跨店支援的總休息時間 (${totalSupportRest}H) 不可大於主班表的休息時間 (${mainRestRaw}H)！`, 'error');
+                hasError = true;
+            }
+            // 鐵律 2：完全外出防禦 (如果 100% 都在外支援，支援休息加總 必須等於 主班表休息)
+            // 使用 < 0.1 處理浮點數誤差
+            else if (Math.abs(totalSupportGross - mainGross) < 0.1) {
+                if (Math.abs(totalSupportRest - mainRestRaw) > 0.1) {
+                    Swal.fire('休息時數錯誤', `該員今日為全天跨店支援，支援的總休息時間 (${totalSupportRest}H) 必須等於主班表的休息時間 (${mainRestRaw}H)！`, 'error');
+                    hasError = true;
+                }
+            }
+        }
 
         if (hasError) return;
 
