@@ -2436,14 +2436,9 @@ function showMaintenanceShield(message) {
           let availableZ = Math.max(0, 46 - stats.z); 
 
           if (status === "上班") {
-              // ★ 改為動態修改輸入框的 max 屬性 (取代舊版的下拉選單掃描)
-              let maxAllowedZ = Math.min(12, availableZ);
-              zSelect.setAttribute('max', maxAllowedZ);
-              
-              if (zInputVal > availableZ) {
-                  zInputVal = Math.floor(availableZ * 2) / 2;
-                  zSelect.value = zInputVal;
-              }
+              // ★ 智慧溢流閥修復 1：解除 UI 強制沒收額度的行為！
+              // 永遠允許店長輸入物理極限 (12)，保留店長的「真實意圖」，讓底層的溢流引擎發揮作用！
+              zSelect.setAttribute('max', 12);
           }
 
           let outH = 0, outZ = 0, outAA = 0;
@@ -2556,8 +2551,10 @@ function showMaintenanceShield(message) {
           hInput.value = outH > 0 ? outH.toFixed(1) : "0";
           aaInput.value = outAA > 0 ? outAA.toFixed(1) : "";
 
-          // 【問題2】非上班狀態，直接帶入 Z 值 (取代舊版加入新 option)
-          if (status !== "上班") {
+          // ★ 智慧溢流閥修復 2：視覺魔法展示
+          // 無論什麼狀態，當店長的意圖 (zInputVal) 經過系統結算後變成了實際額度 (outZ) 時，
+          // 我們把畫面上的 Z 更新。店長就會親眼看到「輸入 2 ➔ Z 瞬間歸 0 ➔ AA 瞬間跳 2」的絲滑溢流效果！
+          if (parseFloat(zSelect.value) !== outZ) {
               zSelect.value = outZ > 0 ? outZ.toFixed(1) : "0";
           }
 
