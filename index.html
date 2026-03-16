@@ -5798,6 +5798,11 @@ function showMaintenanceShield(message) {
                 btn.innerHTML = `➕ 跨店支援`;
             }
             validateRow(tr); 
+            
+            // ★ 修復慢半拍：在關閉視窗前，主動廣播通知下方的微型網格立刻重繪！
+            if (currentMode === 'name') {
+                updateLiveSummary(tr.getAttribute('data-name'));
+            }
         }
 
         bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
