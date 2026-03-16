@@ -1,4 +1,4 @@
-<<<<<<<<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -575,7 +575,7 @@
     </div>
     <script>
       // ★★★ 請務必確認這個網址是您最新的後端網址 ★★★
-      const API_URL = "";
+      const API_URL = "https://script.google.com/macros/s/AKfycbyComIVquNe65PfSUUpcujWapopAQYlnnF-a9NxG9r_-eTjTUjltD4_DkCuLGO-5m_N/exec";
 
       // 全域變數
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
@@ -2436,14 +2436,9 @@ function showMaintenanceShield(message) {
           let availableZ = Math.max(0, 46 - stats.z); 
 
           if (status === "上班") {
-              // ★ 改為動態修改輸入框的 max 屬性 (取代舊版的下拉選單掃描)
-              let maxAllowedZ = Math.min(12, availableZ);
-              zSelect.setAttribute('max', maxAllowedZ);
-              
-              if (zInputVal > availableZ) {
-                  zInputVal = Math.floor(availableZ * 2) / 2;
-                  zSelect.value = zInputVal;
-              }
+              // ★ 智慧溢流閥修復 1：解除 UI 強制沒收額度的行為！
+              // 永遠允許店長輸入物理極限 (12)，保留店長的「真實意圖」，讓底層的溢流引擎發揮作用！
+              zSelect.setAttribute('max', 12);
           }
 
           let outH = 0, outZ = 0, outAA = 0;
@@ -2556,8 +2551,10 @@ function showMaintenanceShield(message) {
           hInput.value = outH > 0 ? outH.toFixed(1) : "0";
           aaInput.value = outAA > 0 ? outAA.toFixed(1) : "";
 
-          // 【問題2】非上班狀態，直接帶入 Z 值 (取代舊版加入新 option)
-          if (status !== "上班") {
+          // ★ 智慧溢流閥修復 2：視覺魔法展示
+          // 無論什麼狀態，當店長的意圖 (zInputVal) 經過系統結算後變成了實際額度 (outZ) 時，
+          // 我們把畫面上的 Z 更新。店長就會親眼看到「輸入 2 ➔ Z 瞬間歸 0 ➔ AA 瞬間跳 2」的絲滑溢流效果！
+          if (parseFloat(zSelect.value) !== outZ) {
               zSelect.value = outZ > 0 ? outZ.toFixed(1) : "0";
           }
 
@@ -2750,7 +2747,8 @@ function showMaintenanceShield(message) {
 
           // 準備所有的統計變數
           let sumH = 0, sumAA = 0, sumZ_normal = 0, sumZ_national = 0;
-          let sumO_normal = 0, sumO_national = 0, sumSupport = 0; // ★ 修改為 O_normal 與 O_national
+          let sumO_normal = 0, sumO_national = 0;
+          let sumSup_normal = 0, sumSup_aa = 0; // ★ 拆分為 常規支援 與 超時支援
           let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
 
           // ★ 新增時薪判斷
@@ -2761,6 +2759,7 @@ function showMaintenanceShield(message) {
               let h = parseFloat(r.calc_hours) || 0;
               let z = parseFloat(r.input_est_overtime) || 0;
               let aa = parseFloat(r.calc_excess) || 0;
+              let rest = parseFloat(r.input_rest) || 0; // ★ 抓出休息時間供交集計算
               
               // ★ 完美對接：使用您剛剛找到的 sys_overtimeHrs！
               let appliedO = parseFloat(r.sys_overtimeHrs) || 0;
@@ -2769,10 +2768,53 @@ function showMaintenanceShield(message) {
               sumH += h;
               sumAA += aa;
 
-              // 1. 計算支援總時數
+              // ==========================================
+              // 1. 計算支援總時數 (★ 導入 AA 交集演算法)
+              // ==========================================
               if (r.supports && r.supports.length > 0) {
+                  let startVal = r.input_start || "";
+                  let endVal = r.input_end || "";
+                  
+                  // 解析主班表起迄時間
+                  const getFloat = (t) => String(t).includes(':') ? timeToFloat(t) : (parseFloat(t) || 0);
+                  let mainS = getFloat(startVal);
+                  let mainE = getFloat(endVal);
+                  if (mainE < mainS) mainE += 24;
+
+                  // ★ 定義 AA 時段的絕對座標 [aaStart, aaEnd]
+                  let aaStart = mainS;
+                  // 如果有 H 或是 Z，休息時間已被包覆，AA 起點在後面
+                  if (h > 0 || z > 0) {
+                      aaStart = mainS + h + z + rest;
+                  }
+                  let aaEnd = aaStart + aa;
+
                   r.supports.forEach(sup => {
-                      sumSupport += (parseFloat(sup.hrs) || 0);
+                      let sh = parseFloat(sup.hrs) || 0;
+                      if (sh <= 0) return;
+
+                      let supParts = sup.startEnd.split('~');
+                      let supS = getFloat(supParts[0]);
+                      let supE = getFloat(supParts[1]);
+
+                      // 跨夜座標對齊 (同 saveSupportData 邏輯)
+                      if (mainE > 24 && supS < mainS) supS += 24;
+                      if (supE < supS) supE += 24;
+
+                      // ★ 幾何交集比對
+                      let overlapStart = Math.max(supS, aaStart);
+                      let overlapEnd = Math.min(supE, aaEnd);
+                      let overlap = 0;
+
+                      // 若有重疊
+                      if (overlapStart < overlapEnd) {
+                          overlap = overlapEnd - overlapStart;
+                          // 防禦：超時重疊量不可大於該段支援的淨時數
+                          if (overlap > sh) overlap = sh;
+                      }
+
+                      sumSup_aa += overlap;
+                      sumSup_normal += (sh - overlap);
                   });
               }
 
@@ -2842,8 +2884,10 @@ function showMaintenanceShield(message) {
               </div>
 
               <div class="px-3 py-2 rounded shadow-sm text-center flex-fill" style="background: #e0cffc; border-bottom: 4px solid #6f42c1; min-width: 100px;">
-                  <div style="font-size: 0.75rem; color: #3d1a87; font-weight: 800; letter-spacing: 1px;">支援總時數</div>
-                  <div class="fs-4 fw-bolder text-dark lh-1 mt-1">${sumSupport.toFixed(1)}</div>
+                  <div style="font-size: 0.75rem; color: #3d1a87; font-weight: 800; letter-spacing: 1px;">跨店支援</div>
+                  <div class="fs-4 fw-bolder text-dark lh-1 mt-1">
+                      ${(sumSup_normal + sumSup_aa) > 0 ? `${sumSup_normal.toFixed(1)}${sumSup_aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${sumSup_aa.toFixed(1)}超時</small>` : ''}` : '0.0'}
+                  </div>
               </div>
 
           </div>
@@ -3151,7 +3195,25 @@ function showMaintenanceShield(message) {
       // 👑 督導全區總覽報表引擎 (全區總計 + N張單店總計卡片)
       // ==========================================
       function generateRegionReportHTML() {
-          let allStores = [...new Set(currentData.map(r => r.store))].filter(s => s !== "");
+          // ★ 第一波收集：把有員工的本區店名抓進來
+          let baseStores = currentData.map(r => r.store);
+          
+          // ★ 終極修復 (思路 A)：第二波收集，把那些「沒有員工，但有被本區派人去支援的店」也抓進來
+          // 這樣就能拯救那些幽靈門市，讓它們的「友店(入)」時數能被正確算進去！
+          currentData.forEach(r => {
+              if (r.supports && r.supports.length > 0) {
+                  r.supports.forEach(sup => {
+                      // 只收集那些「在督導管轄權限內 (targetStores 陣列裡)」的支援目標店
+                      // 這裡使用 currentParams['support_stores'] 或是直接靠之後的過濾
+                      baseStores.push(sup.supportStore); 
+                  });
+              }
+          });
+
+          // ★ 最終清單：去重複，並過濾掉空白或不屬於本區權限的店
+          // window.allowedRegionStores 儲存了督導能看的所有店名 (這在載入全區資料時應該有設定，如果沒有，就單純去重複)
+          let allStores = [...new Set(baseStores)].filter(s => s !== "" && (!window.allowedRegionStores || window.allowedRegionStores.includes(s)));
+
           if (allStores.length === 0) return `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">此區目前無排班資料</div>`;
 
           let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rSupOut=0, rSupIn=0, rAbn=0;
@@ -4303,7 +4365,8 @@ function showMaintenanceShield(message) {
           if (pData.length === 0) return;
 
           let hrs=0, rest=0, reg=0, nat=0, empty=0;
-          let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0;
+          let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0;
+          let totalSup_norm=0, totalSup_aa=0; // ★ 拆分為 常規支援 與 超時支援
           let totalLeaveHrs=0;
           let abnormalDetails = []; // ★ 改用陣列來收集異常明細
           let userKey = pData[0].pKey || ""; 
@@ -4317,6 +4380,7 @@ function showMaintenanceShield(message) {
               let z = parseFloat(r.input_est_overtime) || 0;
               let o = parseFloat(r.sys_overtimeHrs) || 0; 
               let aa = parseFloat(r.calc_excess) || 0;
+              let restVal = parseFloat(r.input_rest) || 0; // ★ 抓出休息時間供交集計算
               let sysStatus = r.sys_status || ""; 
 
               hrs += h; totalAA += aa;
@@ -4335,8 +4399,45 @@ function showMaintenanceShield(message) {
                   totalO_nat += natO; totalO_norm += normO;
               } else { totalO_norm += o; }
 
+              // ==========================================
+              // 計算跨店支援 (★ 導入 AA 交集演算法)
+              // ==========================================
               if (r.supports && r.supports.length > 0) {
-                  r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
+                  let startVal = r.input_start || "";
+                  let endVal = r.input_end || "";
+                  
+                  const getFloat = (t) => String(t).includes(':') ? timeToFloat(t) : (parseFloat(t) || 0);
+                  let mainS = getFloat(startVal);
+                  let mainE = getFloat(endVal);
+                  if (mainE < mainS) mainE += 24;
+
+                  let aaStart = mainS;
+                  if (h > 0 || z > 0) aaStart = mainS + h + z + restVal;
+                  let aaEnd = aaStart + aa;
+
+                  r.supports.forEach(sup => {
+                      let sh = parseFloat(sup.hrs) || 0;
+                      if (sh <= 0) return;
+
+                      let supParts = sup.startEnd.split('~');
+                      let supS = getFloat(supParts[0]);
+                      let supE = getFloat(supParts[1]);
+
+                      if (mainE > 24 && supS < mainS) supS += 24;
+                      if (supE < supS) supE += 24;
+
+                      let overlapStart = Math.max(supS, aaStart);
+                      let overlapEnd = Math.min(supE, aaEnd);
+                      let overlap = 0;
+
+                      if (overlapStart < overlapEnd) {
+                          overlap = overlapEnd - overlapStart;
+                          if (overlap > sh) overlap = sh;
+                      }
+
+                      totalSup_aa += overlap;
+                      totalSup_norm += (sh - overlap);
+                  });
               }
               
               // ★ 統計請假時數
@@ -4442,9 +4543,11 @@ function showMaintenanceShield(message) {
                       </div>
 
                       <div class="col">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${totalSupOut > 0 ? '#e0cffc' : '#f8f9fa'}; border-color: ${totalSupOut > 0 ? '#d3bbfb' : '#dee2e6'} !important;">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalSupOut > 0 ? '#3d1a87' : '#6c757d'};">跨店支援</div>
-                              <div class="fw-bold ${totalSupOut > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1rem;">${totalSupOut > 0 ? totalSupOut.toFixed(1) : '0.0'}</div>
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="background-color: ${(totalSup_norm + totalSup_aa) > 0 ? '#e0cffc' : '#f8f9fa'}; border-color: ${(totalSup_norm + totalSup_aa) > 0 ? '#d3bbfb' : '#dee2e6'} !important;">
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${(totalSup_norm + totalSup_aa) > 0 ? '#3d1a87' : '#6c757d'};">跨店支援</div>
+                              <div class="fw-bold ${(totalSup_norm + totalSup_aa) > 0 ? 'text-dark' : 'text-muted'}" style="font-size: 1rem;">
+                                  ${(totalSup_norm + totalSup_aa) > 0 ? `${totalSup_norm.toFixed(1)}${totalSup_aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${totalSup_aa.toFixed(1)}超時</small>` : ''}` : '0.0'}
+                              </div>
                           </div>
                       </div>
 
@@ -5567,18 +5670,25 @@ function showMaintenanceShield(message) {
         const validStores = currentParams['support_stores'] || [];
         let hasError = false; 
         
-        // ★ 取得「畫面上」最真實的主班表上下班時間
+        // ★ 取得「畫面上」最真實的主班表上下班時間與休息時間
         const tr = document.querySelector(`tr[data-index="${currentSupportRowIndex}"]`);
         const mainStartRaw = tr.querySelector('.start-select').value;
         const mainEndRaw = tr.querySelector('.end-select').value;
+        const mainRestRaw = parseFloat(tr.querySelector('.rest-select').value) || 0; // ★ 新增：抓取主班表休息時間
 
         // 轉換為小數點 (處理跨夜：如 9~02 變成 9~26)
         let mS = String(mainStartRaw).includes(':') ? timeToFloat(mainStartRaw) : parseFloat(mainStartRaw);
         let mE = String(mainEndRaw).includes(':') ? timeToFloat(mainEndRaw) : parseFloat(mainEndRaw);
         if (mE < mS) mE += 24;
 
+        let mainGross = mE - mS; // ★ 新增：計算主班表毛時數
+
         // 用來檢查「重疊」的暫存陣列
         let validatedIntervals = [];
+
+        // ★ 新增：對帳用變數
+        let totalSupportGross = 0;
+        let totalSupportRest = 0;
 
         entries.forEach((entry, index) => {
             if (hasError) return; 
@@ -5633,19 +5743,44 @@ function showMaintenanceShield(message) {
                 validatedIntervals.push({ start: s, end: e, store: store });
 
                 let hrs = e - s - restVal;
-                if (hrs < 0) {
-                     Swal.fire('錯誤', `[${store}] 支援休息時間大於工作時間，請重新確認！`, 'error');
+                
+                // ★ 修正不合理防禦：休息時間大於「或等於」工作時間
+                if (hrs <= 0) {
+                     Swal.fire('錯誤', `[${store}] 支援休息時間不可大於或等於該段支援時間，請重新確認！`, 'error');
                      hasError = true; return;
                 }
+
+                // ★ 累加毛時數與休息時數 (供後續對帳)
+                totalSupportGross += (e - s);
+                totalSupportRest += restVal;
 
                 tempSupports.push({
                     supportStore: store,
                     startEnd: `${startVal}~${endVal}`,
                     rest: restVal > 0 ? restVal.toString() : "",
-                    hrs: hrs > 0 ? hrs.toFixed(1) : ""
+                    hrs: hrs.toFixed(1)
                 });
             }
         });
+
+        // ==========================================
+        // ★ 新增：防呆 5 - 休息時間守恆定律檢核
+        // ==========================================
+        if (!hasError && tempSupports.length > 0) {
+            // 鐵律 1：上限防禦 (支援休息加總 <= 主班表休息)
+            if (totalSupportRest > mainRestRaw) {
+                Swal.fire('休息時數錯誤', `跨店支援的總休息時間 (${totalSupportRest}H) 不可大於主班表的休息時間 (${mainRestRaw}H)！`, 'error');
+                hasError = true;
+            }
+            // 鐵律 2：完全外出防禦 (如果 100% 都在外支援，支援休息加總 必須等於 主班表休息)
+            // 使用 < 0.1 處理浮點數誤差
+            else if (Math.abs(totalSupportGross - mainGross) < 0.1) {
+                if (Math.abs(totalSupportRest - mainRestRaw) > 0.1) {
+                    Swal.fire('休息時數錯誤', `該員今日為全天跨店支援，支援的總休息時間 (${totalSupportRest}H) 必須等於主班表的休息時間 (${mainRestRaw}H)！`, 'error');
+                    hasError = true;
+                }
+            }
+        }
 
         if (hasError) return;
 
@@ -5663,6 +5798,11 @@ function showMaintenanceShield(message) {
                 btn.innerHTML = `➕ 跨店支援`;
             }
             validateRow(tr); 
+            
+            // ★ 修復慢半拍：在關閉視窗前，主動廣播通知下方的微型網格立刻重繪！
+            if (currentMode === 'name') {
+                updateLiveSummary(tr.getAttribute('data-name'));
+            }
         }
 
         bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
