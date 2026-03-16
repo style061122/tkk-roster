@@ -2924,7 +2924,8 @@ function showMaintenanceShield(message) {
               let oGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let supportOutGroups = {};
 
-              let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO_norm = 0, sumO_nat = 0, sumAA = 0, sumSupOut = 0;
+              let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO_norm = 0, sumO_nat = 0, sumAA = 0;
+              let sumSupOut = 0, sumSup_norm = 0, sumSup_aa = 0; // ★ 微創：擴充單人卡片的支援時數分類
               let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
               let totalLeaveHrs = 0; 
 
@@ -3008,17 +3009,62 @@ function showMaintenanceShield(message) {
                   }
 
                   if (r.supports && r.supports.length > 0) {
-                      r.supports.forEach(sup => {
-                          let sh = parseFloat(sup.hrs) || 0; sumSupOut += sh; let tgtStore = sup.supportStore;
-                          if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = { total: 0, details: [] };
-                          supportOutGroups[tgtStore].total += sh;
-                          supportOutGroups[tgtStore].details.push(`🗓️ ${shortDate} (${sup.startEnd.replace('~', '-')}) 共${sh.toFixed(1)}H`);
+                      // ★ 準備時間軸交集所需的母體座標
+                      let mainS = getStartFloat(sVal);
+                      let mainE = getStartFloat(eVal);
+                      if (mainE < mainS) mainE += 24;
 
-                          if (!outboundStores[tgtStore]) outboundStores[tgtStore] = { total: 0, emps: {} };
-                          if (!outboundStores[tgtStore].emps[name]) outboundStores[tgtStore].emps[name] = { total: 0, details: [] };
+                      let aaStart = mainS;
+                      if (h > 0 || z > 0) aaStart = mainS + h + z + restVal;
+                      let aaEnd = aaStart + aa;
+
+                      r.supports.forEach(sup => {
+                          let sh = parseFloat(sup.hrs) || 0;
+                          if (sh <= 0) return;
+                          
+                          sumSupOut += sh; 
+
+                          // ★ 幾何交集比對 (計算超時 overlap)
+                          let supParts = sup.startEnd.split('~');
+                          let supS = getStartFloat(supParts[0]);
+                          let supE = getStartFloat(supParts[1]);
+                          if (mainE > 24 && supS < mainS) supS += 24;
+                          if (supE < supS) supE += 24;
+
+                          let overlapStart = Math.max(supS, aaStart);
+                          let overlapEnd = Math.min(supE, aaEnd);
+                          let overlap = 0;
+                          if (overlapStart < overlapEnd) {
+                              overlap = overlapEnd - overlapStart;
+                              if (overlap > sh) overlap = sh;
+                          }
+
+                          let normHr = sh - overlap;
+                          sumSup_norm += normHr;
+                          sumSup_aa += overlap;
+
+                          // ★ 產生帶有「+YY超時」的明細字串 (取代原本單純的 XX H)
+                          let hrText = `${normHr.toFixed(1)}${overlap > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${overlap.toFixed(1)}超時</span>` : ''}`;
+
+                          let tgtStore = sup.supportStore;
+
+                          // 1. 寫入單人卡片的分類 (新增 norm 與 aa 欄位)
+                          if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = { total: 0, norm: 0, aa: 0, details: [] };
+                          supportOutGroups[tgtStore].total += sh;
+                          supportOutGroups[tgtStore].norm += normHr;
+                          supportOutGroups[tgtStore].aa += overlap;
+                          supportOutGroups[tgtStore].details.push(`🗓️ ${shortDate} (${sup.startEnd.replace('~', '-')}) 共${hrText}`);
+
+                          // 2. 寫入全店「本店支援外店(借出)」的分類 (新增 norm 與 aa 欄位)
+                          if (!outboundStores[tgtStore]) outboundStores[tgtStore] = { total: 0, norm: 0, aa: 0, emps: {} };
+                          if (!outboundStores[tgtStore].emps[name]) outboundStores[tgtStore].emps[name] = { total: 0, norm: 0, aa: 0, details: [] };
                           outboundStores[tgtStore].total += sh;
+                          outboundStores[tgtStore].norm += normHr;
+                          outboundStores[tgtStore].aa += overlap;
                           outboundStores[tgtStore].emps[name].total += sh;
-                          outboundStores[tgtStore].emps[name].details.push(`🗓️ ${shortDate} (${sup.startEnd.replace('~', '-')}) 共${sh.toFixed(1)}H`);
+                          outboundStores[tgtStore].emps[name].norm += normHr;
+                          outboundStores[tgtStore].emps[name].aa += overlap;
+                          outboundStores[tgtStore].emps[name].details.push(`🗓️ ${shortDate} (${sup.startEnd.replace('~', '-')}) 共${hrText}`);
                       });
                   }
 
@@ -3068,7 +3114,9 @@ function showMaintenanceShield(message) {
               let supportOutHtml = '';
               if (sumSupOut > 0) {
                   for (const [sName, sData] of Object.entries(supportOutGroups)) {
-                      supportOutHtml += `<div class="mb-1"><span class="fw-bold" style="color:#6f42c1;">📍 ${sName} 共${sData.total.toFixed(1)}H：</span><br><span class="text-secondary" style="font-size:0.85rem;">${sData.details.join('<br>')}</span></div>`;
+                      // ★ 微創：產生帶有紅色超時字眼的大標題
+                      let titleHrText = `${sData.norm.toFixed(1)}${sData.aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${sData.aa.toFixed(1)}超時</span>` : 'H'}`;
+                      supportOutHtml += `<div class="mb-1"><span class="fw-bold" style="color:#6f42c1;">📍 ${sName} 共${titleHrText}：</span><br><span class="text-secondary" style="font-size:0.85rem;">${sData.details.join('<br>')}</span></div>`;
                   }
               }
               
@@ -3099,7 +3147,7 @@ function showMaintenanceShield(message) {
                           <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: #f8f9fa; border-color: #dee2e6 !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-status"><div class="fw-bold mb-1" style="font-size: 0.75rem; color:#6c757d;">排休狀態 ▾</div><div class="fw-bold" style="font-size: 0.85rem; color:#495057;">休 <span class="text-primary">${countRest}</span> | 例 <span class="text-success">${countReg}</span> | 國 <span class="text-danger">${countNat}</span> | 空 <span class="text-secondary">${countEmpty}</span></div></div></div>
                           <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${totalLeaveHrs>0?'#e0f8f5':'#f8f9fa'}; border-color: ${totalLeaveHrs>0?'#bcebe3':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-leave"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalLeaveHrs>0?'#0b8273':'#6c757d'};">請假 ▾</div><div class="fw-bold" style="font-size: 1rem; color: ${totalLeaveHrs>0?'#0b8273':'#6c757d'};">${totalLeaveHrs>0?totalLeaveHrs.toFixed(1)+'H':'0.0'}</div></div></div>
                           <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${sumAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${sumAA>0?'#f5c2c7':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-aa"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${sumAA>0?'#842029':'#6c757d'};">超時 ▾</div><div class="fw-bold ${sumAA>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${sumAA>0?sumAA.toFixed(1):'0.0'}</div></div></div>
-                          <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${sumSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${sumSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-support"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${sumSupOut>0?'#3d1a87':'#6c757d'};">跨店支援 ▾</div><div class="fw-bold ${sumSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${sumSupOut>0?sumSupOut.toFixed(1):'0.0'}</div></div></div>
+                          <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${sumSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${sumSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-support"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${sumSupOut>0?'#3d1a87':'#6c757d'};">跨店支援 ▾</div><div class="fw-bold ${sumSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${sumSupOut>0 ? `${sumSup_norm.toFixed(1)}${sumSup_aa>0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${sumSup_aa.toFixed(1)}超時</small>` : ''}` : '0.0'}</div></div></div>
                           <div class="col-12"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: #fff3cd; border-color: #ffecb5 !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime"><div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div><div class="d-flex flex-row justify-content-center align-items-center gap-3 mt-1"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:#997404; font-size: 0.75rem;">預計加班</span><span class="fw-bold text-dark" style="font-size: 1rem;">${zDisplay}</span></div><div style="width: 1px; height: 24px; background-color: #ffe69c;"></div><div class="d-flex flex-column align-items-center"><span class="fw-bold text-success" style="font-size: 0.75rem;">已申請</span><span class="fw-bold text-dark" style="font-size: 1rem;">${oDisplay}</span></div></div></div></div>
                           <div class="col-12"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: ${abnormalDetails.length>0?'#ffffff':'#f8f9fa'}; border-color: ${abnormalDetails.length>0?'#dc3545':'#dee2e6'} !important; border-width: ${abnormalDetails.length>0?'2px':'1px'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-abnormal"><div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div><div class="d-flex flex-row justify-content-center align-items-center mt-1"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:${abnormalDetails.length>0?'#dc3545':'#6c757d'}; font-size: 0.75rem;">異常狀況</span><span class="fw-bold ${abnormalDetails.length>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${abnormalDetails.length>0?abnormalDetails.length+' 筆':'無'}</span></div></div></div></div>
                       </div>
@@ -3125,14 +3173,58 @@ function showMaintenanceShield(message) {
               let store = String(r.store).trim();
               let dParts = r.date.split('/'); let mStr = parseInt(dParts[1]); let dStr = parseInt(dParts[2]);
               if (r.supports && r.supports.length > 0) {
+                  
+                  // ★ 準備時間軸交集所需的母體座標 (友店員工的本機班表)
+                  let startVal = r.input_start || "";
+                  let endVal = r.input_end || "";
+                  let h = parseFloat(r.calc_hours) || 0;
+                  let z = parseFloat(r.input_est_overtime) || 0;
+                  let aa = parseFloat(r.calc_excess) || 0;
+                  let restVal = parseFloat(r.input_rest) || 0;
+
+                  let mainS = getStartFloat(startVal);
+                  let mainE = getStartFloat(endVal);
+                  if (mainE < mainS) mainE += 24;
+
+                  let aaStart = mainS;
+                  if (h > 0 || z > 0) aaStart = mainS + h + z + restVal;
+                  let aaEnd = aaStart + aa;
+
                   r.supports.forEach(sup => {
                       if (sup.supportStore === currentStore) { 
-                          if (!inboundStores[store]) inboundStores[store] = { total: 0, emps: {} };
                           let sh = parseFloat(sup.hrs) || 0;
+                          if (sh <= 0) return;
+
+                          // ★ 幾何交集比對 (計算超時 overlap)
+                          let supParts = sup.startEnd.split('~');
+                          let supS = getStartFloat(supParts[0]);
+                          let supE = getStartFloat(supParts[1]);
+                          if (mainE > 24 && supS < mainS) supS += 24;
+                          if (supE < supS) supE += 24;
+
+                          let overlapStart = Math.max(supS, aaStart);
+                          let overlapEnd = Math.min(supE, aaEnd);
+                          let overlap = 0;
+                          if (overlapStart < overlapEnd) {
+                              overlap = overlapEnd - overlapStart;
+                              if (overlap > sh) overlap = sh;
+                          }
+
+                          let normHr = sh - overlap;
+
+                          // ★ 產生帶有「+YY超時」的明細字串 (取代原本單純的 XX H)
+                          let hrText = `${normHr.toFixed(1)}${overlap > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${overlap.toFixed(1)}超時</span>` : ''}`;
+
+                          if (!inboundStores[store]) inboundStores[store] = { total: 0, norm: 0, aa: 0, emps: {} };
                           inboundStores[store].total += sh;
-                          if (!inboundStores[store].emps[r.name]) inboundStores[store].emps[r.name] = { total: 0, details: [] };
+                          inboundStores[store].norm += normHr;
+                          inboundStores[store].aa += overlap;
+
+                          if (!inboundStores[store].emps[r.name]) inboundStores[store].emps[r.name] = { total: 0, norm: 0, aa: 0, details: [] };
                           inboundStores[store].emps[r.name].total += sh;
-                          inboundStores[store].emps[r.name].details.push(`🗓️ ${mStr}/${dStr} (${sup.startEnd.replace('~', '-')}) 共${sh.toFixed(1)}H`);
+                          inboundStores[store].emps[r.name].norm += normHr;
+                          inboundStores[store].emps[r.name].aa += overlap;
+                          inboundStores[store].emps[r.name].details.push(`🗓️ ${mStr}/${dStr} (${sup.startEnd.replace('~', '-')}) 共${hrText}`);
                       }
                   });
               }
@@ -3142,10 +3234,15 @@ function showMaintenanceShield(message) {
           let outGridHtml = ''; let outDetailsHtml = ''; let outCount = 0;
           for (const [storeName, storeData] of Object.entries(outboundStores)) {
               let collapseId = `outbound-${outCount}`;
-              outGridHtml += `<div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #e6f2ff; border-bottom: 4px solid #0d6efd;" data-bs-toggle="collapse" data-bs-target="#${collapseId}"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: #084298;">${storeName} ▾</div><div class="fw-bold text-dark" style="font-size: 1rem;">${storeData.total.toFixed(1)}H</div></div></div>`;
+              // ★ 微創：產生網格的標題時數
+              let storeGridHrText = `${storeData.norm.toFixed(1)}${storeData.aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${storeData.aa.toFixed(1)}超時</small>` : 'H'}`;
+              outGridHtml += `<div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #e6f2ff; border-bottom: 4px solid #0d6efd;" data-bs-toggle="collapse" data-bs-target="#${collapseId}"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: #084298;">${storeName} ▾</div><div class="fw-bold text-dark" style="font-size: 1rem;">${storeGridHrText}</div></div></div>`;
+              
               let empsHtml = '';
               for (const [empName, empData] of Object.entries(storeData.emps)) {
-                  empsHtml += `<div class="mb-1 pb-1" style="border-bottom: 1px dashed #dee2e6;"><div class="fw-bold text-dark" style="font-size: 0.85rem;">👤 ${empName} <span class="float-end text-primary fw-bolder">${empData.total.toFixed(1)}H</span></div><div class="text-muted mt-1 ps-2" style="line-height:1.5; font-size: 0.8rem;">${empData.details.join('<br>')}</div></div>`;
+                  // ★ 微創：產生人名明細的時數
+                  let empHrText = `${empData.norm.toFixed(1)}${empData.aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${empData.aa.toFixed(1)}超時</span>` : 'H'}`;
+                  empsHtml += `<div class="mb-1 pb-1" style="border-bottom: 1px dashed #dee2e6;"><div class="fw-bold text-dark" style="font-size: 0.85rem;">👤 ${empName} <span class="float-end text-primary fw-bolder">${empHrText}</span></div><div class="text-muted mt-1 ps-2" style="line-height:1.5; font-size: 0.8rem;">${empData.details.join('<br>')}</div></div>`;
               }
               outDetailsHtml += `<div class="collapse mt-1" id="${collapseId}"><div class="p-2 bg-white rounded border-start border-4 border-primary shadow-sm mb-1"><h6 class="fw-bold text-primary mb-2" style="font-size: 0.9rem;">📍 去 ${storeName} 明細</h6>${empsHtml}</div></div>`;
               outCount++;
@@ -3156,10 +3253,15 @@ function showMaintenanceShield(message) {
           let inGridHtml = ''; let inDetailsHtml = ''; let inCount = 0;
           for (const [storeName, storeData] of Object.entries(inboundStores)) {
               let collapseId = `inbound-${inCount}`;
-              inGridHtml += `<div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #f4f0fd; border-bottom: 4px solid #6f42c1;" data-bs-toggle="collapse" data-bs-target="#${collapseId}"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: #592c9b;">${storeName} ▾</div><div class="fw-bold text-dark" style="font-size: 1rem;">${storeData.total.toFixed(1)}H</div></div></div>`;
+              // ★ 微創：產生網格的標題時數
+              let storeGridHrText = `${storeData.norm.toFixed(1)}${storeData.aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${storeData.aa.toFixed(1)}超時</small>` : 'H'}`;
+              inGridHtml += `<div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center shadow-sm" style="cursor: pointer; background-color: #f4f0fd; border-bottom: 4px solid #6f42c1;" data-bs-toggle="collapse" data-bs-target="#${collapseId}"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: #592c9b;">${storeName} ▾</div><div class="fw-bold text-dark" style="font-size: 1rem;">${storeGridHrText}</div></div></div>`;
+              
               let empsHtml = '';
               for (const [empName, empData] of Object.entries(storeData.emps)) {
-                  empsHtml += `<div class="mb-1 pb-1" style="border-bottom: 1px dashed #dee2e6;"><div class="fw-bold text-dark" style="font-size: 0.85rem;">👤 ${empName} <span class="float-end fw-bolder" style="color:#6f42c1;">${empData.total.toFixed(1)}H</span></div><div class="text-muted mt-1 ps-2" style="line-height:1.5; font-size: 0.8rem;">${empData.details.join('<br>')}</div></div>`;
+                  // ★ 微創：產生人名明細的時數
+                  let empHrText = `${empData.norm.toFixed(1)}${empData.aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${empData.aa.toFixed(1)}超時</span>` : 'H'}`;
+                  empsHtml += `<div class="mb-1 pb-1" style="border-bottom: 1px dashed #dee2e6;"><div class="fw-bold text-dark" style="font-size: 0.85rem;">👤 ${empName} <span class="float-end fw-bolder" style="color:#6f42c1;">${empHrText}</span></div><div class="text-muted mt-1 ps-2" style="line-height:1.5; font-size: 0.8rem;">${empData.details.join('<br>')}</div></div>`;
               }
               inDetailsHtml += `<div class="collapse mt-1" id="${collapseId}"><div class="p-2 bg-white rounded border-start border-4 shadow-sm mb-1" style="border-color: #6f42c1 !important;"><h6 class="fw-bold mb-2" style="color:#592c9b; font-size: 0.9rem;">🤝 ${storeName} 支援明細</h6>${empsHtml}</div></div>`;
               inCount++;
