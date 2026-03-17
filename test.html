@@ -3318,7 +3318,10 @@ function showMaintenanceShield(message) {
 
           if (allStores.length === 0) return `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">此區目前無排班資料</div>`;
 
-          let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rSupOut=0, rSupIn=0, rAbn=0;
+          let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rAbn=0;
+          let rSupOut=0, rSupOut_norm=0, rSupOut_aa=0; // ★ 擴充全區借出抽屜
+          let rSupIn=0, rSupIn_norm=0, rSupIn_aa=0;    // ★ 擴充全區借入抽屜
+          
           // ★ 升級 outD 與 inD 的結構，用來記錄明細
           let lvD={}, aaD={}, zD={}, oD={}, outD={}, inD={};
           // ★ 新增：全區異常多重分流群組 (加入早退)
@@ -3328,9 +3331,9 @@ function showMaintenanceShield(message) {
               lvD[st]=0; aaD[st]={total:0, emps:{}}; 
               zD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}}; 
               oD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}};
-              // ★ 改為物件結構
-              outD[st]={total:0, emps:{}}; 
-              inD[st]={total:0, emps:{}}; 
+              // ★ 改為物件結構並擴充 norm/aa
+              outD[st]={total:0, norm:0, aa:0, emps:{}}; 
+              inD[st]={total:0, norm:0, aa:0, emps:{}}; 
           });
 
           // 第一圈：計算各店請假、超時、加班與跨店出
@@ -3356,41 +3359,86 @@ function showMaintenanceShield(message) {
               }
 
               // ★ 升級跨店(出)資料收集：除了總時數，也要記錄是哪個員工去的
-              // 邏輯：我們這區的店 (st) 把員工 (r.name) 派去了哪家店 (sup.supportStore)
               if(r.supports && r.supports.length>0) { 
+                  const getStartFloat = (t) => { if(!t) return 0; if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); } return parseFloat(t) || 0; };
+                  let startVal = r.input_start || "", endVal = r.input_end || "", restVal = parseFloat(r.input_rest) || 0;
+                  let h = parseFloat(r.calc_hours) || 0, z = parseFloat(r.input_est_overtime) || 0, aa = parseFloat(r.calc_excess) || 0;
+                  let sF = getStartFloat(startVal), eF = getStartFloat(endVal); if (eF < sF) eF += 24;
+                  let aaStart = sF; if (h > 0 || z > 0) aaStart = sF + h + z + restVal;
+                  let aaEnd = aaStart + aa;
+
                   r.supports.forEach(sup => { 
                       let sh=parseFloat(sup.hrs)||0; 
                       let tgtStore = sup.supportStore;
-                      if(tgtStore !== st) { 
-                          rSupOut+=sh; 
-                          // 記錄在我們這家店 (st) 的帳上
-                          if (!outD[st]) outD[st] = {total:0, emps:{}};
-                          outD[st].total += sh;
-                          // 記錄明細：【員工姓名】 去了 【目標店名】
+                      if(tgtStore !== st && sh > 0) { 
+                          let supParts = sup.startEnd.split('~');
+                          let supS = getStartFloat(supParts[0]), supE = getStartFloat(supParts[1]);
+                          if (eF > 24 && supS < sF) supS += 24;
+                          if (supE < supS) supE += 24;
+
+                          let overlapStart = Math.max(supS, aaStart);
+                          let overlapEnd = Math.min(supE, aaEnd);
+                          let overlap = 0;
+                          if (overlapStart < overlapEnd) {
+                              overlap = overlapEnd - overlapStart;
+                              if (overlap > sh) overlap = sh;
+                          }
+                          let normHr = sh - overlap;
+
+                          rSupOut+=sh; rSupOut_norm+=normHr; rSupOut_aa+=overlap;
+                          
+                          if (!outD[st]) outD[st] = {total:0, norm:0, aa:0, emps:{}};
+                          outD[st].total += sh; outD[st].norm += normHr; outD[st].aa += overlap;
+                          
                           let detailName = `${r.name} ➔ ${tgtStore}`;
-                          outD[st].emps[detailName] = (outD[st].emps[detailName] || 0) + sh;
+                          if (!outD[st].emps[detailName]) outD[st].emps[detailName] = {total:0, norm:0, aa:0};
+                          outD[st].emps[detailName].total += sh;
+                          outD[st].emps[detailName].norm += normHr;
+                          outD[st].emps[detailName].aa += overlap;
                       } 
                   }); 
               }
           });
 
           // 第二圈：計算跨店入 (Inbound)
-          // 邏輯：掃描所有資料，如果「別人」的支援目標是「我們全區內的店」，那就記在「我們全區內的店」的 inD 裡面，且標示是「別人(r.store)的員工(r.name)」來的。
           currentData.forEach(r => {
               if(r.supports && r.supports.length>0) {
+                  const getStartFloat = (t) => { if(!t) return 0; if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); } return parseFloat(t) || 0; };
+                  let startVal = r.input_start || "", endVal = r.input_end || "", restVal = parseFloat(r.input_rest) || 0;
+                  let h = parseFloat(r.calc_hours) || 0, z = parseFloat(r.input_est_overtime) || 0, aa = parseFloat(r.calc_excess) || 0;
+                  let sF = getStartFloat(startVal), eF = getStartFloat(endVal); if (eF < sF) eF += 24;
+                  let aaStart = sF; if (h > 0 || z > 0) aaStart = sF + h + z + restVal;
+                  let aaEnd = aaStart + aa;
+
                   r.supports.forEach(sup => {
                       let sh = parseFloat(sup.hrs)||0;
-                      // 如果支援的目標店 (sup.supportStore) 在我們這區的清單裡，且不是自己支援自己
-                      if(allStores.includes(sup.supportStore) && r.store !== sup.supportStore) {
-                          rSupIn+=sh; 
-                          let targetStore = sup.supportStore; // 接收支援的店 (我們區的)
-                          let fromStore = r.store;            // 派人來的店 (友店)
+                      if(allStores.includes(sup.supportStore) && r.store !== sup.supportStore && sh > 0) {
+                          let supParts = sup.startEnd.split('~');
+                          let supS = getStartFloat(supParts[0]), supE = getStartFloat(supParts[1]);
+                          if (eF > 24 && supS < sF) supS += 24;
+                          if (supE < supS) supE += 24;
+
+                          let overlapStart = Math.max(supS, aaStart);
+                          let overlapEnd = Math.min(supE, aaEnd);
+                          let overlap = 0;
+                          if (overlapStart < overlapEnd) {
+                              overlap = overlapEnd - overlapStart;
+                              if (overlap > sh) overlap = sh;
+                          }
+                          let normHr = sh - overlap;
+
+                          rSupIn+=sh; rSupIn_norm+=normHr; rSupIn_aa+=overlap;
+                          let targetStore = sup.supportStore;
+                          let fromStore = r.store;            
                           
-                          if (!inD[targetStore]) inD[targetStore] = {total:0, emps:{}};
-                          inD[targetStore].total += sh;
-                          // 記錄明細：【友店名稱】 派了 【員工姓名】 來
+                          if (!inD[targetStore]) inD[targetStore] = {total:0, norm:0, aa:0, emps:{}};
+                          inD[targetStore].total += sh; inD[targetStore].norm += normHr; inD[targetStore].aa += overlap;
+                          
                           let detailName = `[${fromStore}] ${r.name}`;
-                          inD[targetStore].emps[detailName] = (inD[targetStore].emps[detailName] || 0) + sh;
+                          if (!inD[targetStore].emps[detailName]) inD[targetStore].emps[detailName] = {total:0, norm:0, aa:0};
+                          inD[targetStore].emps[detailName].total += sh;
+                          inD[targetStore].emps[detailName].norm += normHr;
+                          inD[targetStore].emps[detailName].aa += overlap;
                       }
                   });
               }
@@ -3399,8 +3447,15 @@ function showMaintenanceShield(message) {
           // 全區彈窗 HTML 組裝器
           const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
           
-          // ★ 新增：支援大標題(店名) + 內容明細(人名) 的 HTML 產生器
-          const bDetailList = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
+          // ★ 新增：支援大標題(店名) + 內容明細(人名) 的 HTML 產生器 (加入超時拆分)
+          const bDetailList = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>{
+              let storeHrText = `${x[1].norm.toFixed(1)}${x[1].aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${x[1].aa.toFixed(1)}超時</span>` : 'H'}`;
+              let empsHtml = Object.entries(x[1].emps).map(e=>{
+                  let empHrText = `${e[1].norm.toFixed(1)}${e[1].aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${e[1].aa.toFixed(1)}超時</span>` : 'H'}`;
+                  return `<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${empHrText}</span></div>`;
+              }).join('');
+              return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${storeHrText}</span></div>${empsHtml}</div>`;
+          }).join('');
 
           // ★ 產生全區異常多重分組 HTML (加入溫馨提示)
           const buildAbnGroupHtml = (groups) => {
@@ -3463,12 +3518,16 @@ function showMaintenanceShield(message) {
                       <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${rSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-out">
                           <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rSupOut>0?'#3d1a87':'#6c757d'};">區跨店(出)</div>
-                          <div class="fw-bolder ${rSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${rSupOut.toFixed(1)}H</div>
+                          <div class="fw-bolder ${rSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">
+                              ${rSupOut > 0 ? `${rSupOut_norm.toFixed(1)}${rSupOut_aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${rSupOut_aa.toFixed(1)}超時</small>` : 'H'}` : '0.0'}
+                          </div>
                       </div></div>
                       <div class="col"><div class="p-1 rounded h-100 border shadow-sm position-relative d-flex flex-column justify-content-center" style="cursor: pointer; background: ${rSupIn>0?'#e0fbfc':'#f8f9fa'}; border-color: ${rSupIn>0?'#9eeaf9':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#reg-in">
                           <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           <div class="fw-bold mb-1" style="font-size: 0.75rem; color:${rSupIn>0?'#055160':'#6c757d'};">區友店(入)</div>
-                          <div class="fw-bolder" style="color:${rSupIn>0?'#087990':'#6c757d'}; font-size: 1rem;">${rSupIn.toFixed(1)}H</div>
+                          <div class="fw-bolder" style="color:${rSupIn>0?'#087990':'#6c757d'}; font-size: 1rem;">
+                              ${rSupIn > 0 ? `${rSupIn_norm.toFixed(1)}${rSupIn_aa > 0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${rSupIn_aa.toFixed(1)}超時</small>` : 'H'}` : '0.0'}
+                          </div>
                       </div></div>
                       <div class="col-12"><div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${rAbn>0?'#ffffff':'#f8f9fa'}; border-color: ${rAbn>0?'#dc3545':'#dee2e6'} !important; border-width: ${rAbn>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#reg-abn">
                           <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${rAbn>0?'#dc3545':'#6c757d'};">⚠️ 全區異常一覽</div>
