@@ -590,20 +590,28 @@
           let app_norm = 0, app_nat = 0;
           let types = {};
           
-          // ★ 抓取目前畫面上正在顯示的年份與月份
-          let targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
-          let targetM = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText.padStart(2, '0') : "";
-          
+          // ★ 自動抓取當前畫面的年份與月份 (相容店長與個人班表模式)
+          let targetY = "", targetM = "";
+          if (document.getElementById('personalSection') && document.getElementById('personalSection').style.display === 'block') {
+              let txt = document.getElementById('personalNameDisplay').innerText || "";
+              let match = txt.match(/(\d{4})年\s*(\d{1,2})月/);
+              if (match) { targetY = match[1]; targetM = match[2].padStart(2, '0'); }
+          } else {
+              targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
+              let mText = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText : "";
+              targetM = mText ? mText.padStart(2, '0') : "";
+          }
+
           // ★ 終極過濾：名字要對，而且日期必須是這個月的！
           let empOt = window.currentOtData.filter(o => {
               if (String(o.name).replace(/\s+/g, '') !== String(empName).replace(/\s+/g, '')) return false;
-              if (!targetY || !targetM) return true; // 個人連結剛載入時可能還沒抓到年月
+              if (!targetY || !targetM) return true; 
               
               let dParts = String(o.date).split('/');
               if (dParts.length >= 2) {
                   let oYear = dParts.length === 3 ? dParts[0] : targetY;
                   let oMonth = dParts.length === 3 ? dParts[1].padStart(2, '0') : dParts[0].padStart(2, '0');
-                  return oYear === targetY && oMonth === targetM;
+                  return String(oYear) === String(targetY) && String(oMonth) === String(targetM);
               }
               return false;
           });
@@ -633,8 +641,6 @@
           });
 
           const fmtText = (norm, nat) => isHourly ? `${(norm+nat).toFixed(1)}H` : (nat > 0 ? `${(norm+nat).toFixed(1)}H (${norm.toFixed(1)}+${nat.toFixed(1)})` : `${norm.toFixed(1)}H`);
-          
-          // ★ 完美對齊：微型網格只顯示「已核准」，且格式為 X+Y (46免稅+國定前8)
           let oDisplay = isHourly ? `${(app_norm+app_nat).toFixed(1)}` : (app_nat > 0 ? `${app_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${app_nat.toFixed(1)}</small>` : `${app_norm.toFixed(1)}`);
 
           let cardHtml = "", appHtml="", pendHtml="", waitHtml="";
@@ -648,7 +654,6 @@
               if(d.wait_items.length > 0) waitHtml += `　<span style="color:#dc3545;">🔹 ${t} ${fmtText(d.wait_norm, d.wait_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.wait_items.join('<br>')}</div>`;
           }
           
-          // ★ 完美對齊：主標題顯示 (共 總H) (X+Y)
           const formatTitle = (norm, nat) => isHourly ? `(共 ${(norm+nat).toFixed(1)}H)` : (nat > 0 ? `(共 ${(norm+nat).toFixed(1)}H) (${norm.toFixed(1)}+${nat.toFixed(1)})` : `(共 ${(norm+nat).toFixed(1)}H)`);
 
           if (appHtml) cardHtml += `<div class="mb-1"><strong style="color:#198754; font-size:0.9rem;">✅ 已核准 ${formatTitle(aNorm, aNat)}</strong><br>${appHtml}</div>`;
@@ -676,10 +681,18 @@
           let app_norm = 0, app_nat = 0;
           let types = {};
           
-          // ★ 抓取目前畫面上正在顯示的年份與月份
-          let targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
-          let targetM = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText.padStart(2, '0') : "";
-          
+          // ★ 自動抓取當前畫面的年份與月份
+          let targetY = "", targetM = "";
+          if (document.getElementById('personalSection') && document.getElementById('personalSection').style.display === 'block') {
+              let txt = document.getElementById('personalNameDisplay').innerText || "";
+              let match = txt.match(/(\d{4})年\s*(\d{1,2})月/);
+              if (match) { targetY = match[1]; targetM = match[2].padStart(2, '0'); }
+          } else {
+              targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
+              let mText = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText : "";
+              targetM = mText ? mText.padStart(2, '0') : "";
+          }
+
           // ★ 終極過濾：店名要對，而且日期必須是這個月的！
           let storeOt = window.currentOtData.filter(o => {
               if (String(o.store).trim() !== String(storeName).trim()) return false;
@@ -688,8 +701,8 @@
               let dParts = String(o.date).split('/');
               if (dParts.length >= 2) {
                   let oYear = dParts.length === 3 ? dParts[0] : targetY;
-                  let oMonth = dParts.length === 3 ? dParts[1].padStart(2, '0') : dParts[0].padStart(2, '0');
-                  return oYear === targetY && oMonth === targetM;
+                  let oMonth = dParts.length === 3 ? String(dParts[1]).padStart(2, '0') : String(dParts[0]).padStart(2, '0');
+                  return String(oYear) === String(targetY) && String(oMonth) === String(targetM);
               }
               return false;
           });
@@ -4627,7 +4640,8 @@ function showMaintenanceShield(message) {
                       let oDateParts = String(o.date).split('/');
                       let oShortDate = oDateParts.length >= 3 ? `${parseInt(oDateParts[1])}/${parseInt(oDateParts[2])}` : 
                                        (oDateParts.length === 2 ? `${parseInt(oDateParts[0])}/${parseInt(oDateParts[1])}` : o.date);
-                      return String(o.name).replace(/\s+/g, '') === String(r.name).replace(/\s+/g, '') && 
+                      // ★ 致命錯誤修復：個人班表的迴圈變數 r 沒有 name 屬性！必須使用外層的 data.name 來比對！
+                      return String(o.name).replace(/\s+/g, '') === String(data.name).replace(/\s+/g, '') && 
                              oShortDate === rShortDate && 
                              o.status === '已核准';
                   });
