@@ -4190,7 +4190,6 @@ function showMaintenanceShield(message) {
                       let h = parseFloat(r.calc_hours) || 0;
                       let z = parseFloat(r.input_est_overtime) || 0;
                       let aa = parseFloat(r.calc_excess) || 0;
-                      let o = parseFloat(r.sys_overtimeHrs) || 0;
                       let sysStatus = String(r.sys_status || "").trim(); 
                       let sysLeave = String(r.sys_leave || "").trim();
                       let sysLeaveType = String(r.sys_leaveType || "").trim();
@@ -4263,18 +4262,6 @@ function showMaintenanceShield(message) {
                           zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                       }
 
-                      // ★ 改版：O 已申請加班分類投遞 (狀態判斷一律跟隨 D 欄的 s)
-                      let oTimeStr = sysOtRange ? `(${sysOtRange.replace(/-/g, '~')}) ` : "";
-                      if (o > 0) {
-                          let natO = 0, normO = o;
-                          if (!isHourly && s === '國') { natO = Math.min(o, 8); normO = Math.max(0, o - 8); }
-                          else { normO = o; }
-                          totalO_nat += natO; totalO_norm += normO;
-                          let stName = (s === '上班') ? '平日' : ((s === '休') ? '休息日' : ((s === '國') ? '國定假日' : '其他'));
-                          oGroups[stName].norm += normO; oGroups[stName].nat += natO;
-                          oGroups[stName].items.push(`🗓️ ${shortDate} ${oTimeStr}共${o.toFixed(1)}H`);
-                      }
-
                       // 請假明細
                       if (sysLeave !== "" && sysLeaveType !== "") {
                           if (!leaveDetails[sysLeaveType]) leaveDetails[sysLeaveType] = [];
@@ -4318,8 +4305,11 @@ function showMaintenanceShield(message) {
               // ★ 2. 上方微型網格 (移植自最新版月統計)
               // ==========================================
               
-              let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
-              let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
+              // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
+              let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
+              // ★ 呼叫大腦！瞬間取得最完美的 oDisplay
+              let otResult = analyzeOtData(data.name, isHourly);
+              let oDisplay = otResult.oDisplay;
 
               let supportOutHtml = '';
               if (totalSupOut > 0) {
@@ -4352,12 +4342,13 @@ function showMaintenanceShield(message) {
                   return html;
               };
               let zHtml = buildGroupHtml(zGroups, '#997404');
-              let oHtml = buildGroupHtml(oGroups, '#0f5132');
+              
+              // ★ 直接使用大腦算好的明細字串 (與月統計單人卡片完全一致)
               let overtimeCardHtml = '';
-              if (zHtml || oHtml) {
-                  if (zHtml) overtimeCardHtml += `<strong style="color:#997404; font-size: 0.9rem;">預計加班:</strong>${zHtml}`;
-                  if (zHtml && oHtml) overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
-                  if (oHtml) overtimeCardHtml += `<strong style="color:#0f5132; font-size: 0.9rem;">已申請加班:</strong>${oHtml}`;
+              if (zHtml || otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') {
+                  if (zHtml) overtimeCardHtml += `<strong style="color:#997404; font-size: 0.9rem;">預計加班:</strong><br>${zHtml}`;
+                  if (zHtml && otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
+                  if (otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `${otResult.cardHtml}`;
               } else {
                   overtimeCardHtml = '<span class="text-black-50 opacity-75">無加班紀錄</span>';
               }
@@ -4582,7 +4573,12 @@ function showMaintenanceShield(message) {
 
                   let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
                   let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
-                  let sysOtRange = r.sys_overtime ? (typeof formatTime === 'function' ? formatTime(r.sys_overtime) : r.sys_overtime) : ""; 
+                  
+                  // ★ 戰區 6 每日明細：只顯示「已核准」的加班時段(E)與時數(F)
+                  let dailyOt = window.currentOtData.filter(o => o.name === r.name && o.date === r.date && o.status === '已核准');
+                  let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
+                  let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
+                  
                   let sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
                   
                   let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
@@ -4609,7 +4605,7 @@ function showMaintenanceShield(message) {
                           <td style="${tdRight}">${sysLeaveRange}</td>
                           <td style="${tdRight}">${r.sys_leaveType||""}</td>
                           <td style="${tdRight}">${sysOtRange}</td>
-                          <td class="fw-bold text-success" style="${tdRight}">${r.sys_overtimeHrs || ""}</td>
+                          <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
                           <td class="text-danger fw-bold" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.sys_abnormal || ""}</td>
                       </tr>
                   `;
@@ -4725,12 +4721,6 @@ function showMaintenanceShield(message) {
                   totalZ_nat += natZ; totalZ_norm += normZ;
               } else { totalZ_norm += z; }
 
-              // 已申請加班 (O)
-              if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
-                  let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
-                  totalO_nat += natO; totalO_norm += normO;
-              } else { totalO_norm += o; }
-
               // ==========================================
               // 計算跨店支援 (★ 導入 AA 交集演算法)
               // ==========================================
@@ -4787,12 +4777,15 @@ function showMaintenanceShield(message) {
               }
           });
 
-          // ★ 決定顯示字串 (時薪不秀 +0)
-          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
-          let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
+          // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
+          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
+          
+          // ★ 呼叫大腦！瞬間取得最完美的 oDisplay (X+Y格式)
+          let otResult = analyzeOtData(name, isHourly);
+          let oDisplay = otResult.oDisplay;
           
           let otDisplay = document.getElementById("totalOvertimeDisplay");
-          if (otDisplay) otDisplay.style.display = 'none'; 
+          if (otDisplay) otDisplay.style.display = 'none';
           
           let currentBaseUrl = window.location.href.split('?')[0]; 
           let btnHtml = "";
@@ -4982,7 +4975,13 @@ function showMaintenanceShield(message) {
               let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
 
               let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : ""; let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
-              let sysOtRange = r.sys_overtime ? formatTime(r.sys_overtime) : ""; let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+              
+              // ★ 戰區 3 每日明細：只顯示「已核准」的加班時段(E)與時數(F)
+              let dailyOt = window.currentOtData.filter(o => o.name === r.name && o.date === r.date && o.status === '已核准');
+              let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
+              let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
+              
+              let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
               let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
               let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
 
@@ -5006,7 +5005,7 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${sysLeaveRange}</td>
                       <td style="${tdRight}">${r.sys_leaveType||""}</td>
                       <td style="${tdRight}">${sysOtRange}</td>
-                      <td class="fw-bold text-success" style="${tdRight}">${r.sys_overtimeHrs || ""}</td>
+                      <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
                       <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
                       <td class="text-muted small" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.log}</td>
                   </tr>
