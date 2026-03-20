@@ -3217,8 +3217,12 @@ function showMaintenanceShield(message) {
                   }
               }
 
-              let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumZ_nat.toFixed(1)}</small>`;
-              let oDisplay = !isMonthly ? `${sumO_norm.toFixed(1)}` : `${sumO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumO_nat.toFixed(1)}</small>`;
+              // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
+              let zDisplay = isHourly ? `${sumZ_norm.toFixed(1)}` : (sumZ_nat > 0 ? `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumZ_nat.toFixed(1)}</small>` : `${sumZ_norm.toFixed(1)}`);
+              
+              // ★ 呼叫大腦！瞬間取得最完美的 oDisplay
+              let otResult = analyzeOtData(name, isHourly);
+              let oDisplay = otResult.oDisplay;
               
               let cardId = `acc-${idx}`;
               let badgeType = isMonthly ? 'bg-dark' : 'bg-success';
