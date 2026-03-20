@@ -4586,7 +4586,11 @@ function showMaintenanceShield(message) {
                   let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
                   
                   // ★ 戰區 6 每日明細：只顯示「已核准」的加班時段(E)與時數(F)
-                  let dailyOt = window.currentOtData.filter(o => o.name === r.name && o.date === r.date && o.status === '已核准');
+                  let dailyOt = window.currentOtData.filter(o => 
+                      String(o.name).replace(/\s+/g, '') === String(r.name).replace(/\s+/g, '') && 
+                      new Date(o.date).getTime() === new Date(r.date).getTime() && 
+                      o.status === '已核准'
+                  );
                   let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
                   let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
                   
@@ -4988,7 +4992,11 @@ function showMaintenanceShield(message) {
               let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : ""; let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
               
               // ★ 戰區 3 每日明細：只顯示「已核准」的加班時段(E)與時數(F)
-              let dailyOt = window.currentOtData.filter(o => o.name === r.name && o.date === r.date && o.status === '已核准');
+              let dailyOt = window.currentOtData.filter(o => 
+                  String(o.name).replace(/\s+/g, '') === String(r.name).replace(/\s+/g, '') && 
+                  new Date(o.date).getTime() === new Date(r.date).getTime() && 
+                  o.status === '已核准'
+              );
               let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
               let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
               
@@ -6333,7 +6341,11 @@ function showMaintenanceShield(message) {
               let sysIn = r.sys_clockIn ? formatTime(r.sys_clockIn) : ""; let sysOut = r.sys_clockOut ? formatTime(r.sys_clockOut) : "";
               
               // ★ 戰區 7 每日明細：只顯示「已核准」的加班時段(E)與時數(F)
-              let dailyOt = window.currentOtData.filter(o => o.name === r.name && o.date === r.date && o.status === '已核准');
+              let dailyOt = window.currentOtData.filter(o => 
+                  String(o.name).replace(/\s+/g, '') === String(r.name).replace(/\s+/g, '') && 
+                  new Date(o.date).getTime() === new Date(r.date).getTime() && 
+                  o.status === '已核准'
+              );
               let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
               let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
               
