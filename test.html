@@ -580,6 +580,7 @@
       // 全域變數
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
       let currentParams = {}, currentMode = 'date', allStoreData = {}; 
+      let storeOHtml = "";
       
       // ==========================================
       // ★ 加班資料庫引擎 (OT Engine)
@@ -2855,10 +2856,9 @@ function showMaintenanceShield(message) {
 
           let targetData = currentData.filter(r => r.name === empName);
 
-          // 準備所有的統計變數
+          // 準備所有的統計變數 (★ 剔除舊 O 欄變數)
           let sumH = 0, sumAA = 0, sumZ_normal = 0, sumZ_national = 0;
-          let sumO_normal = 0, sumO_national = 0;
-          let sumSup_normal = 0, sumSup_aa = 0; // ★ 拆分為 常規支援 與 超時支援
+          let sumSup_normal = 0, sumSup_aa = 0; 
           let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
 
           // ★ 新增時薪判斷
@@ -2871,10 +2871,6 @@ function showMaintenanceShield(message) {
               let aa = parseFloat(r.calc_excess) || 0;
               let rest = parseFloat(r.input_rest) || 0; // ★ 抓出休息時間供交集計算
               
-              // ★ 完美對接：使用您剛剛找到的 sys_overtimeHrs！
-              let appliedO = parseFloat(r.sys_overtimeHrs) || 0;
-              let sysStatus = r.sys_status || ""; // ★ 抓取系統狀態
-
               sumH += h;
               sumAA += aa;
 
@@ -2934,26 +2930,23 @@ function showMaintenanceShield(message) {
               else if (s === '國') countNat++;
               else if (s === '空班') countEmpty++;
 
-              // 3. ★ 智慧切割 Z (預計加班)
+              // 3. ★ 智慧切割 Z (預計加班) - 神聖不可侵犯，維持原狀！
               if (!isHourly && s === '國' && z > 0) {
                   sumZ_national += Math.min(z, 8); 
                   sumZ_normal += Math.max(0, z - 8); 
               } else {
                   sumZ_normal += z; 
               }
-
-              // 4. ★ 智慧切割 已申請加班 (O)
-              if (!isHourly && sysStatus.includes('國定假日') && appliedO > 0) {
-                  sumO_national += Math.min(appliedO, 8);
-                  sumO_normal += Math.max(0, appliedO - 8);
-              } else {
-                  sumO_normal += appliedO;
-              }
+              
+              // (★ 舊版 4. 智慧切割已申請加班的邏輯已徹底剪除)
           });
 
-          // ★ 決定顯示字串，放在迴圈外、HTML組合前
-          let zDisplay = isHourly ? `${sumZ_normal.toFixed(1)}` : `${sumZ_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumZ_national.toFixed(1)}</span>`;
-          let oDisplay = isHourly ? `${sumO_normal.toFixed(1)}` : `${sumO_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumO_national.toFixed(1)}</span>`;
+          // ★ 決定顯示字串 (加上防呆：若國定為0則不顯示+0.0)
+          let zDisplay = isHourly ? `${sumZ_normal.toFixed(1)}` : (sumZ_national > 0 ? `${sumZ_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumZ_national.toFixed(1)}</span>` : `${sumZ_normal.toFixed(1)}`);
+          
+          // ★ 呼叫加班大腦！瞬間取得最完美的 oDisplay (X+Y格式)
+          let otResult = analyzeOtData(empName, isHourly);
+          let oDisplay = otResult.oDisplay;
           // ==========================================
           // ★ 產生 3x2 (或自動換行) 的現代化網格 UI
           // 完全使用內建樣式，零流量、不卡頓！
@@ -3031,11 +3024,11 @@ function showMaintenanceShield(message) {
               let detailWork=[], detailRest=[], detailReg=[], detailNat=[], detailEmpty=[];
               let aaDetails = [], leaveDetails = {}, abnormalDetails = [];
               let zGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
-              let oGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let supportOutGroups = {};
 
-              let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumO_norm = 0, sumO_nat = 0, sumAA = 0;
-              let sumSupOut = 0, sumSup_norm = 0, sumSup_aa = 0; // ★ 微創：擴充單人卡片的支援時數分類
+              // ★ 剔除舊版 o 變數
+              let sumH = 0, sumZ_norm = 0, sumZ_nat = 0, sumAA = 0;
+              let sumSupOut = 0, sumSup_norm = 0, sumSup_aa = 0; 
               let countRest = 0, countReg = 0, countNat = 0, countEmpty = 0;
               let totalLeaveHrs = 0; 
 
@@ -3046,9 +3039,10 @@ function showMaintenanceShield(message) {
                   let s = r.input_status || ""; let sVal = r.input_start || ""; let eVal = r.input_end || "";
                   let restVal = parseFloat(r.input_rest) || 0; let h = parseFloat(r.calc_hours) || 0;
                   let z = parseFloat(r.input_est_overtime) || 0; let aa = parseFloat(r.calc_excess) || 0;
-                  let o = parseFloat(r.sys_overtimeHrs) || 0; let sysStatus = r.sys_status || ""; 
+                  // ★ 拔除舊版 o 與 sysOtRange
+                  let sysStatus = r.sys_status || ""; 
                   let sysLeave = String(r.sys_leave || "").trim(); let sysLeaveType = String(r.sys_leaveType || "").trim();
-                  let sysOtRange = String(r.sys_overtime || "").trim(); let sysAbnormal = String(r.sys_abnormal || "").trim();
+                  let sysAbnormal = String(r.sys_abnormal || "").trim();
                   let leaveHrs = parseFloat(r.sys_leaveHrs) || 0;
 
                   sumH += h; sumAA += aa; 
@@ -3069,15 +3063,9 @@ function showMaintenanceShield(message) {
                   if (s === '上班') {
                       if (h > 0) {
                           let hrsDisplay = `共${h.toFixed(1)}H`;
-                          // ★ 新增：針對月薪制，上班日應有時數超標或不足時，給予醒目提示
                           if (isMonthly) {
-                              if (h < 8) {
-                                  // 小於 8 小時，紅色粗體警告
-                                  hrsDisplay = `<span class="fw-bolder text-danger">共${h.toFixed(1)}H </span>`;
-                              } else if (h > 8) {
-                                  // 大於 8 小時，藍色粗體提示
-                                  hrsDisplay = `<span class="fw-bolder text-primary">共${h.toFixed(1)}H </span>`;
-                              }
+                              if (h < 8) { hrsDisplay = `<span class="fw-bolder text-danger">共${h.toFixed(1)}H </span>`; } 
+                              else if (h > 8) { hrsDisplay = `<span class="fw-bolder text-primary">共${h.toFixed(1)}H </span>`; }
                           }
                           detailWork.push(`🗓️ ${shortDate} ${strH} ${hrsDisplay}`);
                       } else {
@@ -3100,17 +3088,6 @@ function showMaintenanceShield(message) {
                       zGroups[stName].norm += normZ; zGroups[stName].nat += natZ;
                       zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                   }
-
-                  let oTimeStr = sysOtRange ? `(${sysOtRange.replace(/-/g, '~')}) ` : "";
-                  if (o > 0) {
-                      let natO = 0, normO = o;
-                      if (isMonthly && s === '國') { natO = Math.min(o, 8); normO = Math.max(0, o - 8); }
-                      else { normO = o; }
-                      sumO_nat += natO; sumO_norm += normO;
-                      let stName = (s === '上班') ? '平日' : ((s === '休') ? '休息日' : ((s === '國') ? '國定假日' : '其他'));
-                      oGroups[stName].norm += normO; oGroups[stName].nat += natO;
-                      oGroups[stName].items.push(`🗓️ ${shortDate} ${oTimeStr}共${o.toFixed(1)}H`);
-                  }
                   
                   if (sysLeave !== "" && sysLeaveType !== "") {
                       if (!leaveDetails[sysLeaveType]) leaveDetails[sysLeaveType] = [];
@@ -3119,7 +3096,6 @@ function showMaintenanceShield(message) {
                   }
 
                   if (r.supports && r.supports.length > 0) {
-                      // ★ 準備時間軸交集所需的母體座標
                       let mainS = getStartFloat(sVal);
                       let mainE = getStartFloat(eVal);
                       if (mainE < mainS) mainE += 24;
@@ -3134,7 +3110,6 @@ function showMaintenanceShield(message) {
                           
                           sumSupOut += sh; 
 
-                          // ★ 幾何交集比對 (計算超時 overlap)
                           let supParts = sup.startEnd.split('~');
                           let supS = getStartFloat(supParts[0]);
                           let supE = getStartFloat(supParts[1]);
@@ -3153,19 +3128,16 @@ function showMaintenanceShield(message) {
                           sumSup_norm += normHr;
                           sumSup_aa += overlap;
 
-                          // ★ 產生帶有「+YY超時」的明細字串 (取代原本單純的 XX H)
                           let hrText = `${normHr.toFixed(1)}${overlap > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${overlap.toFixed(1)}超時</span>` : ''}`;
 
                           let tgtStore = sup.supportStore;
 
-                          // 1. 寫入單人卡片的分類 (新增 norm 與 aa 欄位)
                           if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = { total: 0, norm: 0, aa: 0, details: [] };
                           supportOutGroups[tgtStore].total += sh;
                           supportOutGroups[tgtStore].norm += normHr;
                           supportOutGroups[tgtStore].aa += overlap;
                           supportOutGroups[tgtStore].details.push(`🗓️ ${shortDate} (${sup.startEnd.replace('~', '-')}) 共${hrText}`);
 
-                          // 2. 寫入全店「本店支援外店(借出)」的分類 (新增 norm 與 aa 欄位)
                           if (!outboundStores[tgtStore]) outboundStores[tgtStore] = { total: 0, norm: 0, aa: 0, emps: {} };
                           if (!outboundStores[tgtStore].emps[name]) outboundStores[tgtStore].emps[name] = { total: 0, norm: 0, aa: 0, details: [] };
                           outboundStores[tgtStore].total += sh;
@@ -3183,6 +3155,13 @@ function showMaintenanceShield(message) {
                   }
               });
 
+              // ★ Z 顯示格式防呆
+              let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : (sumZ_nat > 0 ? `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumZ_nat.toFixed(1)}</small>` : `${sumZ_norm.toFixed(1)}`);
+              
+              // ★ 呼叫加班大腦取得 oDisplay！
+              let otResult = analyzeOtData(name, !isMonthly);
+              let oDisplay = otResult.oDisplay;
+
               // 組裝單人卡片 HTML
               const buildGroupHtml = (groups, color) => {
                   let html = "";
@@ -3198,12 +3177,13 @@ function showMaintenanceShield(message) {
                   return html;
               };
               let zHtml = buildGroupHtml(zGroups, '#997404');
-              let oHtml = buildGroupHtml(oGroups, '#0f5132');
+              
+              // ★ 直接使用大腦算好的明細字串
               let overtimeCardHtml = '';
-              if (zHtml || oHtml) {
-                  if (zHtml) overtimeCardHtml += `<strong style="color:#997404; font-size: 0.9rem;">預計加班:</strong>${zHtml}`;
-                  if (zHtml && oHtml) overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
-                  if (oHtml) overtimeCardHtml += `<strong style="color:#0f5132; font-size: 0.9rem;">已申請加班:</strong>${oHtml}`;
+              if (zHtml || otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') {
+                  if (zHtml) overtimeCardHtml += `<strong style="color:#997404; font-size: 0.9rem;">預計加班:</strong><br>${zHtml}`;
+                  if (zHtml && otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
+                  if (otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `${otResult.cardHtml}`;
               } else {
                   overtimeCardHtml = '<span class="text-black-50 opacity-75">無加班紀錄</span>';
               }
@@ -3432,16 +3412,14 @@ function showMaintenanceShield(message) {
           let rSupOut=0, rSupOut_norm=0, rSupOut_aa=0; // ★ 擴充全區借出抽屜
           let rSupIn=0, rSupIn_norm=0, rSupIn_aa=0;    // ★ 擴充全區借入抽屜
           
-          // ★ 升級 outD 與 inD 的結構，用來記錄明細
-          let lvD={}, aaD={}, zD={}, oD={}, outD={}, inD={};
+          // ★ 升級 outD 與 inD 的結構，用來記錄明細 (並剔除舊版 oD)
+          let lvD={}, aaD={}, zD={}, outD={}, inD={};
           // ★ 新增：全區異常多重分流群組 (加入早退)
           let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, '其他': {} };
 
           allStores.forEach(st => {
               lvD[st]=0; aaD[st]={total:0, emps:{}}; 
               zD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}}; 
-              oD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}};
-              // ★ 改為物件結構並擴充 norm/aa
               outD[st]={total:0, norm:0, aa:0, emps:{}}; 
               inD[st]={total:0, norm:0, aa:0, emps:{}}; 
           });
@@ -3449,14 +3427,17 @@ function showMaintenanceShield(message) {
           // 第一圈：計算各店請假、超時、加班與跨店出
           currentData.forEach(r => {
               let st = r.store; if(!allStores.includes(st)) return;
-              let s = r.input_status || "", z = parseFloat(r.input_est_overtime)||0, aa = parseFloat(r.calc_excess)||0, o = parseFloat(r.sys_overtimeHrs)||0, lv = parseFloat(r.sys_leaveHrs)||0;
+              // ★ 拔除舊版 o 變數與 sys_overtimeHrs
+              let s = r.input_status || "", z = parseFloat(r.input_est_overtime)||0, aa = parseFloat(r.calc_excess)||0, lv = parseFloat(r.sys_leaveHrs)||0;
               let sysAbn = String(r.sys_abnormal||"").trim(); let sysStatus = String(r.sys_status||""); let isHourly = r.salaryType&&r.salaryType.includes("時薪");
               let sName = (s==='上班')?'平日':(s==='休'?'休息日':(s==='國'?'國定假日':'其他'));
 
               if(lv>0) { rLv+=lv; lvD[st]+=lv; }
               if(aa>0) { rAA+=aa; aaD[st].total+=aa; aaD[st].emps[r.name]=(aaD[st].emps[r.name]||0)+aa; }
+              // ★ Z 維持神聖不可侵犯
               if(z>0) { let natZ=0, normZ=z; if(!isHourly&&s==='國'){natZ=Math.min(z,8);normZ=Math.max(0,z-8);} rZ_nat+=natZ; rZ_norm+=normZ; zD[st].total+=z; zD[st].norm+=normZ; zD[st].nat+=natZ; zD[st].groups[sName]+=z; }
-              if(o>0) { let natO=0, normO=o; if(!isHourly&&sysStatus.includes('國定假日')){natO=Math.min(o,8);normO=Math.max(0,o-8);} rO_nat+=natO; rO_norm+=normO; oD[st].total+=o; oD[st].norm+=normO; oD[st].nat+=natO; oD[st].groups[sName]+=o; }
+              // (★ 舊版 O 的計算邏輯已徹底移除，改由上方大腦負責)
+              
               // ★ 異常分流判定 (方案一：多重影分身法)
               if (sysAbn !== "") { 
                   rAbn++; // 總筆數 (以列為單位) 不變，維持外面卡片數字準確
@@ -3592,8 +3573,9 @@ function showMaintenanceShield(message) {
           const bAA = (d) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
           const bZO = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].groups).filter(g=>g[1]>0).map(g=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>${g[0]}</span><span>${g[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
 
-          let zDisp = `${rZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${rZ_nat.toFixed(1)}</small>`;
-          let oDisp = `${rO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${rO_nat.toFixed(1)}</small>`;
+          // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
+          let zDisp = rZ_nat > 0 ? `${rZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${rZ_nat.toFixed(1)}</small>` : `${rZ_norm.toFixed(1)}`;
+          let oDisp = rO_nat > 0 ? `${rO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${rO_nat.toFixed(1)}</small>` : `${rO_norm.toFixed(1)}`;
           // ★ 這裡顯示督導本人的名字
           let supervisorName = sessionStorage.getItem('tkk_store') || currentStore; 
 
@@ -3647,7 +3629,7 @@ function showMaintenanceShield(message) {
                   <div class="collapse" id="reg-lv"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f0fbfd; border-color: #17a2b8 !important;">${bSimple(lvD,'#0b8273')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-aa"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #fff5f5; border-color: #dc3545 !important;">${bAA(aaD)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-z"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #fffaf0; border-color: #ffc107 !important;">${bZO(zD,'#997404')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
-                  <div class="collapse" id="reg-o"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #d1e7dd; border-color: #198754 !important;">${bZO(oD,'#0f5132')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-o"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #d1e7dd; border-color: #198754 !important;">${regOHtml||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-out"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bDetailList(outD,'#3d1a87')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-in"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #e0fbfc; border-color: #0dcaf0 !important;">${bDetailList(inD,'#055160')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #fffcfc; border-color: #dc3545 !important;">${buildAbnGroupHtml(abnGroups)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
@@ -3715,13 +3697,14 @@ function showMaintenanceShield(message) {
               if(empData.length === 0) return;
               let isMonthly = empData[0].salaryType && empData[0].salaryType.includes("月薪");
               
-              let sumZ_norm=0, sumZ_nat=0, sumO_norm=0, sumO_nat=0;
+              // ★ 剔除 sumO_norm, sumO_nat, oGroups
+              let sumZ_norm=0, sumZ_nat=0;
               let zGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
-              let oGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
 
               empData.forEach(r => {
                   let dParts = r.date.split('/'); let shortDate = `${parseInt(dParts[1])}/${parseInt(dParts[2])}`;
-                  let s = r.input_status || "", z = parseFloat(r.input_est_overtime) || 0, aa = parseFloat(r.calc_excess) || 0, o = parseFloat(r.sys_overtimeHrs) || 0, lv = parseFloat(r.sys_leaveHrs) || 0;
+                  // ★ 剔除 o = parseFloat(r.sys_overtimeHrs)
+                  let s = r.input_status || "", z = parseFloat(r.input_est_overtime) || 0, aa = parseFloat(r.calc_excess) || 0, lv = parseFloat(r.sys_leaveHrs) || 0;
                   let sysStatus = r.sys_status || "", sysAbnormal = String(r.sys_abnormal || "").trim(), sysLeaveType = String(r.sys_leaveType || "").trim(), sysLeave = String(r.sys_leave || "").trim();
                   let sysOtRange = String(r.sys_overtime || "").trim();
                   
@@ -3752,13 +3735,6 @@ function showMaintenanceShield(message) {
                       sumZ_nat+=natZ; sumZ_norm+=normZ; storeTotZ_nat+=natZ; storeTotZ_norm+=normZ;
                       let stName = (s==='上班')?'平日':((s==='休')?'休息日':((s==='國')?'國定假日':'其他'));
                       zGroups[stName].norm+=normZ; zGroups[stName].nat+=natZ; zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
-                  }
-                  if(o>0) {
-                      let natO=0, normO=o; let oTimeStr = sysOtRange ? `(${sysOtRange.replace(/-/g, '~')}) ` : "";
-                      if(isMonthly && sysStatus.includes('國定假日')){natO=Math.min(o,8);normO=Math.max(0,o-8);} else {normO=o;}
-                      sumO_nat+=natO; sumO_norm+=normO; storeTotO_nat+=natO; storeTotO_norm+=normO;
-                      let stName = (s==='上班')?'平日':((s==='休')?'休息日':((s==='國')?'國定假日':'其他'));
-                      oGroups[stName].norm+=normO; oGroups[stName].nat+=natO; oGroups[stName].items.push(`🗓️ ${shortDate} ${oTimeStr}共${o.toFixed(1)}H`);
                   }
                   if(sysAbnormal!=="") {
                       storeAbnCount++;
@@ -3806,11 +3782,22 @@ function showMaintenanceShield(message) {
                           }
                       });
                   }
-              });
+              }); // empData.forEach 結束
+
+              // ★ 呼叫大腦！瞬間取得該員工的 oDisplay 與展開明細
+              let otResult = analyzeOtData(name, !isMonthly);
+              
+              // ★ 將大腦結算的總時數，累加到全店總計中 (給上方的微型窗格用)
+              storeTotO_norm += otResult.app_norm;
+              storeTotO_nat += otResult.app_nat;
 
               if(sumZ_norm>0 || sumZ_nat>0) storeZDetails[name] = { norm: sumZ_norm, nat: sumZ_nat, total: sumZ_norm+sumZ_nat, isHourly: !isMonthly, groups: zGroups };
-              if(sumO_norm>0 || sumO_nat>0) storeODetails[name] = { norm: sumO_norm, nat: sumO_nat, total: sumO_norm+sumO_nat, isHourly: !isMonthly, groups: oGroups };
-          });
+              
+              // ★ 取代舊的 storeODetails，直接將大腦產出的 HTML 存入字串中！
+              if (otResult.summaryHtml) {
+                  storeOHtml += `<div class="mb-2"><div class="fw-bold text-dark d-flex justify-content-between align-items-end border-bottom border-secondary border-opacity-25 pb-1 mb-1"><span style="font-size:0.85rem;">👤 ${name}</span><span class="fw-bolder" style="color:#0f5132; font-size:0.95rem;">${otResult.oDisplay}</span></div>${otResult.summaryHtml}</div>`;
+              }
+          }); // myStaffNames.forEach 結束
 
           // 處理友店來援 (Inbound)
           currentData.forEach(r => {
@@ -3887,14 +3874,15 @@ function showMaintenanceShield(message) {
           let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
           let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時時數紀錄</div>';
           let storeZHtml = buildStoreZOrOList(storeZDetails, '#997404') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無預計加班紀錄</div>';
-          let storeOHtml = buildStoreZOrOList(storeODetails, '#0f5132') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無已申請加班紀錄</div>';
+          // ★ 舊版的 storeOHtml (呼叫 buildStoreZOrOList) 已刪除！現在 storeOHtml 裡已經是大腦算好的 HTML。
+          if (!storeOHtml) storeOHtml = '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無已申請加班紀錄</div>';
           // ★ 替換為新版：呼叫 buildStoreDetailList 帶入對應顏色
           let storeOutHtml = buildStoreDetailList(storeOutStoreTotals, '#3d1a87') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
           let storeInHtml = buildStoreDetailList(storeInStoreTotals, '#055160') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
           let fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
 
-          let storeZDisplay = `${storeTotZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotZ_nat.toFixed(1)}</small>`;
-          let storeODisplay = `${storeTotO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotO_nat.toFixed(1)}</small>`;
+          let storeZDisplay = storeTotZ_nat > 0 ? `${storeTotZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotZ_nat.toFixed(1)}</small>` : `${storeTotZ_norm.toFixed(1)}`;
+          let storeODisplay = storeTotO_nat > 0 ? `${storeTotO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotO_nat.toFixed(1)}</small>` : `${storeTotO_norm.toFixed(1)}`;
 
           return `
           <div id="${prefixId}" class="card shadow-sm border-0 rounded-4 mb-4 report-item" style="background-color: #ffffff; border: 2px solid #0d6efd !important; scroll-margin-top: 60px;">
