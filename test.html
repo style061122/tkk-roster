@@ -575,11 +575,121 @@
     </div>
     <script>
       // ★★★ 請務必確認這個網址是您最新的後端網址 ★★★
-      const API_URL = "https://script.google.com/macros/s/AKfycbyComIVquNe65PfSUUpcujWapopAQYlnnF-a9NxG9r_-eTjTUjltD4_DkCuLGO-5m_N/exec";
+      const API_URL = "https://script.google.com/macros/s/AKfycbxaW0XoCauHhJKl2ag_kprlE-Rt8ymee-wGJcyO4YZkbJsMjaN5w6adOS9jUylRMP1q/exec";
 
       // 全域變數
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
       let currentParams = {}, currentMode = 'date', allStoreData = {}; 
+      
+      // ==========================================
+      // ★ 加班資料庫引擎 (OT Engine)
+      // ==========================================
+      window.currentOtData = []; // 儲存後端傳來的加班包裹
+
+      function analyzeOtData(empName, isHourly) {
+          let app_norm = 0, app_nat = 0;
+          let types = {};
+          
+          let empOt = window.currentOtData.filter(o => o.name === empName);
+          empOt.forEach(o => {
+              let hrs = parseFloat(o.hours) || 0;
+              let isNat = o.type && (o.type === '國定假日' || o.type.includes('國定'));
+              let norm = hrs, nat = 0;
+              if (!isHourly && isNat) { nat = Math.min(hrs, 8); norm = Math.max(0, hrs - 8); }
+              
+              let shortDate = o.date;
+              if(o.date && o.date.includes('/')) { let pts = o.date.split('/'); shortDate = `${parseInt(pts[1])}/${parseInt(pts[2])}`; }
+              let timeStr = o.timeRange ? `(${o.timeRange.replace('~','-')})` : '';
+              let itemHtml = `🗓️ ${shortDate} ${timeStr} 共 ${hrs.toFixed(1)}H`;
+              if (!isHourly && isNat && nat > 0) itemHtml += ` (${norm.toFixed(1)}+${nat.toFixed(1)})`;
+
+              if (!types[o.type]) types[o.type] = { app_norm:0, app_nat:0, app_items:[], pend_norm:0, pend_nat:0, pend_items:[], wait_norm:0, wait_nat:0, wait_items:[] };
+              
+              if (o.status === '已核准') {
+                  app_norm += norm; app_nat += nat;
+                  types[o.type].app_norm += norm; types[o.type].app_nat += nat; types[o.type].app_items.push(itemHtml);
+              } else if (o.status === '簽核中') {
+                  types[o.type].pend_norm += norm; types[o.type].pend_nat += nat; types[o.type].pend_items.push(itemHtml);
+              } else if (o.status === '待確認' || o.status === '核准待確認') {
+                  types[o.type].wait_norm += norm; types[o.type].wait_nat += nat; types[o.type].wait_items.push(itemHtml);
+              }
+          });
+
+          const fmtText = (norm, nat) => isHourly ? `${(norm+nat).toFixed(1)}H` : (nat > 0 ? `${(norm+nat).toFixed(1)}H (${norm.toFixed(1)}+${nat.toFixed(1)})` : `${norm.toFixed(1)}H`);
+          
+          // ★ 完美對齊：微型網格只顯示「已核准」，且格式為 X+Y (46免稅+國定前8)
+          let oDisplay = isHourly ? `${(app_norm+app_nat).toFixed(1)}` : (app_nat > 0 ? `${app_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${app_nat.toFixed(1)}</small>` : `${app_norm.toFixed(1)}`);
+
+          let cardHtml = "", appHtml="", pendHtml="", waitHtml="";
+          let aNorm=0, aNat=0, pNorm=0, pNat=0, wNorm=0, wNat=0;
+          Object.values(types).forEach(d => { aNorm+=d.app_norm; aNat+=d.app_nat; pNorm+=d.pend_norm; pNat+=d.pend_nat; wNorm+=d.wait_norm; wNat+=d.wait_nat; });
+          
+          for (let t in types) {
+              let d = types[t];
+              if(d.app_items.length > 0) appHtml += `　<span style="color:#0f5132;">🔹 ${t} ${fmtText(d.app_norm, d.app_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.app_items.join('<br>')}</div>`;
+              if(d.pend_items.length > 0) pendHtml += `　<span style="color:#b8860b;">🔹 ${t} ${fmtText(d.pend_norm, d.pend_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.pend_items.join('<br>')}</div>`;
+              if(d.wait_items.length > 0) waitHtml += `　<span style="color:#dc3545;">🔹 ${t} ${fmtText(d.wait_norm, d.wait_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.wait_items.join('<br>')}</div>`;
+          }
+          
+          // ★ 完美對齊：主標題顯示 (共 總H) (X+Y)
+          const formatTitle = (norm, nat) => isHourly ? `(共 ${(norm+nat).toFixed(1)}H)` : (nat > 0 ? `(共 ${(norm+nat).toFixed(1)}H) (${norm.toFixed(1)}+${nat.toFixed(1)})` : `(共 ${(norm+nat).toFixed(1)}H)`);
+
+          if (appHtml) cardHtml += `<div class="mb-1"><strong style="color:#198754; font-size:0.9rem;">✅ 已核准 ${formatTitle(aNorm, aNat)}</strong><br>${appHtml}</div>`;
+          if (pendHtml) cardHtml += `<div class="mb-1"><strong style="color:#b8860b; font-size:0.9rem;">⏳ 簽核中 ${formatTitle(pNorm, pNat)}</strong><br>${pendHtml}</div>`;
+          if (waitHtml) cardHtml += `<div class="mb-1"><strong style="color:#dc3545; font-size:0.9rem;">⚠️ 待確認 ${formatTitle(wNorm, wNat)}</strong><br>${waitHtml}</div>`;
+          if (!cardHtml) cardHtml = '<span class="text-black-50 opacity-75">無加班紀錄</span>';
+
+          let summaryHtml = "";
+          for (let t in types) {
+              let d = types[t];
+              let typeTot = d.app_norm + d.app_nat + d.pend_norm + d.pend_nat + d.wait_norm + d.wait_nat;
+              if (typeTot > 0) {
+                  let tags = [];
+                  if ((d.app_norm+d.app_nat)>0) tags.push(`✅ 核准 ${fmtText(d.app_norm, d.app_nat).replace('H','')}`);
+                  if ((d.pend_norm+d.pend_nat)>0) tags.push(`⏳ 簽核中 ${fmtText(d.pend_norm, d.pend_nat).replace('H','')}`);
+                  if ((d.wait_norm+d.wait_nat)>0) tags.push(`⚠️ 待確認 ${fmtText(d.wait_norm, d.wait_nat).replace('H','')}`);
+                  summaryHtml += `<div class="d-flex flex-column text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>🔹 ${t} ${fmtText(d.app_norm+d.pend_norm+d.wait_norm, d.app_nat+d.pend_nat+d.wait_nat)}</span><span class="ms-3" style="font-size:0.75rem;">(${tags.join(' | ')})</span></div>`;
+              }
+          }
+
+          return { app_norm, app_nat, oDisplay, cardHtml, summaryHtml };
+      }
+
+      function analyzeStoreOtData(storeName) {
+          let app_norm = 0, app_nat = 0;
+          let types = {};
+          
+          let storeOt = window.currentOtData.filter(o => o.store === storeName);
+          storeOt.forEach(o => {
+              let isHourly = currentData.some(r => r.name === o.name && r.salaryType && r.salaryType.includes("時薪"));
+              let hrs = parseFloat(o.hours) || 0;
+              let isNat = o.type && (o.type === '國定假日' || o.type.includes('國定'));
+              let norm = hrs, nat = 0;
+              if (!isHourly && isNat) { nat = Math.min(hrs, 8); norm = Math.max(0, hrs - 8); }
+              
+              if (!types[o.type]) types[o.type] = { app_norm:0, app_nat:0, pend_norm:0, pend_nat:0, wait_norm:0, wait_nat:0 };
+              
+              if (o.status === '已核准') { app_norm += norm; app_nat += nat; types[o.type].app_norm += norm; types[o.type].app_nat += nat; } 
+              else if (o.status === '簽核中') { types[o.type].pend_norm += norm; types[o.type].pend_nat += nat; } 
+              else if (o.status === '待確認' || o.status === '核准待確認') { types[o.type].wait_norm += norm; types[o.type].wait_nat += nat; }
+          });
+
+          const fmtText = (norm, nat) => (nat > 0) ? `${(norm+nat).toFixed(1)}H (${norm.toFixed(1)}+${nat.toFixed(1)})` : `${norm.toFixed(1)}H`;
+          let summaryHtml = "";
+          for (let t in types) {
+              let d = types[t];
+              let typeTot = d.app_norm + d.app_nat + d.pend_norm + d.pend_nat + d.wait_norm + d.wait_nat;
+              if (typeTot > 0) {
+                  let tags = [];
+                  if ((d.app_norm+d.app_nat)>0) tags.push(`✅ 核准 ${fmtText(d.app_norm, d.app_nat).replace('H','')}`);
+                  if ((d.pend_norm+d.pend_nat)>0) tags.push(`⏳ 簽核中 ${fmtText(d.pend_norm, d.pend_nat).replace('H','')}`);
+                  if ((d.wait_norm+d.wait_nat)>0) tags.push(`⚠️ 待確認 ${fmtText(d.wait_norm, d.wait_nat).replace('H','')}`);
+                  summaryHtml += `<div class="d-flex flex-column text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>🔹 ${t} ${fmtText(d.app_norm+d.pend_norm+d.wait_norm, d.app_nat+d.pend_nat+d.wait_nat)}</span><span class="ms-3" style="font-size:0.75rem;">(${tags.join(' | ')})</span></div>`;
+              }
+          }
+          let oDisplay = (app_nat > 0) ? `${app_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${app_nat.toFixed(1)}</small>` : `${app_norm.toFixed(1)}`;
+          return { app_norm, app_nat, oDisplay, summaryHtml };
+      }
       
       // ★ Token 變數與月份模式變數
       let currentToken = ""; 
