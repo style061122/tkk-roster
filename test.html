@@ -586,32 +586,27 @@
       // ==========================================
       window.currentOtData = []; // 儲存後端傳來的加班包裹
 
-      function analyzeOtData(empName, isHourly) {
+      // ★ 大腦 1 號：單人加班大腦 (加入 targetY, targetM 參數)
+      function analyzeOtData(empName, isHourly, targetY, targetM) {
           let app_norm = 0, app_nat = 0;
           let types = {};
           
-          // ★ 自動抓取當前畫面的年份與月份 (相容店長與個人班表模式)
-          let targetY = "", targetM = "";
-          if (document.getElementById('personalSection') && document.getElementById('personalSection').style.display === 'block') {
-              let txt = document.getElementById('personalNameDisplay').innerText || "";
-              let match = txt.match(/(\d{4})年\s*(\d{1,2})月/);
-              if (match) { targetY = match[1]; targetM = match[2].padStart(2, '0'); }
-          } else {
-              targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
-              let mText = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText : "";
-              targetM = mText ? mText.padStart(2, '0') : "";
-          }
+          // 將傳入的月份補零 (例如 1 變成 01)，確保比對格式一致
+          let safeY = String(targetY);
+          let safeM = String(targetM).padStart(2, '0');
 
-          // ★ 終極過濾：名字要對，而且日期必須是這個月的！
           let empOt = window.currentOtData.filter(o => {
+              // 1. 名字必須完全吻合 (無懼空白字元)
               if (String(o.name).replace(/\s+/g, '') !== String(empName).replace(/\s+/g, '')) return false;
-              if (!targetY || !targetM) return true; 
+              // 2. 如果沒有傳入年月，為了防呆先全部放行
+              if (!safeY || !safeM || safeY === "undefined") return true; 
               
+              // 3. 核心：只抓取該年該月的包裹
               let dParts = String(o.date).split('/');
               if (dParts.length >= 2) {
-                  let oYear = dParts.length === 3 ? dParts[0] : targetY;
+                  let oYear = dParts.length === 3 ? dParts[0] : safeY;
                   let oMonth = dParts.length === 3 ? dParts[1].padStart(2, '0') : dParts[0].padStart(2, '0');
-                  return String(oYear) === String(targetY) && String(oMonth) === String(targetM);
+                  return String(oYear) === safeY && String(oMonth) === safeM;
               }
               return false;
           });
@@ -647,14 +642,14 @@
           let aNorm=0, aNat=0, pNorm=0, pNat=0, wNorm=0, wNat=0;
           Object.values(types).forEach(d => { aNorm+=d.app_norm; aNat+=d.app_nat; pNorm+=d.pend_norm; pNat+=d.pend_nat; wNorm+=d.wait_norm; wNat+=d.wait_nat; });
           
+          const formatTitle = (norm, nat) => isHourly ? `(共 ${(norm+nat).toFixed(1)}H)` : (nat > 0 ? `(共 ${(norm+nat).toFixed(1)}H) (${norm.toFixed(1)}+${nat.toFixed(1)})` : `(共 ${(norm+nat).toFixed(1)}H)`);
+
           for (let t in types) {
               let d = types[t];
               if(d.app_items.length > 0) appHtml += `　<span style="color:#0f5132;">🔹 ${t} ${fmtText(d.app_norm, d.app_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.app_items.join('<br>')}</div>`;
               if(d.pend_items.length > 0) pendHtml += `　<span style="color:#b8860b;">🔹 ${t} ${fmtText(d.pend_norm, d.pend_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.pend_items.join('<br>')}</div>`;
               if(d.wait_items.length > 0) waitHtml += `　<span style="color:#dc3545;">🔹 ${t} ${fmtText(d.wait_norm, d.wait_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.wait_items.join('<br>')}</div>`;
           }
-          
-          const formatTitle = (norm, nat) => isHourly ? `(共 ${(norm+nat).toFixed(1)}H)` : (nat > 0 ? `(共 ${(norm+nat).toFixed(1)}H) (${norm.toFixed(1)}+${nat.toFixed(1)})` : `(共 ${(norm+nat).toFixed(1)}H)`);
 
           if (appHtml) cardHtml += `<div class="mb-1"><strong style="color:#198754; font-size:0.9rem;">✅ 已核准 ${formatTitle(aNorm, aNat)}</strong><br>${appHtml}</div>`;
           if (pendHtml) cardHtml += `<div class="mb-1"><strong style="color:#b8860b; font-size:0.9rem;">⏳ 簽核中 ${formatTitle(pNorm, pNat)}</strong><br>${pendHtml}</div>`;
@@ -677,32 +672,23 @@
           return { app_norm, app_nat, oDisplay, cardHtml, summaryHtml };
       }
 
-      function analyzeStoreOtData(storeName) {
+      // ★ 大腦 2 號：全店加班大腦 (加入 targetY, targetM 參數)
+      function analyzeStoreOtData(storeName, targetY, targetM) {
           let app_norm = 0, app_nat = 0;
           let types = {};
           
-          // ★ 自動抓取當前畫面的年份與月份
-          let targetY = "", targetM = "";
-          if (document.getElementById('personalSection') && document.getElementById('personalSection').style.display === 'block') {
-              let txt = document.getElementById('personalNameDisplay').innerText || "";
-              let match = txt.match(/(\d{4})年\s*(\d{1,2})月/);
-              if (match) { targetY = match[1]; targetM = match[2].padStart(2, '0'); }
-          } else {
-              targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
-              let mText = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText : "";
-              targetM = mText ? mText.padStart(2, '0') : "";
-          }
+          let safeY = String(targetY);
+          let safeM = String(targetM).padStart(2, '0');
 
-          // ★ 終極過濾：店名要對，而且日期必須是這個月的！
           let storeOt = window.currentOtData.filter(o => {
               if (String(o.store).trim() !== String(storeName).trim()) return false;
-              if (!targetY || !targetM) return true;
+              if (!safeY || !safeM || safeY === "undefined") return true;
               
               let dParts = String(o.date).split('/');
               if (dParts.length >= 2) {
-                  let oYear = dParts.length === 3 ? dParts[0] : targetY;
+                  let oYear = dParts.length === 3 ? dParts[0] : safeY;
                   let oMonth = dParts.length === 3 ? String(dParts[1]).padStart(2, '0') : String(dParts[0]).padStart(2, '0');
-                  return String(oYear) === String(targetY) && String(oMonth) === String(targetM);
+                  return String(oYear) === safeY && String(oMonth) === safeM;
               }
               return false;
           });
@@ -2992,7 +2978,7 @@ function showMaintenanceShield(message) {
           let zDisplay = isHourly ? `${sumZ_normal.toFixed(1)}` : (sumZ_national > 0 ? `${sumZ_normal.toFixed(1)}<span class="text-muted fw-bold" style="font-size: 0.9rem;">+${sumZ_national.toFixed(1)}</span>` : `${sumZ_normal.toFixed(1)}`);
           
           // ★ 呼叫加班大腦！瞬間取得最完美的 oDisplay (X+Y格式)
-          let otResult = analyzeOtData(empName, isHourly);
+          let otResult = analyzeOtData(empName, isHourly, monthlyTargets.year, monthlyTargets.month);
           let oDisplay = otResult.oDisplay;
           // ==========================================
           // ★ 產生 3x2 (或自動換行) 的現代化網格 UI
@@ -3206,7 +3192,7 @@ function showMaintenanceShield(message) {
               let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : (sumZ_nat > 0 ? `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumZ_nat.toFixed(1)}</small>` : `${sumZ_norm.toFixed(1)}`);
               
               // ★ 呼叫加班大腦取得 oDisplay！
-              let otResult = analyzeOtData(name, !isMonthly);
+              let otResult = analyzeOtData(name, !isMonthly, monthlyTargets.year, monthlyTargets.month);
               let oDisplay = otResult.oDisplay;
 
               // 組裝單人卡片 HTML
@@ -3461,7 +3447,7 @@ function showMaintenanceShield(message) {
          // ★ 補上遺失的大腦連線：全區 O 欄計算與 HTML 產生
          let regOHtml = "";
          allStores.forEach(st => {
-             let storeOt = analyzeStoreOtData(st);
+             let storeOt = analyzeStoreOtData(st, monthlyTargets.year, monthlyTargets.month);
              rO_norm += storeOt.app_norm;
              rO_nat += storeOt.app_nat;
              if (storeOt.summaryHtml) {
@@ -3839,7 +3825,7 @@ function showMaintenanceShield(message) {
               }); // empData.forEach 結束
 
               // ★ 呼叫大腦！瞬間取得該員工的 oDisplay 與展開明細
-              let otResult = analyzeOtData(name, !isMonthly);
+              let otResult = analyzeOtData(name, !isMonthly, monthlyTargets.year, monthlyTargets.month);
               
               // ★ 將大腦結算的總時數，累加到全店總計中 (給上方的微型窗格用)
               storeTotO_norm += otResult.app_norm;
@@ -4366,7 +4352,7 @@ function showMaintenanceShield(message) {
               // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
               let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
               // ★ 呼叫大腦！瞬間取得最完美的 oDisplay
-              let otResult = analyzeOtData(data.name, isHourly);
+              let otResult = analyzeOtData(data.name, !isMonthly, meta.year, meta.month);
               let oDisplay = otResult.oDisplay;
 
               let supportOutHtml = '';
@@ -6281,8 +6267,9 @@ function showMaintenanceShield(message) {
                   let names = [...new Set(currentData.filter(r => r.store === currentStore).map(r=>r.name))];
                   
                   if(names.length === 0) {
-                      select.innerHTML = '<option>無人員</option>';
-                      document.getElementById('hqStatsArea').innerHTML = '';
+                      select.innerHTML = '<option value="">無排班人員</option>';
+                      // 溫馨提示，保留上方區域，讓使用者知道現在是空的，但不會破壞版面
+                      document.getElementById('hqStatsArea').innerHTML = '<div class="alert alert-warning text-center mt-3 fw-bold shadow-sm">此部門本月份尚無排班資料</div>';
                       document.getElementById('hqTableBody').innerHTML = '<tr><td colspan="16" class="text-center py-5 text-muted fw-bold">本月無資料</td></tr>';
                       return;
                   }
@@ -6342,7 +6329,7 @@ function showMaintenanceShield(message) {
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
           
           // ★ 呼叫大腦！瞬間取得最完美的 oDisplay (X+Y格式)
-          let otResult = analyzeOtData(name, isHourly);
+          let otResult = analyzeOtData(name, isHourly, monthlyTargets.year, monthlyTargets.month);
           let oDisplay = otResult.oDisplay;
           
           let salaryType = pData[0].salaryType || "";
