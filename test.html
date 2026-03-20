@@ -580,7 +580,6 @@
       // 全域變數
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
       let currentParams = {}, currentMode = 'date', allStoreData = {}; 
-      let storeOHtml = "";
       
       // ==========================================
       // ★ 加班資料庫引擎 (OT Engine)
@@ -3404,16 +3403,25 @@ function showMaintenanceShield(message) {
 
           if (allStores.length === 0) return `<div class="text-center mt-5 p-5 bg-white rounded-4 shadow-sm text-muted fw-bold">此區目前無排班資料</div>`;
 
-          let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rAbn=0;
-          let rSupOut=0, rSupOut_norm=0, rSupOut_aa=0; // ★ 擴充全區借出抽屜
-          let rSupIn=0, rSupIn_norm=0, rSupIn_aa=0;    // ★ 擴充全區借入抽屜
-          
-          // ★ 升級 outD 與 inD 的結構，用來記錄明細 (並剔除舊版 oD)
-          let lvD={}, aaD={}, zD={}, outD={}, inD={};
-          // ★ 新增：全區異常多重分流群組 (加入早退)
-          let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, '其他': {} };
+         let rLv=0, rAA=0, rZ_norm=0, rZ_nat=0, rO_norm=0, rO_nat=0, rAbn=0;
+         let rSupOut=0, rSupOut_norm=0, rSupOut_aa=0; // ★ 擴充全區借出抽屜
+         let rSupIn=0, rSupIn_norm=0, rSupIn_aa=0;    // ★ 擴充全區借入抽屜
+         
+         let lvD={}, aaD={}, zD={}, outD={}, inD={};
+         let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, '其他': {} };
 
-          allStores.forEach(st => {
+         // ★ 補上遺失的大腦連線：全區 O 欄計算與 HTML 產生
+         let regOHtml = "";
+         allStores.forEach(st => {
+             let storeOt = analyzeStoreOtData(st);
+             rO_norm += storeOt.app_norm;
+             rO_nat += storeOt.app_nat;
+             if (storeOt.summaryHtml) {
+                 regOHtml += `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${st} <span class="float-end fw-bolder" style="color:#0f5132;">${storeOt.oDisplay}</span></div>${storeOt.summaryHtml}</div>`;
+             }
+         });
+
+         allStores.forEach(st => {
               lvD[st]=0; aaD[st]={total:0, emps:{}}; 
               zD[st]={total:0, norm:0, nat:0, groups:{'平日':0,'休息日':0,'國定假日':0,'其他':0}}; 
               outD[st]={total:0, norm:0, aa:0, emps:{}}; 
@@ -3677,7 +3685,9 @@ function showMaintenanceShield(message) {
       function generateSingleStoreDashboard(targetStore, prefixId) {
           let pDataAll = currentData.filter(r => r.store === targetStore);
           if (pDataAll.length === 0) return "";
-          
+
+          let storeOHtml = ""; // ✅ 加在這裡！每次產生新卡片就重置為空白
+
           const getStartFloat = (t) => { if(!t) return 0; if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); } return parseFloat(t) || 0; };
           const ft = (t) => { if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val); };
 
