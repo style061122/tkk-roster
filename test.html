@@ -590,7 +590,24 @@
           let app_norm = 0, app_nat = 0;
           let types = {};
           
-          let empOt = window.currentOtData.filter(o => o.name === empName);
+          // ★ 抓取目前畫面上正在顯示的年份與月份
+          let targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
+          let targetM = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText.padStart(2, '0') : "";
+          
+          // ★ 終極過濾：名字要對，而且日期必須是這個月的！
+          let empOt = window.currentOtData.filter(o => {
+              if (String(o.name).replace(/\s+/g, '') !== String(empName).replace(/\s+/g, '')) return false;
+              if (!targetY || !targetM) return true; // 個人連結剛載入時可能還沒抓到年月
+              
+              let dParts = String(o.date).split('/');
+              if (dParts.length >= 2) {
+                  let oYear = dParts.length === 3 ? dParts[0] : targetY;
+                  let oMonth = dParts.length === 3 ? dParts[1].padStart(2, '0') : dParts[0].padStart(2, '0');
+                  return oYear === targetY && oMonth === targetM;
+              }
+              return false;
+          });
+
           empOt.forEach(o => {
               let hrs = parseFloat(o.hours) || 0;
               let isNat = o.type && (o.type === '國定假日' || o.type.includes('國定'));
@@ -659,7 +676,24 @@
           let app_norm = 0, app_nat = 0;
           let types = {};
           
-          let storeOt = window.currentOtData.filter(o => o.store === storeName);
+          // ★ 抓取目前畫面上正在顯示的年份與月份
+          let targetY = document.getElementById('displayYear') ? document.getElementById('displayYear').innerText : "";
+          let targetM = document.getElementById('displayMonth') ? document.getElementById('displayMonth').innerText.padStart(2, '0') : "";
+          
+          // ★ 終極過濾：店名要對，而且日期必須是這個月的！
+          let storeOt = window.currentOtData.filter(o => {
+              if (String(o.store).trim() !== String(storeName).trim()) return false;
+              if (!targetY || !targetM) return true;
+              
+              let dParts = String(o.date).split('/');
+              if (dParts.length >= 2) {
+                  let oYear = dParts.length === 3 ? dParts[0] : targetY;
+                  let oMonth = dParts.length === 3 ? dParts[1].padStart(2, '0') : dParts[0].padStart(2, '0');
+                  return oYear === targetY && oMonth === targetM;
+              }
+              return false;
+          });
+
           storeOt.forEach(o => {
               let isHourly = currentData.some(r => r.name === o.name && r.salaryType && r.salaryType.includes("時薪"));
               let hrs = parseFloat(o.hours) || 0;
@@ -4585,12 +4619,18 @@ function showMaintenanceShield(message) {
                   let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
                   let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
                   
-                  // ★ 戰區 6 每日明細：只顯示「已核准」的加班時段(E)與時數(F)
-                  let dailyOt = window.currentOtData.filter(o => 
-                      String(o.name).replace(/\s+/g, '') === String(r.name).replace(/\s+/g, '') && 
-                      new Date(o.date).getTime() === new Date(r.date).getTime() && 
-                      o.status === '已核准'
-                  );
+                  // ★ 戰區每日明細：極速無損字串比對法
+                  let rDateParts = String(r.date).split('/');
+                  let rShortDate = rDateParts.length >= 3 ? `${parseInt(rDateParts[1])}/${parseInt(rDateParts[2])}` : r.date;
+                  
+                  let dailyOt = window.currentOtData.filter(o => {
+                      let oDateParts = String(o.date).split('/');
+                      let oShortDate = oDateParts.length >= 3 ? `${parseInt(oDateParts[1])}/${parseInt(oDateParts[2])}` : 
+                                       (oDateParts.length === 2 ? `${parseInt(oDateParts[0])}/${parseInt(oDateParts[1])}` : o.date);
+                      return String(o.name).replace(/\s+/g, '') === String(r.name).replace(/\s+/g, '') && 
+                             oShortDate === rShortDate && 
+                             o.status === '已核准';
+                  });
                   let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
                   let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
                   
