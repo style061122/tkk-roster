@@ -1823,6 +1823,7 @@ function showMaintenanceShield(message) {
              showLoading(false);
              if (res && res.success) {
                  currentData = res.data || [];
+                 window.currentOtData = res.otData || []; // 📥 接收加班包裹！
                  // ★★★ 終極無損快照：在拿到最新資料的瞬間，立刻備份一份最乾淨的狀態！★★★
                  window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                  window.currentSyncVersion = res.syncVersion || ""; // ★ 記下現在的系統版本號
@@ -4028,11 +4029,14 @@ function showMaintenanceShield(message) {
           }
 
           showLoading(true, "讀取資料中...");
-          callApi('getStoreData', { store: apiStoreParam, monthMode: monthMode }).then(res => {
-              showLoading(false);
-              if (res.success) {
-                  currentData = res.data || []; monthlyTargets = res.targets || {}; currentParams = res.params || {};
-                  document.getElementById('adminDataArea').style.display = 'block';
+         callApi('getStoreData', { store: apiStoreParam, monthMode: monthMode }).then(res => {
+             showLoading(false);
+             if (res.success) {
+                 currentData = res.data || []; 
+                 window.currentOtData = res.otData || []; // 📥 接收加班包裹！
+                 monthlyTargets = res.targets || {}; 
+                 currentParams = res.params || {};
+                 document.getElementById('adminDataArea').style.display = 'block';
 
                   let hqDispatchCount = 0;
                   currentData.forEach(r => {
@@ -4111,6 +4115,7 @@ function showMaintenanceShield(message) {
               document.getElementById('personalSection').style.display = 'block';
               
               const meta = data.meta || {};
+              window.currentOtData = data.otData || []; // 📥 接收加班包裹！
               
               let nextMonth = (parseInt(meta.month) % 12) + 1;
               let closeDay = meta.closingDay || 1; 
@@ -6202,13 +6207,14 @@ function showMaintenanceShield(message) {
           currentMonthMode = monthMode; 
           
           showLoading(true, "載入部門資料中...");
-          callApi('getStoreData', { store: currentStore, monthMode: monthMode }).then(res => {
-              showLoading(false);
-              if (res.success) {
-                  currentData = res.data || []; 
-                  monthlyTargets = res.targets || {}; 
-                  
-                  const select = document.getElementById('hqIndivSelect'); 
+         callApi('getStoreData', { store: currentStore, monthMode: monthMode }).then(res => {
+             showLoading(false);
+             if (res.success) {
+                 currentData = res.data || []; 
+                 window.currentOtData = res.otData || []; // 📥 接收加班包裹！
+                 monthlyTargets = res.targets || {}; 
+                 
+                 const select = document.getElementById('hqIndivSelect');
                   select.innerHTML = ''; 
                   let names = [...new Set(currentData.filter(r => r.store === currentStore).map(r=>r.name))];
                   
