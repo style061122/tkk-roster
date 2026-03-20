@@ -4161,6 +4161,7 @@ function showMaintenanceShield(message) {
 
               // ★ 判斷是否為時薪人員 (從員工 API 傳回的資料判斷)
               let isHourly = data.isHourly === true;
+              let isMonthly = !isHourly; // ★ 補回遺失的變數，解救崩潰！
               
               // ★ 終極修復：直接讀取後端的 isStoreStaff 標記！若不是門市人員，就是總部人員
               let isHQEmployee = (data.isStoreStaff === false);
@@ -4351,8 +4352,10 @@ function showMaintenanceShield(message) {
               
               // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
               let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
-              // ★ 呼叫大腦！瞬間取得最完美的 oDisplay
-              let otResult = analyzeOtData(data.name, !isMonthly, meta.year, meta.month);
+              // ★ 呼叫大腦！傳入個人專屬的 meta 年月
+              let tYear = String(meta.year);
+              let tMonth = String(meta.month);
+              let otResult = analyzeOtData(data.name, isHourly, tYear, tMonth);
               let oDisplay = otResult.oDisplay;
 
               let supportOutHtml = '';
@@ -4835,8 +4838,10 @@ function showMaintenanceShield(message) {
           // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
           
-          // ★ 呼叫大腦！瞬間取得最完美的 oDisplay (X+Y格式)
-          let otResult = analyzeOtData(name, isHourly);
+          // ★ 呼叫大腦！補上系統正在查看的年月
+          let tYear = String(monthlyTargets.year);
+          let tMonth = String(monthlyTargets.month);
+          let otResult = analyzeOtData(name, isHourly, tYear, tMonth);
           let oDisplay = otResult.oDisplay;
           
           let otDisplay = document.getElementById("totalOvertimeDisplay");
@@ -6268,9 +6273,9 @@ function showMaintenanceShield(message) {
                   
                   if(names.length === 0) {
                       select.innerHTML = '<option value="">無排班人員</option>';
-                      // 溫馨提示，保留上方區域，讓使用者知道現在是空的，但不會破壞版面
                       document.getElementById('hqStatsArea').innerHTML = '<div class="alert alert-warning text-center mt-3 fw-bold shadow-sm">此部門本月份尚無排班資料</div>';
                       document.getElementById('hqTableBody').innerHTML = '<tr><td colspan="16" class="text-center py-5 text-muted fw-bold">本月無資料</td></tr>';
+                      hqTempData = []; // ★ 清空殘留資料
                       return;
                   }
                   
@@ -6328,8 +6333,10 @@ function showMaintenanceShield(message) {
           // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
           
-          // ★ 呼叫大腦！瞬間取得最完美的 oDisplay (X+Y格式)
-          let otResult = analyzeOtData(name, isHourly, monthlyTargets.year, monthlyTargets.month);
+          // ★ 呼叫大腦！傳入明確的年月
+          let tYear = String(monthlyTargets.year);
+          let tMonth = String(monthlyTargets.month);
+          let otResult = analyzeOtData(name, isHourly, tYear, tMonth);
           let oDisplay = otResult.oDisplay;
           
           let salaryType = pData[0].salaryType || "";
