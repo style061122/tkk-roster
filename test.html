@@ -3050,17 +3050,6 @@ function showMaintenanceShield(message) {
                       zGroups[stName].norm += normZ; zGroups[stName].nat += natZ;
                       zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                   }
-
-                  let oTimeStr = sysOtRange ? `(${sysOtRange.replace(/-/g, '~')}) ` : "";
-                  if (o > 0) {
-                      let natO = 0, normO = o;
-                      if (isMonthly && s === '國') { natO = Math.min(o, 8); normO = Math.max(0, o - 8); }
-                      else { normO = o; }
-                      sumO_nat += natO; sumO_norm += normO;
-                      let stName = (s === '上班') ? '平日' : ((s === '休') ? '休息日' : ((s === '國') ? '國定假日' : '其他'));
-                      oGroups[stName].norm += normO; oGroups[stName].nat += natO;
-                      oGroups[stName].items.push(`🗓️ ${shortDate} ${oTimeStr}共${o.toFixed(1)}H`);
-                  }
                   
                   if (sysLeave !== "" && sysLeaveType !== "") {
                       if (!leaveDetails[sysLeaveType]) leaveDetails[sysLeaveType] = [];
@@ -4589,12 +4578,6 @@ function showMaintenanceShield(message) {
                   let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                   totalZ_nat += natZ; totalZ_norm += normZ;
               } else { totalZ_norm += z; }
-
-              // 已申請加班 (O)
-              if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
-                  let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
-                  totalO_nat += natO; totalO_norm += normO;
-              } else { totalO_norm += o; }
 
               // ==========================================
               // 計算跨店支援 (★ 導入 AA 交集演算法)
@@ -6140,8 +6123,11 @@ function showMaintenanceShield(message) {
               }
           });
 
-          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
-          let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
+          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
+          
+          // ★ 呼叫大腦！瞬間取得最完美的 oDisplay (X+Y)
+          let otResult = analyzeOtData(name, isHourly);
+          let oDisplay = otResult.oDisplay;
           let salaryType = pData[0].salaryType || "";
           
           statsDiv.innerHTML = `
@@ -6221,7 +6207,7 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
                       <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>Q
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
                   </tr>
               `;
           });
