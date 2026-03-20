@@ -4636,8 +4636,11 @@ function showMaintenanceShield(message) {
           });
 
           // ★ 決定顯示字串 (時薪不秀 +0)
-          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>`;
-          let oDisplay = isHourly ? `${totalO_norm.toFixed(1)}` : `${totalO_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalO_nat.toFixed(1)}</small>`;
+          let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
+          
+          // ★ 呼叫大腦！瞬間取得最完美的 oDisplay (X+Y)
+          let otResult = analyzeOtData(name, isHourly);
+          let oDisplay = otResult.oDisplay;
           
           let otDisplay = document.getElementById("totalOvertimeDisplay");
           if (otDisplay) otDisplay.style.display = 'none'; 
@@ -6104,11 +6107,6 @@ function showMaintenanceShield(message) {
                   let natZ = Math.min(z, 8); let normZ = Math.max(0, z - 8);
                   totalZ_nat += natZ; totalZ_norm += normZ;
               } else { totalZ_norm += z; }
-
-              if (!isHourly && sysStatus.includes('國定假日') && o > 0) {
-                  let natO = Math.min(o, 8); let normO = Math.max(0, o - 8);
-                  totalO_nat += natO; totalO_norm += normO;
-              } else { totalO_norm += o; }
 
               if (r.supports && r.supports.length > 0) {
                   r.supports.forEach(sup => { totalSupOut += (parseFloat(sup.hrs) || 0); });
