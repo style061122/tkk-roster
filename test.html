@@ -705,10 +705,19 @@
               let typeTot = d.app_norm + d.app_nat + d.pend_norm + d.pend_nat + d.wait_norm + d.wait_nat;
               if (typeTot > 0) {
                   let tags = [];
-                  if ((d.app_norm+d.app_nat)>0) tags.push(`✅ 核准 ${fmtText(d.app_norm, d.app_nat).replace('H','')}`);
-                  if ((d.pend_norm+d.pend_nat)>0) tags.push(`⏳ 簽核中 ${fmtText(d.pend_norm, d.pend_nat).replace('H','')}`);
-                  if ((d.wait_norm+d.wait_nat)>0) tags.push(`⚠️ 待確認 ${fmtText(d.wait_norm, d.wait_nat).replace('H','')}`);
-                  summaryHtml += `<div class="d-flex flex-column text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>🔹 ${t} ${fmtText(d.app_norm+d.pend_norm+d.wait_norm, d.app_nat+d.pend_nat+d.wait_nat)}</span><span class="ms-3" style="font-size:0.75rem;">(${tags.join(' | ')})</span></div>`;
+                  // ★ 注入靈魂色彩，提升為微型數據標籤
+                  if ((d.app_norm+d.app_nat)>0) tags.push(`<span style="color:#198754; font-weight:700;">✅ 核准 ${fmtText(d.app_norm, d.app_nat).replace('H','')}</span>`);
+                  if ((d.pend_norm+d.pend_nat)>0) tags.push(`<span style="color:#b8860b; font-weight:700;">⏳ 簽核中 ${fmtText(d.pend_norm, d.pend_nat).replace('H','')}</span>`);
+                  if ((d.wait_norm+d.wait_nat)>0) tags.push(`<span style="color:#dc3545; font-weight:700;">⚠️ 待確認 ${fmtText(d.wait_norm, d.wait_nat).replace('H','')}</span>`);
+                  
+                  // ★ 拔除外圍括號 ()，加入微調的左方縮排 (padding-left: 1.25rem)，讓狀態精準對齊上方文字
+                  summaryHtml += `
+                  <div class="d-flex flex-column text-muted ms-3 mb-2 mt-1" style="font-size:0.85rem;">
+                      <span class="fw-bold">🔹 ${t} ${fmtText(d.app_norm+d.pend_norm+d.wait_norm, d.app_nat+d.pend_nat+d.wait_nat)}</span>
+                      <div class="mt-1" style="padding-left: 1.25rem; font-size:0.8rem; letter-spacing: 0.3px;">
+                          ${tags.join(' <span class="text-muted opacity-25 mx-1">|</span> ')}
+                      </div>
+                  </div>`;
               }
           }
           let oDisplay = (app_nat > 0) ? `${app_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${app_nat.toFixed(1)}</small>` : `${app_norm.toFixed(1)}`;
