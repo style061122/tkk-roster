@@ -6249,7 +6249,13 @@ function showMaintenanceShield(message) {
       }
 
       function resetAdminData() {
-          document.getElementById('adminDataArea').style.display = 'none';
+          if (currentUserRole === 'HQ') {
+              // ★ 總公司專屬特權：因為沒有「載入」按鈕，切換月份時不隱藏畫面，直接幫他自動載入！
+              if (typeof loadAdminData === 'function') loadAdminData();
+          } else {
+              // 督導模式：切換月份先清空下方畫面，強迫督導確認門市後按下「載入」按鈕
+              document.getElementById('adminDataArea').style.display = 'none';
+          }
       }
 
       // ==========================================
