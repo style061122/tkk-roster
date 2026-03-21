@@ -586,22 +586,22 @@
       // ==========================================
       window.currentOtData = []; // 儲存後端傳來的加班包裹
 
-      // ★ 大腦 1 號：單人加班大腦 (加入 targetY, targetM 參數)
+      // ★ 大腦 1 號：單人加班大腦
       function analyzeOtData(empName, isHourly, targetY, targetM) {
           let app_norm = 0, app_nat = 0;
+          let pNorm = 0, pNat = 0;
+          let wNorm = 0, wNat = 0;
           let types = {};
+          let all_pend_items = [];
+          let all_wait_items = [];
           
-          // 將傳入的月份補零 (例如 1 變成 01)，確保比對格式一致
           let safeY = String(targetY);
           let safeM = String(targetM).padStart(2, '0');
 
           let empOt = window.currentOtData.filter(o => {
-              // 1. 名字必須完全吻合 (無懼空白字元)
               if (String(o.name).replace(/\s+/g, '') !== String(empName).replace(/\s+/g, '')) return false;
-              // 2. 如果沒有傳入年月，為了防呆先全部放行
               if (!safeY || !safeM || safeY === "undefined") return true; 
               
-              // 3. 核心：只抓取該年該月的包裹
               let dParts = String(o.date).split('/');
               if (dParts.length >= 2) {
                   let oYear = dParts.length === 3 ? dParts[0] : safeY;
@@ -623,53 +623,44 @@
               let itemHtml = `🗓️ ${shortDate} ${timeStr} 共 ${hrs.toFixed(1)}H`;
               if (!isHourly && isNat && nat > 0) itemHtml += ` (${norm.toFixed(1)}+${nat.toFixed(1)})`;
 
-              if (!types[o.type]) types[o.type] = { app_norm:0, app_nat:0, app_items:[], pend_norm:0, pend_nat:0, pend_items:[], wait_norm:0, wait_nat:0, wait_items:[] };
-              
               if (o.status === '已核准') {
                   app_norm += norm; app_nat += nat;
+                  if (!types[o.type]) types[o.type] = { app_norm:0, app_nat:0, app_items:[] };
                   types[o.type].app_norm += norm; types[o.type].app_nat += nat; types[o.type].app_items.push(itemHtml);
               } else if (o.status === '簽核中') {
-                  types[o.type].pend_norm += norm; types[o.type].pend_nat += nat; types[o.type].pend_items.push(itemHtml);
+                  pNorm += norm; pNat += nat;
+                  all_pend_items.push(itemHtml); // ★ 扁平化收集
               } else if (o.status === '待確認' || o.status === '核准待確認') {
-                  types[o.type].wait_norm += norm; types[o.type].wait_nat += nat; types[o.type].wait_items.push(itemHtml);
+                  wNorm += norm; wNat += nat;
+                  all_wait_items.push(itemHtml); // ★ 扁平化收集
               }
           });
 
           const fmtText = (norm, nat) => isHourly ? `${(norm+nat).toFixed(1)}H` : (nat > 0 ? `${(norm+nat).toFixed(1)}H (${norm.toFixed(1)}+${nat.toFixed(1)})` : `${norm.toFixed(1)}H`);
           let oDisplay = isHourly ? `${(app_norm+app_nat).toFixed(1)}` : (app_nat > 0 ? `${app_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${app_nat.toFixed(1)}</small>` : `${app_norm.toFixed(1)}`);
 
-          let cardHtml = "", appHtml="", pendHtml="", waitHtml="";
-          let aNorm=0, aNat=0, pNorm=0, pNat=0, wNorm=0, wNat=0;
-          Object.values(types).forEach(d => { aNorm+=d.app_norm; aNat+=d.app_nat; pNorm+=d.pend_norm; pNat+=d.pend_nat; wNorm+=d.wait_norm; wNat+=d.wait_nat; });
+          let cardHtml = "", appHtml="";
+          const order = ['平日', '休息日', '國定假日', '其他'];
+          
+          const buildAppHtml = (k) => {
+              if(types[k] && types[k].app_items.length > 0) {
+                  let d = types[k];
+                  appHtml += `<div class="mt-1 fw-bold" style="color:#0f5132; font-size:0.85rem;">🔹 ${k} ${fmtText(d.app_norm, d.app_nat)}</div>`;
+                  appHtml += `<div class="text-muted ps-3 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.app_items.join('<br>')}</div>`;
+              }
+          };
+          order.forEach(buildAppHtml);
+          for (let k in types) { if(!order.includes(k)) buildAppHtml(k); }
           
           const formatTitle = (norm, nat) => isHourly ? `(共 ${(norm+nat).toFixed(1)}H)` : (nat > 0 ? `(共 ${(norm+nat).toFixed(1)}H) (${norm.toFixed(1)}+${nat.toFixed(1)})` : `(共 ${(norm+nat).toFixed(1)}H)`);
 
-          for (let t in types) {
-              let d = types[t];
-              if(d.app_items.length > 0) appHtml += `　<span style="color:#0f5132;">🔹 ${t} ${fmtText(d.app_norm, d.app_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.app_items.join('<br>')}</div>`;
-              if(d.pend_items.length > 0) pendHtml += `　<span style="color:#b8860b;">🔹 ${t} ${fmtText(d.pend_norm, d.pend_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.pend_items.join('<br>')}</div>`;
-              if(d.wait_items.length > 0) waitHtml += `　<span style="color:#dc3545;">🔹 ${t} ${fmtText(d.wait_norm, d.wait_nat)}</span><br><div class="text-muted ps-4 mb-1" style="font-size:0.8rem; line-height:1.4;">${d.wait_items.join('<br>')}</div>`;
-          }
-
-          if (appHtml) cardHtml += `<div class="mb-1"><strong style="color:#198754; font-size:0.9rem;">✅ 已核准 ${formatTitle(aNorm, aNat)}</strong><br>${appHtml}</div>`;
-          if (pendHtml) cardHtml += `<div class="mb-1"><strong style="color:#b8860b; font-size:0.9rem;">⏳ 簽核中 ${formatTitle(pNorm, pNat)}</strong><br>${pendHtml}</div>`;
-          if (waitHtml) cardHtml += `<div class="mb-1"><strong style="color:#dc3545; font-size:0.9rem;">⚠️ 待確認 ${formatTitle(wNorm, wNat)}</strong><br>${waitHtml}</div>`;
+          // ★ 完美視覺層級：主標題 0.95rem
+          if (appHtml) cardHtml += `<div class="mb-2"><strong style="color:#198754; font-size:0.95rem;">✅ 已核准 ${formatTitle(app_norm, app_nat)}</strong><br>${appHtml}</div>`;
+          if (all_pend_items.length > 0) cardHtml += `<div class="mb-2"><strong style="color:#b8860b; font-size:0.95rem;">⏳ 簽核中 ${formatTitle(pNorm, pNat)}</strong><br><div class="text-muted ps-3 mb-1 mt-1" style="font-size:0.8rem; line-height:1.4;">${all_pend_items.join('<br>')}</div></div>`;
+          if (all_wait_items.length > 0) cardHtml += `<div class="mb-2"><strong style="color:#dc3545; font-size:0.95rem;">⚠️ 待確認 ${formatTitle(wNorm, wNat)}</strong><br><div class="text-muted ps-3 mb-1 mt-1" style="font-size:0.8rem; line-height:1.4;">${all_wait_items.join('<br>')}</div></div>`;
           if (!cardHtml) cardHtml = '<span class="text-black-50 opacity-75">無加班紀錄</span>';
 
-          let summaryHtml = "";
-          for (let t in types) {
-              let d = types[t];
-              let typeTot = d.app_norm + d.app_nat + d.pend_norm + d.pend_nat + d.wait_norm + d.wait_nat;
-              if (typeTot > 0) {
-                  let tags = [];
-                  if ((d.app_norm+d.app_nat)>0) tags.push(`✅ 核准 ${fmtText(d.app_norm, d.app_nat).replace('H','')}`);
-                  if ((d.pend_norm+d.pend_nat)>0) tags.push(`⏳ 簽核中 ${fmtText(d.pend_norm, d.pend_nat).replace('H','')}`);
-                  if ((d.wait_norm+d.wait_nat)>0) tags.push(`⚠️ 待確認 ${fmtText(d.wait_norm, d.wait_nat).replace('H','')}`);
-                  summaryHtml += `<div class="d-flex flex-column text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>🔹 ${t} ${fmtText(d.app_norm+d.pend_norm+d.wait_norm, d.app_nat+d.pend_nat+d.wait_nat)}</span><span class="ms-3" style="font-size:0.75rem;">(${tags.join(' | ')})</span></div>`;
-              }
-          }
-
-          return { app_norm, app_nat, oDisplay, cardHtml, summaryHtml };
+          return { app_norm, app_nat, oDisplay, cardHtml, summaryHtml: cardHtml };
       }
 
       // ★ 大腦 2 號：全店加班大腦 (加入 targetY, targetM 參數)
@@ -3202,19 +3193,21 @@ function showMaintenanceShield(message) {
                   order.forEach(k => {
                       if(groups[k] && groups[k].items.length > 0) {
                           let g = groups[k];
-                          let dTotal = !isMonthly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
-                          html += `<div class="mt-1 fw-bold" style="color:${color}; font-size: 0.85rem;">${k} ${dTotal}</div>`;
-                          html += `<div class="text-muted ps-2 mb-1" style="font-size: 0.8rem;">${g.items.join('<br>')}</div>`;
+                          // 智慧判斷當前環境的薪資變數
+                          let isHrly = typeof isHourly !== 'undefined' ? isHourly : !isMonthly;
+                          let dTotal = isHrly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
+                          html += `<div class="mt-1 fw-bold" style="color:${color}; font-size: 0.85rem;">🔹 ${k} ${dTotal}</div>`;
+                          html += `<div class="text-muted ps-3 mb-1" style="font-size: 0.8rem;">${g.items.join('<br>')}</div>`;
                       }
                   });
                   return html;
               };
               let zHtml = buildGroupHtml(zGroups, '#997404');
               
-              // ★ 直接使用大腦算好的明細字串
               let overtimeCardHtml = '';
               if (zHtml || otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') {
-                  if (zHtml) overtimeCardHtml += `<strong style="color:#997404; font-size: 0.9rem;">預計加班:</strong><br>${zHtml}`;
+                  // ★ 統一將預計加班的主標題放大為 0.95rem，並加入包覆的 div
+                  if (zHtml) overtimeCardHtml += `<div class="mb-2"><strong style="color:#997404; font-size: 0.95rem;">⏳ 預計加班</strong><br>${zHtml}</div>`;
                   if (zHtml && otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
                   if (otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `${otResult.cardHtml}`;
               } else {
@@ -4381,19 +4374,21 @@ function showMaintenanceShield(message) {
                   order.forEach(k => {
                       if(groups[k] && groups[k].items.length > 0) {
                           let g = groups[k];
-                          let dTotal = isHourly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
-                          html += `<div class="mt-1 fw-bold" style="color:${color}; font-size: 0.85rem;">${k} ${dTotal}</div>`;
-                          html += `<div class="text-muted ps-2 mb-1" style="font-size: 0.8rem;">${g.items.join('<br>')}</div>`;
+                          // 智慧判斷當前環境的薪資變數
+                          let isHrly = typeof isHourly !== 'undefined' ? isHourly : !isMonthly;
+                          let dTotal = isHrly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
+                          html += `<div class="mt-1 fw-bold" style="color:${color}; font-size: 0.85rem;">🔹 ${k} ${dTotal}</div>`;
+                          html += `<div class="text-muted ps-3 mb-1" style="font-size: 0.8rem;">${g.items.join('<br>')}</div>`;
                       }
                   });
                   return html;
               };
               let zHtml = buildGroupHtml(zGroups, '#997404');
               
-              // ★ 直接使用大腦算好的明細字串 (與月統計單人卡片完全一致)
               let overtimeCardHtml = '';
               if (zHtml || otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') {
-                  if (zHtml) overtimeCardHtml += `<strong style="color:#997404; font-size: 0.9rem;">預計加班:</strong><br>${zHtml}`;
+                  // ★ 統一將預計加班的主標題放大為 0.95rem，並加入包覆的 div
+                  if (zHtml) overtimeCardHtml += `<div class="mb-2"><strong style="color:#997404; font-size: 0.95rem;">⏳ 預計加班</strong><br>${zHtml}</div>`;
                   if (zHtml && otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
                   if (otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `${otResult.cardHtml}`;
               } else {
