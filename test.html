@@ -3619,9 +3619,8 @@ function showMaintenanceShield(message) {
           // ★ 這裡顯示督導本人的名字
           let supervisorName = sessionStorage.getItem('tkk_store') || currentStore; 
 
-          // ★ 核心手術 1：拔除 'report-item' 階級，賦予全區總覽「免死金牌」！
           let html = `
-          <div id="region-overview-dashboard" class="card shadow-sm border-0 rounded-4 mb-4" style="background-color: #ffffff; border: 3px solid #0d6efd !important; scroll-margin-top: 60px;">
+          <div id="region-overview-dashboard" class="card shadow-sm border-0 rounded-4 mb-4 report-item" style="background-color: #ffffff; border: 3px solid #0d6efd !important; scroll-margin-top: 60px;">
               <div class="card-body p-1 p-md-2">
                   <div class="d-flex align-items-center justify-content-center mb-2 pb-1 border-bottom">
                       <h5 class="fw-bolder text-primary mb-0">👑 ${supervisorName}</h5>
@@ -3677,15 +3676,17 @@ function showMaintenanceShield(message) {
               </div>
           </div>`;
           
-          // ★ 核心手術 2：優化電梯字典，因為全區總覽永遠釘在畫面上，所以不需要在選單裡了
+          // ★ 建立電梯樓層的 ID 字典 (讓中文名稱可以對應到 div ID)
           window.regionJumpMap = {
-              "顯示全部": "ALL"
+              "顯示全部": "ALL",
+              "👑 全區總覽": "region-overview-dashboard"
           };
           
           let datalistHtml = `<datalist id="regionJumpList">
-              <option value="顯示全部"></option>`;
+              <option value="顯示全部"></option>
+              <option value="👑 全區總覽"></option>`;
           
-          allStores.forEach((st, idx) => {
+          allStores.forEach((st, idx) => { 
               let label = `🏢 ${st}`;
               window.regionJumpMap[label] = `reg-st-${idx}`;
               datalistHtml += `<option value="${label}"></option>`; 
@@ -5563,50 +5564,6 @@ function showMaintenanceShield(message) {
               let minOutStart = 999; // 用於排序外出卡片
 
               // ==========================================
-              // ★ 核心升級 1：全域時空狀態雷達 (Time-Aware)
-              // ==========================================
-              let hasIn = r.sys_clockIn && String(r.sys_clockIn).trim() !== "";
-              let hasOut = r.sys_clockOut && String(r.sys_clockOut).trim() !== "";
-              
-              let rDateObj = new Date(r.date);
-              rDateObj.setHours(0,0,0,0);
-              let todayObj = new Date();
-              todayObj.setHours(0,0,0,0);
-
-              let punchStr = "";
-              if (hasIn || hasOut) {
-                  punchStr = `${r.sys_clockIn || ""} ~ ${r.sys_clockOut || ""}`;
-              } else if (rDateObj < todayObj) {
-                  punchStr = "無打卡"; // 過去確實沒打卡
-              } else {
-                  // ★ 時光機：今天或未來沒打卡，顯示預定排班時間，避免恐慌
-                  punchStr = (startVal !== "" && endVal !== "") ? `排班：${startVal}~${endVal}` : "無打卡";
-              }
-              
-              let sysAbnormal = String(r.sys_abnormal || "").trim();
-              let abnormalHtml = sysAbnormal ? `<br><span class="text-danger fw-bold">${sysAbnormal}</span>` : "";
-              let hasLeave = r.sys_leave && String(r.sys_leave).trim() !== "";
-
-              let globalStatusTag = "";
-              let globalPunchDetail = "";
-              let isAbsent = false;
-
-              if (hasLeave) {
-                  globalStatusTag = `<br><span style="color:#fd7e14; font-size:0.75rem;">(請假)</span>`;
-                  globalPunchDetail = `${punchStr}<br>${r.sys_leaveType || "請假"} (${r.sys_leave})${abnormalHtml}`;
-              } else if (!hasIn && !hasOut && rDateObj < todayObj && status === '上班') { 
-                  // 缺勤判定: 只有應上班沒打卡才算缺勤。休/例/國 不算缺勤
-                  globalStatusTag = `<br><span style="color:#dc3545; font-size:0.75rem;">(缺勤)</span>`;
-                  globalPunchDetail = `無打卡<br>無請假${abnormalHtml}`;
-                  isAbsent = true;
-              } else if (sysAbnormal !== "") {
-                  globalStatusTag = `<br><span style="color:#dc3545; font-size:0.75rem;">(異常)</span>`;
-                  globalPunchDetail = `${punchStr}${abnormalHtml}`;
-              } else {
-                  globalPunchDetail = `${punchStr}`; // 預設只有打卡時間
-              }
-
-              // ==========================================
               // ★ 核心 2：智慧時段扣除 (有支援就挖空自家時間)
               // ==========================================
               if (r.supports && r.supports.length > 0) {
@@ -5658,8 +5615,8 @@ function showMaintenanceShield(message) {
                           dayIn[d].push({
                               startNum: supS, // 用校正後的座標排序，確保跨夜凌晨的支援會排在卡片最下面
                               bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
-                              label: `<span style="display:inline-block;">🤝 ${r.store}</span> <span style="display:inline-block;">${fmtStart}-${fmtEnd}</span>${globalStatusTag}`, // ★ 積木魔法
-                              detail: `${r.name}<br><hr class="my-1 border-secondary opacity-25" style="border-top: 1px dashed;">${globalPunchDetail}` // ★ 加入虛線與全域打卡明細
+                              label: `🤝 ${r.store} ${fmtStart}-${fmtEnd}`, // ★ 加上美化後的排班時間
+                              detail: `${r.name}` // ★ 修正：因為外面已有時間，這裡只留支援者的姓名
                           });
                       }
                   });
@@ -5678,33 +5635,68 @@ function showMaintenanceShield(message) {
                       // 1. 無論什麼狀態，只要有時間，就統一抓取並顯示「姓名 上班-下班」
                       let dStart = formatFloatToTimeStr(homeIntervals[0][0]);
                       let dEnd = formatFloatToTimeStr(homeIntervals[homeIntervals.length - 1][1]);
-                      let mainLabel = `<span style="display:inline-block;">${r.name}</span> <span style="display:inline-block;">${dStart}-${dEnd}</span>`;
+                      let mainLabel = `${r.name} ${dStart}-${dEnd}`; // 效果：張仲偉 9-23 (包含加班)
                       
                       let detailHtml = "";
                       let bg, color, border;
+
+                      // 預先準備打卡資訊 (所有狀態都通用)
+                      let hasIn = r.sys_clockIn && String(r.sys_clockIn).trim() !== "";
+                      let hasOut = r.sys_clockOut && String(r.sys_clockOut).trim() !== "";
+                      let punchStr = (hasIn || hasOut) ? `${r.sys_clockIn || ""} ~ ${r.sys_clockOut || ""}` : "無打卡";
+                      
+                      // ★ 抓取系統異常內容
+                      let sysAbnormal = String(r.sys_abnormal || "").trim();
+                      let abnormalHtml = sysAbnormal ? `<br><span class="text-danger fw-bold">${sysAbnormal}</span>` : "";
 
                       // 2. 依照狀態分流處理顏色與明細/異常
                       if (status === '上班') {
                           bg = '#e3f2fd'; color = '#084298'; border = '#90caf9';
                           
-                          mainLabel += globalStatusTag; // ★ 接入全域跳行標籤
-                          
-                          if (hasLeave || isAbsent || hasIn || hasOut || sysAbnormal !== "") {
-                              detailHtml = globalPunchDetail; // ★ 直接套用全域明細
+                          let hasLeave = r.sys_leave && String(r.sys_leave).trim() !== "";
+                          let rDateObj = new Date(r.date);
+                          rDateObj.setHours(0,0,0,0);
+                          let todayObj = new Date();
+                          todayObj.setHours(0,0,0,0);
+
+                          if (hasLeave) {
+                              // 【情境 B & C：有請假】
+                              mainLabel += `<br><span style="color:#fd7e14; font-size:0.75rem;">(請假)</span>`;
+                              detailHtml = `${punchStr}<br>${r.sys_leaveType || "請假"} (${r.sys_leave})${abnormalHtml}`;
+                          } else if (!hasIn && !hasOut && rDateObj < todayObj) {
+                              // 【情境 D：缺勤】
+                              mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(缺勤)</span>`;
+                              detailHtml = `無打卡<br>無請假${abnormalHtml}`;
                           } else {
-                              detailHtml = `排班：${dStart}~${dEnd}${abnormalHtml}`; 
+                              // 【情境 A：正常】
+                              // ★ 如果有異常，在標籤上加上 (異常)
+                              if (sysAbnormal !== "") {
+                                  mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(異常)</span>`;
+                              }
+                              
+                              if (hasIn || hasOut) {
+                                  detailHtml = `${punchStr}${abnormalHtml}`;
+                              } else {
+                                  detailHtml = `排班：${dStart}~${dEnd}${abnormalHtml}`; 
+                              }
                           }
                       } 
                       else {
                           // 【非上班狀態：休、國、例、空班】
+                          // 只要有排時間就代表加班，不標示異常，單純顯示打卡狀況
                           if (status === '休' || status === '國') { 
                               bg = '#fff3cd'; color = '#997404'; border = '#ffe082'; 
                           } else { 
                               bg = '#f8d7da'; color = '#842029'; border = '#f5c2c7'; 
                           }
                           
-                          mainLabel += globalStatusTag; // ★ 接入全域跳行標籤
-                          detailHtml = globalPunchDetail; // ★ 接入全域明細
+                          // ★ 非上班狀態如果有打卡異常，也一併顯示
+                          if (sysAbnormal !== "") {
+                              mainLabel += `<br><span style="color:#dc3545; font-size:0.75rem;">(異常)</span>`;
+                          }
+                          
+                          // 點開一樣顯示打卡明細 (有打卡就秀時間，沒打卡就秀無打卡)
+                          detailHtml = `${punchStr}${abnormalHtml}`; 
                       }
 
                       dayIn[d].push({
@@ -5721,8 +5713,8 @@ function showMaintenanceShield(message) {
                   dayOut[d].push({
                       startNum: minOutStart,
                       bg: '#f8f9fa', color: '#495057', border: '#dee2e6',
-                      label: `<span style="display:inline-block;">🚀 ${r.name}</span>${globalStatusTag}`, // ★ 積木魔法
-                      detail: `${outDetails.join('<br>')}<br><hr class="my-1 border-secondary opacity-25" style="border-top: 1px dashed;">${globalPunchDetail}` // ★ 加入虛線與全域打卡明細
+                      label: `🚀 ${r.name}`,
+                      detail: outDetails.join('<br>')
                   });
               }
           }); // ★★★ 導致白畫面的元凶就是少了這行！這是 currentData.forEach 的結尾括號！
@@ -5733,12 +5725,13 @@ function showMaintenanceShield(message) {
           // ==========================================
           let html = `
           <style>
-              .cal-grid-new { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
+              .cal-grid-new { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
               .cal-day-new { background: #fff; min-height: 110px; padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px; box-shadow: inset 0 0 0 1px #f1f3f5; }
               .cal-day-new.empty { background: transparent; box-shadow: none; }
               .cal-tag {
                   font-size: 0.85rem; font-weight: bold; padding: 4px 2px; border-radius: 4px;
                   cursor: pointer; text-align: center; line-height: 1.2;
+                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
                   display: block; width: 100%; transition: transform 0.1s;
               }
               .cal-tag:active { transform: scale(0.95); }
@@ -5750,15 +5743,7 @@ function showMaintenanceShield(message) {
                   background-color: #fcfcfc; color: #333; font-weight: bold;
               }
               @media (max-width: 768px) {
-                  .cal-tag { 
-                      font-size: 0.75rem; 
-                      letter-spacing: -0.5px; 
-                      padding: 4px 0px; 
-                      /* ★ 手機版專屬魔法：強勢回歸的鐵棍，強制不換行，超出的文字變 ... */
-                      white-space: nowrap; 
-                      overflow: hidden; 
-                      text-overflow: ellipsis; 
-                  }
+                  .cal-tag { font-size: 0.75rem; letter-spacing: -0.5px; padding: 4px 0px; }
                   .cal-detail { font-size: 0.65rem; } /* ★ 手機版明細：強制縮小為 0.65rem，確保比外層 tag 小 */
               }
           </style>
@@ -5894,7 +5879,11 @@ function showMaintenanceShield(message) {
                   clonedArea.style.minWidth = '1200px';
                   clonedArea.style.padding = '10px';
                   
-                  // ★ 逮捕截圖凶手：已刪除強制不折行的迴圈，讓截圖維持完美流體排版！
+                  // 保護文字，強制不折行
+                  let tags = clonedArea.querySelectorAll('.cal-tag');
+                  tags.forEach(t => {
+                      t.style.whiteSpace = 'nowrap';
+                  });
               }
           }).then(canvas => {
               let link = document.createElement('a');
