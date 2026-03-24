@@ -5750,7 +5750,15 @@ function showMaintenanceShield(message) {
                   background-color: #fcfcfc; color: #333; font-weight: bold;
               }
               @media (max-width: 768px) {
-                  .cal-tag { font-size: 0.75rem; letter-spacing: -0.5px; padding: 4px 0px; }
+                  .cal-tag { 
+                      font-size: 0.75rem; 
+                      letter-spacing: -0.5px; 
+                      padding: 4px 0px; 
+                      /* ★ 手機版專屬魔法：強勢回歸的鐵棍，強制不換行，超出的文字變 ... */
+                      white-space: nowrap; 
+                      overflow: hidden; 
+                      text-overflow: ellipsis; 
+                  }
                   .cal-detail { font-size: 0.65rem; } /* ★ 手機版明細：強制縮小為 0.65rem，確保比外層 tag 小 */
               }
           </style>
