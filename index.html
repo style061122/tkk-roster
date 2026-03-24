@@ -5733,6 +5733,7 @@ function showMaintenanceShield(message) {
           // ==========================================
           let html = `
           <style>
+              /* ★ 電腦版：網格防護罩，minmax(0, 1fr) 讓它彈性塞滿螢幕 */
               .cal-grid-new { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
               .cal-day-new { background: #fff; min-height: 110px; padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px; box-shadow: inset 0 0 0 1px #f1f3f5; }
               .cal-day-new.empty { background: transparent; box-shadow: none; }
@@ -5744,22 +5745,24 @@ function showMaintenanceShield(message) {
               .cal-tag:active { transform: scale(0.95); }
               .cal-detail {
                   display: none; 
-                  font-size: 0.7rem; /* ★ 電腦版明細：從 0.75rem 縮小為 0.7rem */
+                  font-size: 0.7rem; 
                   padding: 4px; border-radius: 4px; 
                   text-align: center; margin-bottom: 4px; line-height: 1.3; 
                   background-color: #fcfcfc; color: #333; font-weight: bold;
               }
+              
+              /* ★ 手機版雙面人魔法：強制橫向滑動 + 恢復單行鐵棍 */
               @media (max-width: 768px) {
+                  .cal-grid-new {
+                      min-width: 750px; /* ★ 賦予最低實體寬度，強迫產生左右滑動，絕對不擠在一起！ */
+                  }
                   .cal-tag { 
                       font-size: 0.75rem; 
                       letter-spacing: -0.5px; 
                       padding: 4px 0px; 
-                      /* ★ 手機版專屬魔法：強勢回歸的鐵棍，強制不換行，超出的文字變 ... */
-                      white-space: nowrap; 
-                      overflow: hidden; 
-                      text-overflow: ellipsis; 
+                      white-space: nowrap; /* ★ 恢復單行鐵棍，名字與時間擠在同一行 */
                   }
-                  .cal-detail { font-size: 0.65rem; } /* ★ 手機版明細：強制縮小為 0.65rem，確保比外層 tag 小 */
+                  .cal-detail { font-size: 0.65rem; }
               }
           </style>
           <div class="cal-grid-new">
