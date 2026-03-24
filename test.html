@@ -5564,20 +5564,29 @@ function showMaintenanceShield(message) {
               let minOutStart = 999; // 用於排序外出卡片
 
               // ==========================================
-              // ★ 核心升級：全域狀態雷達 (抽出打卡/請假/異常/缺勤邏輯)
+              // ★ 核心升級 1：全域時空狀態雷達 (Time-Aware)
               // ==========================================
               let hasIn = r.sys_clockIn && String(r.sys_clockIn).trim() !== "";
               let hasOut = r.sys_clockOut && String(r.sys_clockOut).trim() !== "";
-              let punchStr = (hasIn || hasOut) ? `${r.sys_clockIn || ""} ~ ${r.sys_clockOut || ""}` : "無打卡";
               
-              let sysAbnormal = String(r.sys_abnormal || "").trim();
-              let abnormalHtml = sysAbnormal ? `<br><span class="text-danger fw-bold">${sysAbnormal}</span>` : "";
-              
-              let hasLeave = r.sys_leave && String(r.sys_leave).trim() !== "";
               let rDateObj = new Date(r.date);
               rDateObj.setHours(0,0,0,0);
               let todayObj = new Date();
               todayObj.setHours(0,0,0,0);
+
+              let punchStr = "";
+              if (hasIn || hasOut) {
+                  punchStr = `${r.sys_clockIn || ""} ~ ${r.sys_clockOut || ""}`;
+              } else if (rDateObj < todayObj) {
+                  punchStr = "無打卡"; // 過去確實沒打卡
+              } else {
+                  // ★ 時光機：今天或未來沒打卡，顯示預定排班時間，避免恐慌
+                  punchStr = (startVal !== "" && endVal !== "") ? `排班：${startVal}~${endVal}` : "無打卡";
+              }
+              
+              let sysAbnormal = String(r.sys_abnormal || "").trim();
+              let abnormalHtml = sysAbnormal ? `<br><span class="text-danger fw-bold">${sysAbnormal}</span>` : "";
+              let hasLeave = r.sys_leave && String(r.sys_leave).trim() !== "";
 
               let globalStatusTag = "";
               let globalPunchDetail = "";
@@ -5650,7 +5659,7 @@ function showMaintenanceShield(message) {
                           dayIn[d].push({
                               startNum: supS, // 用校正後的座標排序，確保跨夜凌晨的支援會排在卡片最下面
                               bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
-                              label: `🤝 ${r.store} ${fmtStart}-${fmtEnd}${globalStatusTag}`, // ★ 接上全域跳行標籤
+                              label: `<span style="display:inline-block;">🤝 ${r.store}</span> <span style="display:inline-block;">${fmtStart}-${fmtEnd}</span>${globalStatusTag}`, // ★ 積木魔法
                               detail: `${r.name}<br><hr class="my-1 border-secondary opacity-25" style="border-top: 1px dashed;">${globalPunchDetail}` // ★ 加入虛線與全域打卡明細
                           });
                       }
@@ -5670,7 +5679,7 @@ function showMaintenanceShield(message) {
                       // 1. 無論什麼狀態，只要有時間，就統一抓取並顯示「姓名 上班-下班」
                       let dStart = formatFloatToTimeStr(homeIntervals[0][0]);
                       let dEnd = formatFloatToTimeStr(homeIntervals[homeIntervals.length - 1][1]);
-                      let mainLabel = `${r.name} ${dStart}-${dEnd}`; // 效果：張仲偉 9-23 (包含加班)
+                      let mainLabel = `<span style="display:inline-block;">${r.name}</span> <span style="display:inline-block;">${dStart}-${dEnd}</span>`;
                       
                       let detailHtml = "";
                       let bg, color, border;
@@ -5713,7 +5722,7 @@ function showMaintenanceShield(message) {
                   dayOut[d].push({
                       startNum: minOutStart,
                       bg: '#f8f9fa', color: '#495057', border: '#dee2e6',
-                      label: `🚀 ${r.name}${globalStatusTag}`, // ★ 接入全域跳行標籤
+                      label: `<span style="display:inline-block;">🚀 ${r.name}</span>${globalStatusTag}`, // ★ 積木魔法
                       detail: `${outDetails.join('<br>')}<br><hr class="my-1 border-secondary opacity-25" style="border-top: 1px dashed;">${globalPunchDetail}` // ★ 加入虛線與全域打卡明細
                   });
               }
@@ -5725,13 +5734,12 @@ function showMaintenanceShield(message) {
           // ==========================================
           let html = `
           <style>
-              .cal-grid-new { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
+              .cal-grid-new { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
               .cal-day-new { background: #fff; min-height: 110px; padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px; box-shadow: inset 0 0 0 1px #f1f3f5; }
               .cal-day-new.empty { background: transparent; box-shadow: none; }
               .cal-tag {
                   font-size: 0.85rem; font-weight: bold; padding: 4px 2px; border-radius: 4px;
                   cursor: pointer; text-align: center; line-height: 1.2;
-                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
                   display: block; width: 100%; transition: transform 0.1s;
               }
               .cal-tag:active { transform: scale(0.95); }
@@ -5879,11 +5887,7 @@ function showMaintenanceShield(message) {
                   clonedArea.style.minWidth = '1200px';
                   clonedArea.style.padding = '10px';
                   
-                  // 保護文字，強制不折行
-                  let tags = clonedArea.querySelectorAll('.cal-tag');
-                  tags.forEach(t => {
-                      t.style.whiteSpace = 'nowrap';
-                  });
+                  // ★ 逮捕截圖凶手：已刪除強制不折行的迴圈，讓截圖維持完美流體排版！
               }
           }).then(canvas => {
               let link = document.createElement('a');
