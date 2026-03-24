@@ -3619,8 +3619,9 @@ function showMaintenanceShield(message) {
           // ★ 這裡顯示督導本人的名字
           let supervisorName = sessionStorage.getItem('tkk_store') || currentStore; 
 
+          // ★ 核心手術 1：拔除 'report-item' 階級，賦予全區總覽「免死金牌」！
           let html = `
-          <div id="region-overview-dashboard" class="card shadow-sm border-0 rounded-4 mb-4 report-item" style="background-color: #ffffff; border: 3px solid #0d6efd !important; scroll-margin-top: 60px;">
+          <div id="region-overview-dashboard" class="card shadow-sm border-0 rounded-4 mb-4" style="background-color: #ffffff; border: 3px solid #0d6efd !important; scroll-margin-top: 60px;">
               <div class="card-body p-1 p-md-2">
                   <div class="d-flex align-items-center justify-content-center mb-2 pb-1 border-bottom">
                       <h5 class="fw-bolder text-primary mb-0">👑 ${supervisorName}</h5>
@@ -3676,17 +3677,15 @@ function showMaintenanceShield(message) {
               </div>
           </div>`;
           
-          // ★ 建立電梯樓層的 ID 字典 (讓中文名稱可以對應到 div ID)
+          // ★ 核心手術 2：優化電梯字典，因為全區總覽永遠釘在畫面上，所以不需要在選單裡了
           window.regionJumpMap = {
-              "顯示全部": "ALL",
-              "👑 全區總覽": "region-overview-dashboard"
+              "顯示全部": "ALL"
           };
           
           let datalistHtml = `<datalist id="regionJumpList">
-              <option value="顯示全部"></option>
-              <option value="👑 全區總覽"></option>`;
+              <option value="顯示全部"></option>`;
           
-          allStores.forEach((st, idx) => { 
+          allStores.forEach((st, idx) => {
               let label = `🏢 ${st}`;
               window.regionJumpMap[label] = `reg-st-${idx}`;
               datalistHtml += `<option value="${label}"></option>`; 
