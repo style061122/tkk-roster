@@ -5658,7 +5658,7 @@ function showMaintenanceShield(message) {
                           dayIn[d].push({
                               startNum: supS, // 用校正後的座標排序，確保跨夜凌晨的支援會排在卡片最下面
                               bg: '#f4f0fd', color: '#592c9b', border: '#d3bbfb',
-                              label: `<span style="display:inline-block;">🤝 ${r.store}</span> <span style="display:inline-block;">${fmtStart}-${fmtEnd}</span>${globalStatusTag}`, // ★ 積木魔法
+                              label: `<span class="cal-text-block">🤝 ${r.store}</span> <span class="cal-text-block">${fmtStart}-${fmtEnd}</span>${globalStatusTag}`,
                               detail: `${r.name}<br><hr class="my-1 border-secondary opacity-25" style="border-top: 1px dashed;">${globalPunchDetail}` // ★ 加入虛線與全域打卡明細
                           });
                       }
@@ -5678,7 +5678,7 @@ function showMaintenanceShield(message) {
                       // 1. 無論什麼狀態，只要有時間，就統一抓取並顯示「姓名 上班-下班」
                       let dStart = formatFloatToTimeStr(homeIntervals[0][0]);
                       let dEnd = formatFloatToTimeStr(homeIntervals[homeIntervals.length - 1][1]);
-                      let mainLabel = `<span style="display:inline-block;">${r.name}</span> <span style="display:inline-block;">${dStart}-${dEnd}</span>`;
+                      let mainLabel = `<span class="cal-text-block">${r.name}</span> <span class="cal-text-block">${dStart}-${dEnd}</span>`;
                       
                       let detailHtml = "";
                       let bg, color, border;
@@ -5721,7 +5721,7 @@ function showMaintenanceShield(message) {
                   dayOut[d].push({
                       startNum: minOutStart,
                       bg: '#f8f9fa', color: '#495057', border: '#dee2e6',
-                      label: `<span style="display:inline-block;">🚀 ${r.name}</span>${globalStatusTag}`, // ★ 積木魔法
+                      label: `<span class="cal-text-block">🚀 ${r.name}</span>${globalStatusTag}`,
                       detail: `${outDetails.join('<br>')}<br><hr class="my-1 border-secondary opacity-25" style="border-top: 1px dashed;">${globalPunchDetail}` // ★ 加入虛線與全域打卡明細
                   });
               }
@@ -5733,16 +5733,22 @@ function showMaintenanceShield(message) {
           // ==========================================
           let html = `
           <style>
-              /* ★ 電腦版：網格防護罩，minmax(0, 1fr) 讓它彈性塞滿螢幕 */
+              /* ★ 電腦版 (預設)：網格防護罩 minmax(0, 1fr) */
               .cal-grid-new { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; background: #e9ecef; border: 1px solid #dee2e6; padding: 4px; border-radius: 8px; }
               .cal-day-new { background: #fff; min-height: 110px; padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px; box-shadow: inset 0 0 0 1px #f1f3f5; }
               .cal-day-new.empty { background: transparent; box-shadow: none; }
+              
               .cal-tag {
                   font-size: 0.85rem; font-weight: bold; padding: 4px 2px; border-radius: 4px;
                   cursor: pointer; text-align: center; line-height: 1.2;
+                  white-space: normal; /* 電腦版允許自然換行 */
                   display: block; width: 100%; transition: transform 0.1s;
               }
               .cal-tag:active { transform: scale(0.95); }
+              
+              /* ★ 電腦版積木魔法：讓名字跟時間變成獨立積木，允許彈性換行 */
+              .cal-text-block { display: inline-block; }
+
               .cal-detail {
                   display: none; 
                   font-size: 0.7rem; 
@@ -5751,16 +5757,19 @@ function showMaintenanceShield(message) {
                   background-color: #fcfcfc; color: #333; font-weight: bold;
               }
               
-              /* ★ 手機版雙面人魔法：強制橫向滑動 + 恢復單行鐵棍 */
+              /* ★ 手機版雙面人：強制橫向滑動 + 融化積木 + 恢復單行鐵棍 */
               @media (max-width: 768px) {
                   .cal-grid-new {
-                      min-width: 750px; /* ★ 賦予最低實體寬度，強迫產生左右滑動，絕對不擠在一起！ */
+                      grid-template-columns: repeat(7, 1fr); /* 拔除防護罩，允許無限撐開 */
                   }
                   .cal-tag { 
                       font-size: 0.75rem; 
                       letter-spacing: -0.5px; 
                       padding: 4px 0px; 
-                      white-space: nowrap; /* ★ 恢復單行鐵棍，名字與時間擠在同一行 */
+                      white-space: nowrap; /* ★ 金箍棒：絕對不准換行，強制撐寬螢幕 */
+                  }
+                  .cal-text-block {
+                      display: inline; /* ★ 將積木融化，變回單純的一句話，避免被截斷 */
                   }
                   .cal-detail { font-size: 0.65rem; }
               }
