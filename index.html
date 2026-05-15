@@ -4435,7 +4435,7 @@ function showMaintenanceShield(message) {
                       
                       <div class="col">
                           <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="cursor: pointer; background-color: ${totalAA > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${totalAA > 0 ? '#f5c2c7' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-aa">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">獎金時數 ▾</div>
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">獎金基數 ▾</div>
                               <div class="fw-bold ${totalAA > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1rem;">${totalAA > 0 ? totalAA.toFixed(1) : '0.0'}</div>
                           </div>
                       </div>
@@ -4500,7 +4500,7 @@ function showMaintenanceShield(message) {
 
                   <div class="collapse" id="${cardId}-aa">
                       <div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
-                          ${aaDetails.length > 0 ? `<strong class="text-danger">獎金時數:</strong><br>${aaDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無獎金時數紀錄</span>'}
+                          ${aaDetails.length > 0 ? `<strong class="text-danger">獎金基數:</strong><br>${aaDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無獎金紀錄</span>'}
                       </div>
                   </div>
 
@@ -4536,7 +4536,7 @@ function showMaintenanceShield(message) {
                       <th style="${thStyleLeft}">應有時段</th>
                       <th style="${thStyleLeft}">應有H</th>
                       <th style="${thStyleLeft}">加班時段</th>
-                      <th style="${thStyleLeft}">獎金時數</th>
+                      <th style="${thStyleLeft}">獎金基數</th>
                       <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
                       
                       <th style="${thStyleRight}">系統狀態</th>
