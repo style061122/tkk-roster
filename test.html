@@ -990,7 +990,7 @@ function showMaintenanceShield(message) {
       window.personalUserKey = ""; 
       window.personalMonthMode = "current";
 
-      // ★ 階段三：增設密碼變數與智慧儲存邏輯
+      // ★ 階段三-1 優化：增設密碼變數與智慧儲存邏輯
       window.personalPwd = "";
       
       function getDevicePwdStorageKey() {
@@ -1003,9 +1003,6 @@ function showMaintenanceShield(message) {
       }
 
       window.loadPersonalData = function(pwdToTry = "") {
-          document.getElementById('loadingOverlay').style.display = 'flex';
-          document.getElementById('loadingText').innerText = "讀取個人班表中...";
-          
           // 嘗試拿密碼 (優先用參數傳入的，沒有就去倉庫找)
           if (pwdToTry) window.personalPwd = pwdToTry;
           else {
@@ -1013,6 +1010,20 @@ function showMaintenanceShield(message) {
               window.personalPwd = deviceStorage.storage.getItem(deviceStorage.keyName) || "";
           }
 
+          // ==========================================
+          // 🚀 終極優化：0 秒攔截器！
+          // 如果完全沒有密碼，不要去吵後端浪費 8 秒與流量！直接彈窗！
+          // ==========================================
+          if (!window.personalPwd) {
+              document.getElementById('loadingOverlay').style.display = 'none'; // 確保遮罩隱藏
+              new bootstrap.Modal(document.getElementById('pwdVerifyModal')).show();
+              return; 
+          }
+
+          // 有密碼才准放行去問 GAS
+          document.getElementById('loadingOverlay').style.display = 'flex';
+          document.getElementById('loadingText').innerText = "驗證身分與讀取班表中...";
+          
           callApi('getPersonalData', { 
               u: window.personalUserKey, 
               pwd: window.personalPwd,
@@ -1021,35 +1032,36 @@ function showMaintenanceShield(message) {
              .then(res => {
                 showLoading(false);
                 
-                // ★ 階段三：處理密碼驗證退件
+                // ★ 處理密碼驗證退件
                 if (res.requirePwd || res.isPwdError) {
                     const errorBox = document.getElementById('verifyPwdError');
                     const pwdInput = document.getElementById('verifyPwdInput');
                     pwdInput.value = ""; // 清空錯誤密碼
                     
                     if (res.isPwdError) {
-                        errorBox.innerText = res.message;
+                        errorBox.innerText = res.message; // 顯示後端傳來的錯誤訊息
                         errorBox.style.display = 'block';
-                        // 密碼錯了，把倉庫清乾淨
+                        // 密碼錯了，把被污染的倉庫清乾淨
                         const deviceStorage = getDevicePwdStorageKey();
                         deviceStorage.storage.removeItem(deviceStorage.keyName);
+                        window.personalPwd = ""; // 記憶體也清空
                     } else {
                         errorBox.style.display = 'none';
                     }
                     
-                    // 彈出驗證視窗
+                    // 彈出驗證視窗 (如果是第一次被退件)
                     new bootstrap.Modal(document.getElementById('pwdVerifyModal')).show();
                     return; 
                 }
 
                 if (res.success) {
-                    // ★ 密碼驗證成功！記住密碼
+                    // ★ 密碼驗證成功！將正確的密碼妥善保存
                     if (window.personalPwd) {
                         const deviceStorage = getDevicePwdStorageKey();
                         deviceStorage.storage.setItem(deviceStorage.keyName, window.personalPwd);
                     }
 
-                    // ★ 階段三：接收設定檔中的異常原因清單
+                    // 接收設定檔中的異常原因清單
                     if (res.meta && res.meta.anomaly_reasons) {
                         window.anomalyReasonList = res.meta.anomaly_reasons;
                         window.anomalyOtherLabel = res.meta.anomaly_other || "其他";
@@ -1060,38 +1072,54 @@ function showMaintenanceShield(message) {
 
                     // 更新按鈕 UI
                     const btn = document.getElementById('btnPersonalToggle');
-                   if (window.personalMonthMode === 'next') {
-                       btn.className = 'btn btn-sm btn-primary fw-bold shadow-sm rounded-pill px-3';
-                       btn.innerText = '🔄 切換回 當月班表';
-                   } else {
-                       btn.className = 'btn btn-sm btn-warning text-dark fw-bold shadow-sm rounded-pill px-3';
-                       btn.innerText = '🔄 切換至 次月預排';
-                   }
-                   renderPersonalPage(res);
-               }
-               else document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
-            })
-            .catch(err => {
-               if (err && err.message === "MAINTENANCE_LOCKED") return; // ★ 靜音防護：維護中不報錯
-               showLoading(false);
-               alert("錯誤：" + err.message); 
-            });
+                    if (window.personalMonthMode === 'next') {
+                        btn.className = 'btn btn-sm btn-primary fw-bold shadow-sm rounded-pill px-3';
+                        btn.innerText = '🔄 切換回 當月班表';
+                    } else {
+                        btn.className = 'btn btn-sm btn-warning text-dark fw-bold shadow-sm rounded-pill px-3';
+                        btn.innerText = '🔄 切換至 次月預排';
+                    }
+                    renderPersonalPage(res);
+                }
+                else {
+                    document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
+                }
+             })
+             .catch(err => {
+                if (err && err.message === "MAINTENANCE_LOCKED") return; 
+                showLoading(false);
+                alert("錯誤：" + err.message); 
+             });
       };
 
-        // ★ 階段三：處理密碼彈窗送出
-        window.submitPwdVerification = function() {
-            const pwdInput = document.getElementById('verifyPwdInput').value.trim();
-            if (pwdInput.length !== 4) {
-                const errorBox = document.getElementById('verifyPwdError');
-                errorBox.innerText = "請輸入完整的四碼數字！";
-                errorBox.style.display = 'block';
-                return;
-            }
+      // ★ 處理密碼彈窗送出 (防連點機制)
+      window.submitPwdVerification = function() {
+          const pwdInput = document.getElementById('verifyPwdInput').value.trim();
+          const errorBox = document.getElementById('verifyPwdError');
           
-            // 關閉 Modal 並重新呼叫載入 (帶上剛打的密碼)
-            bootstrap.Modal.getInstance(document.getElementById('pwdVerifyModal')).hide();
-            window.loadPersonalData(pwdInput);
-        };
+          if (pwdInput.length !== 4) {
+              errorBox.innerText = "請輸入完整的四碼數字！";
+              errorBox.style.display = 'block';
+              return;
+          }
+          
+          // ★ 防連點與降低配額消耗：按鈕鎖定
+          const btn = document.querySelector('#pwdVerifyModal .btn-primary');
+          btn.disabled = true;
+          btn.innerHTML = '驗證中...';
+          errorBox.style.display = 'none';
+
+          // 關閉 Modal 並重新呼叫載入 (帶上剛打的密碼)
+          bootstrap.Modal.getInstance(document.getElementById('pwdVerifyModal')).hide();
+          
+          // 恢復按鈕狀態，以防密碼錯誤時再次彈出
+          setTimeout(() => {
+              btn.disabled = false;
+              btn.innerHTML = '確認登入';
+          }, 1000);
+
+          window.loadPersonalData(pwdInput);
+      };
 
       window.togglePersonalMonth = function() {
           window.personalMonthMode = (window.personalMonthMode === 'current') ? 'next' : 'current';
