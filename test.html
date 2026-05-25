@@ -990,17 +990,76 @@ function showMaintenanceShield(message) {
       window.personalUserKey = ""; 
       window.personalMonthMode = "current";
 
-      window.loadPersonalData = function() {
+      // ★ 階段三：增設密碼變數與智慧儲存邏輯
+      window.personalPwd = "";
+      
+      function getDevicePwdStorageKey() {
+          // 判斷是否為手機 (簡易判斷寬度小於 768px)
+          const isMobile = window.innerWidth <= 768;
+          return {
+              storage: isMobile ? localStorage : sessionStorage,
+              keyName: `tkk_pwd_${window.personalUserKey}`
+          };
+      }
+
+      window.loadPersonalData = function(pwdToTry = "") {
           document.getElementById('loadingOverlay').style.display = 'flex';
           document.getElementById('loadingText').innerText = "讀取個人班表中...";
           
-          // ★ 呼叫 API 時帶入 monthMode
-          callApi('getPersonalData', { u: window.personalUserKey, monthMode: window.personalMonthMode })
-            .then(res => {
-               showLoading(false);
-               if (res.success) {
-                   // 更新按鈕 UI
-                   const btn = document.getElementById('btnPersonalToggle');
+          // 嘗試拿密碼 (優先用參數傳入的，沒有就去倉庫找)
+          if (pwdToTry) window.personalPwd = pwdToTry;
+          else {
+              const deviceStorage = getDevicePwdStorageKey();
+              window.personalPwd = deviceStorage.storage.getItem(deviceStorage.keyName) || "";
+          }
+
+          callApi('getPersonalData', { 
+              u: window.personalUserKey, 
+              pwd: window.personalPwd,
+              monthMode: window.personalMonthMode 
+          })
+             .then(res => {
+                showLoading(false);
+                
+                // ★ 階段三：處理密碼驗證退件
+                if (res.requirePwd || res.isPwdError) {
+                    const errorBox = document.getElementById('verifyPwdError');
+                    const pwdInput = document.getElementById('verifyPwdInput');
+                    pwdInput.value = ""; // 清空錯誤密碼
+                    
+                    if (res.isPwdError) {
+                        errorBox.innerText = res.message;
+                        errorBox.style.display = 'block';
+                        // 密碼錯了，把倉庫清乾淨
+                        const deviceStorage = getDevicePwdStorageKey();
+                        deviceStorage.storage.removeItem(deviceStorage.keyName);
+                    } else {
+                        errorBox.style.display = 'none';
+                    }
+                    
+                    // 彈出驗證視窗
+                    new bootstrap.Modal(document.getElementById('pwdVerifyModal')).show();
+                    return; 
+                }
+
+                if (res.success) {
+                    // ★ 密碼驗證成功！記住密碼
+                    if (window.personalPwd) {
+                        const deviceStorage = getDevicePwdStorageKey();
+                        deviceStorage.storage.setItem(deviceStorage.keyName, window.personalPwd);
+                    }
+
+                    // ★ 階段三：接收設定檔中的異常原因清單
+                    if (res.meta && res.meta.anomaly_reasons) {
+                        window.anomalyReasonList = res.meta.anomaly_reasons;
+                        window.anomalyOtherLabel = res.meta.anomaly_other || "其他";
+                    }
+
+                    // 接收歷史異常足跡
+                    window.historicalAnomalies = res.anomalyData || [];
+
+                    // 更新按鈕 UI
+                    const btn = document.getElementById('btnPersonalToggle');
                    if (window.personalMonthMode === 'next') {
                        btn.className = 'btn btn-sm btn-primary fw-bold shadow-sm rounded-pill px-3';
                        btn.innerText = '🔄 切換回 當月班表';
@@ -1018,6 +1077,21 @@ function showMaintenanceShield(message) {
                alert("錯誤：" + err.message); 
             });
       };
+
+        // ★ 階段三：處理密碼彈窗送出
+        window.submitPwdVerification = function() {
+            const pwdInput = document.getElementById('verifyPwdInput').value.trim();
+            if (pwdInput.length !== 4) {
+                const errorBox = document.getElementById('verifyPwdError');
+                errorBox.innerText = "請輸入完整的四碼數字！";
+                errorBox.style.display = 'block';
+                return;
+            }
+          
+            // 關閉 Modal 並重新呼叫載入 (帶上剛打的密碼)
+            bootstrap.Modal.getInstance(document.getElementById('pwdVerifyModal')).hide();
+            window.loadPersonalData(pwdInput);
+        };
 
       window.togglePersonalMonth = function() {
           window.personalMonthMode = (window.personalMonthMode === 'current') ? 'next' : 'current';
@@ -6846,6 +6920,54 @@ function showMaintenanceShield(message) {
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
             <button type="button" class="btn btn-success fw-bold px-4 shadow" onclick="saveHQDispatch()">💾 確認儲存支援</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="pwdVerifyModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+          <div class="modal-header bg-primary text-white" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+            <h5 class="modal-title fw-bold">🔒 身分驗證</h5>
+          </div>
+          <div class="modal-body p-4 text-center">
+            <h6 class="text-dark fw-bold mb-3">為保護您的隱私，請輸入身分證後四碼：</h6>
+            <input type="tel" id="verifyPwdInput" class="form-control form-control-lg text-center fw-bold text-primary mb-3 mx-auto" style="max-width: 250px; font-size: 1.5rem; letter-spacing: 4px;" maxlength="4" placeholder="XXXX">
+            <div id="verifyPwdError" class="text-danger fw-bold" style="display: none;"></div>
+          </div>
+          <div class="modal-footer justify-content-center border-0 pb-4">
+            <button type="button" class="btn btn-primary btn-lg fw-bold px-5 shadow-sm" style="border-radius: 8px;" onclick="submitPwdVerification()">確認登入</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="anomalyReportModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 12px;">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title fw-bold">⚠️ 填寫異常說明</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-light border border-danger text-center fw-bold mb-3 py-2" id="anomalyModalTitle"></div>
+            
+            <div class="mb-3">
+                <label class="fw-bold text-secondary small mb-1">發生原因</label>
+                <select id="anomalyReasonSelect" class="form-select fw-bold border-danger" onchange="toggleAnomalyOtherInput()">
+                    <option value="">請選擇原因...</option>
+                </select>
+            </div>
+            
+            <div class="mb-3" id="anomalyOtherGroup" style="display: none;">
+                <label class="fw-bold text-secondary small mb-1">原因說明 (必填)</label>
+                <textarea id="anomalyOtherInput" class="form-control fw-bold border-danger" rows="2" placeholder="請簡述發生原因..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer d-flex justify-content-between">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" id="submitAnomalyBtn" class="btn btn-danger fw-bold px-4 shadow-sm" onclick="saveAnomalyData()">📤 送出回報</button>
           </div>
         </div>
       </div>
