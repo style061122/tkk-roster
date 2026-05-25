@@ -575,7 +575,7 @@
     </div>
     <script>
       // ★★★ 請務必確認這個網址是您最新的後端網址 ★★★
-      const API_URL = "";
+      const API_URL = "https://script.google.com/macros/s/AKfycbyComIVquNe65PfSUUpcujWapopAQYlnnF-a9NxG9r_-eTjTUjltD4_DkCuLGO-5m_N/exec";
 
       // 全域變數
       let currentStore = "", currentData = [], monthlyTargets = { hrs:0, rest:0, reg:0, nat:0, holidays:[], weekStart: 1, customRules:[] };
@@ -2360,7 +2360,8 @@ function showMaintenanceShield(message) {
             <td><div class="q-log-box">${logStr || '<span class="text-muted">無</span>'}</div></td>
           `;
           
-          tbody.appendChild(tr); validateRow(tr);   
+          // ★ 啟動初次渲染特權：傳入 isInitialRender = true，制止系統雞婆重算
+          tbody.appendChild(tr); validateRow(tr, false, true);   
         });
         
         // 更新異常按鈕的數字 (每次重繪表格時偷偷計算一次)
@@ -2453,8 +2454,8 @@ function showMaintenanceShield(message) {
       // ==========================================
       // ★ 核心時段切割與檢核引擎 (保留舊版全邏輯 + 連動標記)
       // ==========================================
-      // ★ 升級 1：加入 isCascade 參數
-      function validateRow(tr, isCascade = false) {
+      // ★ 升級 1：加入 isCascade 與 isInitialRender 參數
+      function validateRow(tr, isCascade = false, isInitialRender = false) {
           const status = tr.querySelector('.status-select').value;
           const startSelect = tr.querySelector('.start-select');
           const endSelect = tr.querySelector('.end-select');
@@ -2593,9 +2594,9 @@ function showMaintenanceShield(message) {
               let safeStatsH = Math.round(stats.h * 10) / 10;
               let effectiveZ = 0;
 
-              if (isCascade) {
+              if (isCascade || isInitialRender) {
                   // ==========================================
-                  // ★ 狀況 A：系統背景連動時 (H 神聖不動，Z 自動吃 AA)
+                  // ★ 狀況 A：系統背景連動 或 畫面初次渲染重繪時 (H 神聖不動)
                   // ==========================================
                   let oldH_mem = parseFloat(currentData[originalIndex].calc_hours) || 0;
                   outH = oldH_mem; // 鐵律 2：絕對鎖定 H
@@ -2603,8 +2604,15 @@ function showMaintenanceShield(message) {
                   let maxZ_physical = Math.round(Math.max(0, 12 - outH) * 10) / 10; 
                   let maxZ_needed = Math.round(Math.max(0, totalWork - outH) * 10) / 10; 
                   
-                  effectiveZ = Math.min(maxZ_needed, maxZ_physical, availableZ);
-                  outAA = Math.round(Math.max(0, totalWork - outH - effectiveZ) * 10) / 10;
+                  // ★ 記憶體恢復術：如果是重繪，連 Z 也要絕對鎖定，完美還原店長的最終存檔狀態！
+                  if (isInitialRender) {
+                      let oldZ_mem = parseFloat(currentData[originalIndex].input_est_overtime) || 0;
+                      effectiveZ = oldZ_mem;
+                      outAA = Math.round(Math.max(0, totalWork - outH - effectiveZ) * 10) / 10;
+                  } else {
+                      effectiveZ = Math.min(maxZ_needed, maxZ_physical, availableZ);
+                      outAA = Math.round(Math.max(0, totalWork - outH - effectiveZ) * 10) / 10;
+                  }
                   
               } else {
                   // ==========================================
@@ -4427,7 +4435,7 @@ function showMaintenanceShield(message) {
                       
                       <div class="col">
                           <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm" style="cursor: pointer; background-color: ${totalAA > 0 ? '#f8d7da' : '#f8f9fa'}; border-color: ${totalAA > 0 ? '#f5c2c7' : '#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-aa">
-                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">獎金時數 ▾</div>
+                              <div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${totalAA > 0 ? '#842029' : '#6c757d'};">獎金基數 ▾</div>
                               <div class="fw-bold ${totalAA > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1rem;">${totalAA > 0 ? totalAA.toFixed(1) : '0.0'}</div>
                           </div>
                       </div>
@@ -4492,7 +4500,7 @@ function showMaintenanceShield(message) {
 
                   <div class="collapse" id="${cardId}-aa">
                       <div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
-                          ${aaDetails.length > 0 ? `<strong class="text-danger">獎金時數:</strong><br>${aaDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無獎金時數紀錄</span>'}
+                          ${aaDetails.length > 0 ? `<strong class="text-danger">獎金基數:</strong><br>${aaDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無獎金紀錄</span>'}
                       </div>
                   </div>
 
@@ -4528,7 +4536,7 @@ function showMaintenanceShield(message) {
                       <th style="${thStyleLeft}">應有時段</th>
                       <th style="${thStyleLeft}">應有H</th>
                       <th style="${thStyleLeft}">加班時段</th>
-                      <th style="${thStyleLeft}">獎金時數</th>
+                      <th style="${thStyleLeft}">獎金基數</th>
                       <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
                       
                       <th style="${thStyleRight}">系統狀態</th>
