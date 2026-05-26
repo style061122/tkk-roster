@@ -5183,8 +5183,33 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${r.sys_leaveType||""}</td>
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
-                      <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.log}</td>
+                      
+                      <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 130px; padding: 6px;">
+                          <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
+                          
+                          ${r.sys_anomaly_reason ? `
+                          <div class="mt-2 p-2 bg-light border border-danger rounded d-flex flex-column align-items-center justify-content-center shadow-sm">
+                              <div class="small fw-bold text-danger mb-1">${r.sys_anomaly_reason}</div>
+                              <div class="small text-secondary mb-2">${r.sys_anomaly_time}</div>
+                              <label class="d-flex align-items-center mb-0" style="cursor: pointer;">
+                                  <input type="checkbox" class="form-check-input anomaly-cb border-danger m-0 me-2" style="transform: scale(1.3); cursor: pointer;" 
+                                         value="${r.date}" data-reason="${r.sys_anomaly_reason}" data-time="${r.sys_anomaly_time}" onchange="updateAnomalyCart()">
+                                  <span class="text-danger fw-bold" style="font-size:0.9rem;">選取回報</span>
+                              </label>
+                          </div>` : ''}
+
+                          ${(window.historicalAnomalies || []).filter(h => h.date === r.date).map(h => `
+                          <div class="mt-2 p-2 rounded text-start shadow-sm position-relative" style="background-color: #fff3cd; border: 1px solid #ffe69c;">
+                              <div class="d-flex justify-content-between align-items-center mb-1 border-bottom border-warning pb-1">
+                                  <span class="badge ${h.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}">${h.reporter}</span>
+                                  <span class="text-muted fw-bold" style="font-size:0.65rem;">${h.timestamp.split(' ')[0].substring(5)}</span>
+                              </div>
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">${h.reason}</div>
+                              ${h.explanation ? `<div class="text-secondary mt-1" style="font-size:0.8rem; line-height:1.4;">${h.explanation}</div>` : ''}
+                          </div>`).join('')}
+                      </td>
+
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important; vertical-align: top;">${r.log || ""}</td>
                   </tr>
               `;
           });
@@ -6565,8 +6590,33 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${r.sys_leaveType||""}</td>
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
-                      <td class="text-danger fw-bold" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
+                      
+                      <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 130px; padding: 6px;">
+                          <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
+                          
+                          ${r.sys_anomaly_reason ? `
+                          <div class="mt-2 p-2 bg-light border border-danger rounded d-flex flex-column align-items-center justify-content-center shadow-sm">
+                              <div class="small fw-bold text-danger mb-1">${r.sys_anomaly_reason}</div>
+                              <div class="small text-secondary mb-2">${r.sys_anomaly_time}</div>
+                              <label class="d-flex align-items-center mb-0" style="cursor: pointer;">
+                                  <input type="checkbox" class="form-check-input anomaly-cb border-danger m-0 me-2" style="transform: scale(1.3); cursor: pointer;" 
+                                         value="${r.date}" data-reason="${r.sys_anomaly_reason}" data-time="${r.sys_anomaly_time}" onchange="updateAnomalyCart()">
+                                  <span class="text-danger fw-bold" style="font-size:0.9rem;">選取回報</span>
+                              </label>
+                          </div>` : ''}
+
+                          ${(window.historicalAnomalies || []).filter(h => h.date === r.date).map(h => `
+                          <div class="mt-2 p-2 rounded text-start shadow-sm position-relative" style="background-color: #fff3cd; border: 1px solid #ffe69c;">
+                              <div class="d-flex justify-content-between align-items-center mb-1 border-bottom border-warning pb-1">
+                                  <span class="badge ${h.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}">${h.reporter}</span>
+                                  <span class="text-muted fw-bold" style="font-size:0.65rem;">${h.timestamp.split(' ')[0].substring(5)}</span>
+                              </div>
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">${h.reason}</div>
+                              ${h.explanation ? `<div class="text-secondary mt-1" style="font-size:0.8rem; line-height:1.4;">${h.explanation}</div>` : ''}
+                          </div>`).join('')}
+                      </td>
+
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important; vertical-align: top;">${r.log || ""}</td>
                   </tr>
               `;
           });
@@ -6875,6 +6925,131 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
+        
+      // ==========================================
+      // ★ 階段三-2：異常回報購物車與關鍵字攔截引擎
+      // ==========================================
+
+      // 1. 監聽勾選動作，控制購物車按鈕顯示
+      window.updateAnomalyCart = function() {
+          const checked = document.querySelectorAll('.anomaly-cb:checked');
+          const cartBtn = document.getElementById('anomalyCartBtn');
+          if (checked.length > 0) {
+              cartBtn.style.display = 'block';
+              document.getElementById('anomalyCartCount').innerText = checked.length;
+              // 加上一點彈跳動畫吸引注意
+              cartBtn.style.transform = 'scale(1.1)';
+              setTimeout(() => cartBtn.style.transform = 'scale(1)', 150);
+          } else {
+              cartBtn.style.display = 'none';
+          }
+      };
+
+      // 2. 開啟填寫視窗
+      window.openAnomalyModal = function() {
+          const select = document.getElementById('anomalyReasonSelect');
+          select.innerHTML = '<option value="">請選擇原因...</option>';
+          
+          // 帶入從後端取得的選項 (參數設定 B13)
+          if (window.anomalyReasonList) {
+              window.anomalyReasonList.forEach(opt => {
+                  select.innerHTML += `<option value="${opt}">${opt}</option>`;
+              });
+          }
+          // 帶入其他選項 (參數設定 B14)
+          if (window.anomalyOtherLabel) {
+              select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
+          }
+          
+          document.getElementById('anomalyOtherInput').value = "";
+          document.getElementById('anomalyOtherGroup').style.display = 'none';
+          
+          new bootstrap.Modal(document.getElementById('anomalyReportModal')).show();
+      };
+
+      // 3. 切換「其他」文字框
+      window.toggleAnomalyOtherInput = function() {
+          const val = document.getElementById('anomalyReasonSelect').value;
+          document.getElementById('anomalyOtherGroup').style.display = (val === 'OTHER') ? 'block' : 'none';
+      };
+
+      // 4. 執行存檔與防呆攔截
+      window.saveAnomalyData = function() {
+          const reasonVal = document.getElementById('anomalyReasonSelect').value;
+          let explanation = "";
+          
+          if (!reasonVal) {
+              Swal.fire('提示', '請選擇發生原因', 'warning'); return;
+          }
+          
+          // ★ 關鍵字防護網啟動
+          if (reasonVal === 'OTHER') {
+              explanation = document.getElementById('anomalyOtherInput').value.trim();
+              if (!explanation) {
+                  Swal.fire('提示', '請確實填寫原因說明', 'warning'); return;
+              }
+              
+              const blockKeywords = ['加班', '客人', '打掃', '公事'];
+              const hasBlockedWord = blockKeywords.some(kw => explanation.includes(kw));
+              
+              if (hasBlockedWord) {
+                  Swal.fire({
+                      icon: 'warning',
+                      title: '⚠️ 說明內容包含關鍵字',
+                      html: '<div style="text-align:left; font-size:0.95rem; line-height:1.5;">您的說明中包含「加班 / 公事 / 客人 / 打掃」等字眼。<br><br>若是處理公務，請關閉此視窗，並改選 <b>【公事-已申請加班】</b> 選項，且務必記得至系統補送加班單！</div>',
+                      confirmButtonText: '我知道了',
+                      confirmButtonColor: '#dc3545'
+                  });
+                  return; // 攔截！不准送出！
+              }
+          }
+          
+          // 收集打包選取的資料
+          const checkedBoxes = document.querySelectorAll('.anomaly-cb:checked');
+          let records = [];
+          
+          // 抓取真實姓名 (假設標題為 "2026年 1月 - 王大明 ...")
+          const titleText = document.getElementById('personalNameDisplay').innerText;
+          const realName = titleText.split('-')[1].trim().split(' ')[0];
+
+          checkedBoxes.forEach(cb => {
+              records.push({
+                  date: cb.value,
+                  name: realName,
+                  reason: reasonVal === 'OTHER' ? window.anomalyOtherLabel : reasonVal,
+                  timePeriod: cb.getAttribute('data-time'),
+                  explanation: explanation,
+                  reporter: '員工本人'
+              });
+          });
+          
+          // 送往 GAS 儲存
+          const btn = document.getElementById('submitAnomalyBtn');
+          btn.disabled = true; btn.innerHTML = "傳送中...";
+          
+          callApi('saveAnomaly', { u: window.personalUserKey, records: records }).then(res => {
+              btn.disabled = false; btn.innerHTML = "📤 確定送出";
+              if (res.success) {
+                  Swal.fire({
+                      icon: 'success', 
+                      title: '回報成功', 
+                      text: '異常說明已成功送出！', 
+                      timer: 2000, 
+                      showConfirmButton: false
+                  }).then(() => {
+                      bootstrap.Modal.getInstance(document.getElementById('anomalyReportModal')).hide();
+                      document.getElementById('anomalyCartBtn').style.display = 'none';
+                      // 重新載入個人班表，讓歷史足跡印上去！
+                      window.loadPersonalData(window.personalPwd); 
+                  });
+              } else {
+                  Swal.fire('錯誤', res.message, 'error');
+              }
+          }).catch(err => {
+              btn.disabled = false; btn.innerHTML = "📤 確定送出";
+              errorHandler(err);
+          });
+      };
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -6973,33 +7148,48 @@ function showMaintenanceShield(message) {
 
     <div class="modal fade" id="anomalyReportModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 12px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
           <div class="modal-header bg-danger text-white">
             <h5 class="modal-title fw-bold">⚠️ 填寫異常說明</h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body">
-            <div class="alert alert-light border border-danger text-center fw-bold mb-3 py-2" id="anomalyModalTitle"></div>
+          <div class="modal-body p-4">
+            
+            <div class="alert alert-light border border-danger text-start mb-4 p-3 shadow-sm" style="border-radius: 8px;">
+                <div class="fw-bolder text-dark mb-2" style="font-size: 1rem;">📌 請同仁於次月 4 日前確認完畢</div>
+                <div class="text-secondary mb-3" style="font-size: 0.9rem; line-height: 1.6;">
+                    若因公務加班，請務必於次月 4 日前申請加班單並簽核完畢。
+                </div>
+                <div class="text-center p-2 rounded" style="background-color: #ffebee; border: 1px dashed #f5c2c7;">
+                    <span style="color: #dc3545; font-size: 1.15rem; font-weight: 900; letter-spacing: 0.5px;">未處理系統即視為<br>私人因素停留公司</span>
+                </div>
+            </div>
             
             <div class="mb-3">
                 <label class="fw-bold text-secondary small mb-1">發生原因</label>
-                <select id="anomalyReasonSelect" class="form-select fw-bold border-danger" onchange="toggleAnomalyOtherInput()">
+                <select id="anomalyReasonSelect" class="form-select form-select-lg fw-bold border-danger shadow-sm" onchange="toggleAnomalyOtherInput()">
                     <option value="">請選擇原因...</option>
                 </select>
             </div>
             
             <div class="mb-3" id="anomalyOtherGroup" style="display: none;">
                 <label class="fw-bold text-secondary small mb-1">原因說明 (必填)</label>
-                <textarea id="anomalyOtherInput" class="form-control fw-bold border-danger" rows="2" placeholder="請簡述發生原因..."></textarea>
+                <textarea id="anomalyOtherInput" class="form-control fw-bold border-danger shadow-sm" rows="2" placeholder="請簡述發生原因..."></textarea>
             </div>
           </div>
-          <div class="modal-footer d-flex justify-content-between">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-            <button type="button" id="submitAnomalyBtn" class="btn btn-danger fw-bold px-4 shadow-sm" onclick="saveAnomalyData()">📤 送出回報</button>
+          <div class="modal-footer d-flex justify-content-between bg-light" style="border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+            <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">取消</button>
+            <button type="button" id="submitAnomalyBtn" class="btn btn-danger fw-bold px-4 shadow-sm" onclick="saveAnomalyData()">📤 確定送出</button>
           </div>
         </div>
       </div>
     </div>
+
+    <button id="anomalyCartBtn" class="btn btn-danger fw-bold shadow-lg position-fixed" 
+            style="bottom: 30px; right: 30px; z-index: 9999; display: none; border-radius: 50px; padding: 14px 25px; font-size: 1.1rem; transition: transform 0.2s;"
+            onclick="openAnomalyModal()">
+        📝 批次異常回報 (<span id="anomalyCartCount" class="badge bg-white text-danger ms-1 fs-6">0</span>)
+    </button>
 
   </body>
 </html>
