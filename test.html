@@ -4264,6 +4264,11 @@ function showMaintenanceShield(message) {
               const meta = data.meta || {};
               window.currentOtData = data.otData || []; // 📥 接收加班包裹！
               window.pendingAnomalies = []; // ★ 階段三：每次渲染時清空異常暫存陣列
+              // ★ 補充設定：確保 anomalyReasonList 在渲染時一定存在
+              if (data.anomaly_reasons && data.anomaly_reasons.length > 0) {
+                  window.anomalyReasonList = data.anomaly_reasons;
+                  window.anomalyOtherLabel = data.anomaly_other || "其他";
+              }
               // ★ 儲存關帳日資訊供 Modal 動態顯示
               window.personalClosingInfo = { 
                   nextMonth: (parseInt(meta.month || 1) % 12) + 1, 
@@ -4320,6 +4325,8 @@ function showMaintenanceShield(message) {
               let detailWork=[], detailRest=[], detailReg=[], detailNat=[], detailEmpty=[];
               let aaDetails = [], leaveDetails = {}, abnormalDetails = [];
               let pendingCatList = [], answeredCatList = []; // ★ 分類：待填 / 已填
+              window.pendingCatList = pendingCatList;   // ★ 共享引用，Modal 可存取
+              window.answeredCatList = answeredCatList; // ★ 共享引用，Modal 可存取
               let zGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let oGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let supportOutGroups = {};
@@ -4924,69 +4931,91 @@ function showMaintenanceShield(message) {
       // ==========================================
       // ★ 階段三-2：Modal 引擎與關鍵字攔截網 (終極版)
       // ==========================================
-
-      // 開啟填寫視窗 (若傳入 targetDate，則預設只勾選那一天；否則全勾)
-      window.openAnomalyModal = function(targetDate = null, targetReason = null) {
+      window.openAnomalyModal = function(targetDate, targetReason) {
           let catList = window.pendingCatList || [];
           if (catList.length === 0) {
               Swal.fire('提示', '目前沒有需要填寫說明的異常時段', 'info');
               return;
           }
 
-          // ★ 動態帶入關帳日
-          let ci = window.personalClosingInfo || { nextMonth: 6, closeDay: 4 };
-          let deadlineStr = `${ci.nextMonth}月${ci.closeDay}日`;
+          // ★ 動態帶入關帳日 (from window.personalClosingInfo)
+          let ci = window.personalClosingInfo || {};
+          let nextM = ci.nextMonth || 6;
+          let closeD = ci.closeDay || 4;
+          let deadlineStr = `${nextM}月${closeD}日`;
+
           let titleEl = document.getElementById('anomalyModalDeadlineTitle');
-          let otEl = document.getElementById('anomalyModalOtMsg');
-          let warnEl = document.getElementById('anomalyModalWarnText');
+          let otEl    = document.getElementById('anomalyModalOtMsg');
+          let warnEl  = document.getElementById('anomalyModalWarnBox');
           if (titleEl) titleEl.innerHTML = `📌 請同仁於 <span class="text-danger fw-bold">${deadlineStr}</span> 前確認完畢`;
-          if (otEl) otEl.innerHTML = `⚡ 若因公務加班，請務必於 <span class="text-danger fw-bold">${deadlineStr}</span> 前申請加班單並簽核完畢。`;
-          if (warnEl) warnEl.innerHTML = `⛔ 未處理即視為「私人因素停留公司」<br><span style="font-size:0.85rem;font-weight:700;opacity:0.9;">（${deadlineStr} 09:00 後系統自動鎖定，無法修改）</span>`;
+          if (otEl)    otEl.innerHTML    = `⚡ 若因公務加班，請必於 <span class="text-danger fw-bold">${deadlineStr}</span> 前申請加班單並簽核完畢。`;
+          if (warnEl)  warnEl.innerHTML  = `⚠️ <strong>逾期未處理，系統視為「私人因素停留公司」！</strong><br><span style="font-size:0.82rem; font-weight:700;">${deadlineStr} 09:00 後系統自動鎖定，無法修改。</span>`;
 
-          // ★ 勾選清單
-          const listArea = document.getElementById('anomalyChecklistArea');
-          if (!listArea) return;
-          listArea.innerHTML = '';
-          
-          catList.forEach((item) => {
-              let isChecked = '';
-              if (targetDate === null && targetReason === null) {
-                  isChecked = 'checked';
-              } else if (targetDate && targetReason) {
-                  isChecked = (item.date === targetDate && item.reason === targetReason) ? 'checked' : '';
-              } else if (targetDate) {
-                  isChecked = (item.date === targetDate) ? 'checked' : '';
+          // ★ 決定模式
+          let isSingle = (targetDate !== undefined && targetDate !== null && targetDate !== '');
+
+          // ★ 顯示「正在填寫」資訊（單筆時顯示，批次時隱藏）
+          let infoEl = document.getElementById('anomalyCurrentItemInfo');
+          if (infoEl) {
+              if (isSingle) {
+                  let item = catList.find(i => i.date === targetDate && (!targetReason || i.reason === targetReason));
+                  if (item) {
+                      infoEl.style.display = 'block';
+                      infoEl.innerHTML = `
+                        <div class="p-2 rounded border border-danger bg-white shadow-sm mb-3">
+                            <div class="fw-bold text-secondary mb-1" style="font-size:0.82rem;">📝 正在填寫的異常說明：</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                <span class="badge bg-secondary">🗓️ ${item.shortDate}</span>
+                                <span class="badge bg-danger">${item.reason}</span>
+                                ${item.time ? `<span class="badge bg-light text-dark border">⏰ ${item.time}</span>` : ''}
+                            </div>
+                        </div>`;
+                  }
+              } else {
+                  infoEl.style.display = 'none';
               }
-              listArea.innerHTML += `
-                  <label class="d-flex align-items-start p-2 mb-2 border rounded bg-white shadow-sm" style="cursor:pointer; border-color:${isChecked ? '#dc3545' : '#dee2e6'} !important;">
-                      <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1 border-danger" style="transform:scale(1.3);"
-                             value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" ${isChecked}>
-                      <div>
-                          <div class="fw-bold text-danger" style="font-size:0.9rem;">🗓️ ${item.shortDate} - ${item.reason}</div>
-                          <div class="text-secondary fw-bold" style="font-size:0.8rem;">時段: ${item.time || '未知'}</div>
-                      </div>
-                  </label>`;
-          });
+          }
 
-          // ★ 原因下拉（預設私事逗留）
-          const select = document.getElementById('anomalyReasonSelect');
-          select.innerHTML = '';
-          let hasDefault = false;
-          if (window.anomalyReasonList) {
-              window.anomalyReasonList.forEach(opt => {
-                  let isDef = opt.includes("私事逗留") ? "selected" : "";
-                  if (isDef) hasDefault = true;
-                  select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
+          // ★ 建立勾選清單
+          let listEl = document.getElementById('anomalyChecklistArea');
+          if (listEl) {
+              listEl.innerHTML = '';
+              catList.forEach(item => {
+                  let isChecked = isSingle
+                      ? (item.date === targetDate && (!targetReason || item.reason === targetReason))
+                      : true;
+                  listEl.innerHTML += `
+                      <label class="d-flex align-items-start p-2 mb-2 border rounded bg-white shadow-sm" style="cursor:pointer; border-color:${isChecked ? '#dc3545' : '#dee2e6'} !important;">
+                          <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1" style="transform:scale(1.3);"
+                                 value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" ${isChecked ? 'checked' : ''}>
+                          <div>
+                              <div class="fw-bold text-danger" style="font-size:0.85rem;">🗓️ ${item.shortDate} ─ ${item.reason}</div>
+                              ${item.time ? `<div class="text-muted fw-bold" style="font-size:0.78rem;">⏰ ${item.time}</div>` : ''}
+                          </div>
+                      </label>`;
               });
           }
-          if (window.anomalyOtherLabel) {
-              select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
-          }
-          if (!hasDefault && select.options.length > 0) select.selectedIndex = 0;
 
-          document.getElementById('anomalyOtherInput').value = "";
+          // ★ 設定下拉（預設私事逗留）
+          let select = document.getElementById('anomalyReasonSelect');
+          if (select) {
+              select.innerHTML = '';
+              let hasDefault = false;
+              if (window.anomalyReasonList && window.anomalyReasonList.length > 0) {
+                  window.anomalyReasonList.forEach(opt => {
+                      let isDef = opt.includes('私事逗留') ? 'selected' : '';
+                      if (isDef) hasDefault = true;
+                      select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
+                  });
+              }
+              if (window.anomalyOtherLabel) {
+                  select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
+              }
+              if (!hasDefault && select.options.length > 0) select.selectedIndex = 0;
+          }
+
+          document.getElementById('anomalyOtherInput').value = '';
           document.getElementById('anomalyOtherGroup').style.display = 'none';
-          
           new bootstrap.Modal(document.getElementById('anomalyReportModal')).show();
       };
 
@@ -4998,82 +5027,57 @@ function showMaintenanceShield(message) {
 
       // 執行存檔與防呆攔截
       window.saveAnomalyData = function() {
-          const reasonVal = document.getElementById('anomalyReasonSelect').value;
-          let explanation = "";
-          
-          // 檢查勾選
           const checkedBoxes = document.querySelectorAll('.anomaly-cat-cb:checked');
           if (checkedBoxes.length === 0) {
-              Swal.fire('提示', '請至少勾選一筆要回報的異常日期', 'warning'); return;
+              Swal.fire('提示', '請至少勾選一筆要回報的異常', 'warning'); return;
           }
-
+          const reasonVal = document.getElementById('anomalyReasonSelect').value;
           if (!reasonVal) {
               Swal.fire('提示', '請選擇發生原因', 'warning'); return;
           }
-          
-          // ★ 關鍵字防護網啟動
+          let explanation = '';
           if (reasonVal === 'OTHER') {
               explanation = document.getElementById('anomalyOtherInput').value.trim();
-              if (!explanation) {
-                  Swal.fire('提示', '請確實填寫原因說明', 'warning'); return;
-              }
-              
-              const blockKeywords = ['加班', '客人', '打掃', '公事'];
-              const hasBlockedWord = blockKeywords.some(kw => explanation.includes(kw));
-              
-              if (hasBlockedWord) {
-                  Swal.fire({
-                      icon: 'warning',
-                      title: '⚠️ 說明內容包含關鍵字',
-                      html: '<div style="text-align:left; font-size:0.95rem; line-height:1.5;">您的說明中包含「加班 / 公事 / 客人 / 打掃」等字眼。<br><br>若是處理公務，請關閉此視窗，並改選 <b>【公事-已申請加班】</b> 選項，且務必記得至系統補送加班單！</div>',
-                      confirmButtonText: '我知道了',
-                      confirmButtonColor: '#dc3545'
-                  });
-                  return; // 攔截！不准送出！
+              if (!explanation) { Swal.fire('提示', '請確實填寫原因說明', 'warning'); return; }
+              const blockKws = ['加班', '客人', '打掃', '公事'];
+              if (blockKws.some(kw => explanation.includes(kw))) {
+                  Swal.fire({ icon:'warning', title:'⚠️ 說明內容包含關鍵字',
+                      html:'您的說明中包含「加班/公事/客人/打掃」等字眼。<br>若是公務，請改選【公事-已申請加班】並記得補送加班單！',
+                      confirmButtonText:'我知道了', confirmButtonColor:'#dc3545' });
+                  return;
               }
           }
-          
-          // 收集打包選取的資料
-          let records = [];
-          const titleText = document.getElementById('personalNameDisplay').innerText;
-          const realName = titleText.split('-')[1].trim().split(' ')[0]; // 抓取標題上的真實姓名
+          // ★ 抓取真實姓名
+          const titleText = document.getElementById('personalNameDisplay').innerText || '';
+          let realName = '';
+          let dashIdx = titleText.indexOf('-');
+          if (dashIdx !== -1) realName = titleText.substring(dashIdx + 1).trim().split(' ')[0].split('　')[0];
 
+          let records = [];
           checkedBoxes.forEach(cb => {
               records.push({
                   date: cb.value,
                   name: realName,
-                  reason: reasonVal === 'OTHER' ? window.anomalyOtherLabel : reasonVal,
-                  timePeriod: cb.getAttribute('data-time'),
+                  reason: reasonVal === 'OTHER' ? (window.anomalyOtherLabel || '其他') : reasonVal,
+                  timePeriod: cb.getAttribute('data-time') || '',
                   explanation: explanation,
                   reporter: '員工本人'
               });
           });
-          
-          // 送往 GAS 儲存
+          if (records.length === 0) { Swal.fire('提示', '請勾選要回報的異常項目', 'warning'); return; }
+
           const btn = document.getElementById('submitAnomalyBtn');
-          btn.disabled = true; btn.innerHTML = "傳送中...";
-          
+          btn.disabled = true; btn.innerHTML = '傳送中...';
           callApi('saveAnomaly', { u: window.personalUserKey, records: records }).then(res => {
-              btn.disabled = false; btn.innerHTML = "📤 確定送出";
+              btn.disabled = false; btn.innerHTML = '📤 確定送出';
               if (res.success) {
-                  Swal.fire({
-                      icon: 'success', 
-                      title: '回報成功', 
-                      text: '異常說明已成功送出！', 
-                      timer: 2000, 
-                      showConfirmButton: false
-                  }).then(() => {
+                  Swal.fire({ icon:'success', title:'回報成功', text:'異常說明已成功送出！', timer:2000, showConfirmButton:false })
+                  .then(() => {
                       bootstrap.Modal.getInstance(document.getElementById('anomalyReportModal')).hide();
-                      // 重新載入個人班表，讓歷史足跡印上去！
-                      window.loadPersonalData(window.personalPwd); 
+                      window.loadPersonalData(window.personalPwd);
                   });
-              } else {
-                  Swal.fire('錯誤', res.message, 'error');
-              }
-          }).catch(err => {
-              btn.disabled = false; btn.innerHTML = "📤 確定送出";
-              errorHandler(err);
-          });
+              } else { Swal.fire('錯誤', res.message, 'error'); }
+          }).catch(err => { btn.disabled = false; btn.innerHTML = '📤 確定送出'; errorHandler(err); });
       };
       // ==========================================
       // ★ 終極系統狀態表 (修復：絕對釘選 + 解決破圖蓋字 + 雙捲軸)
@@ -7380,20 +7384,22 @@ function showMaintenanceShield(message) {
           </div>
           <div class="modal-body p-4">
             
-            <div class="border border-danger text-start mb-3 p-3 shadow-sm rounded-3">
-                <div class="fw-bolder text-dark mb-2" style="font-size: 1rem;" id="anomalyModalDeadlineTitle">
+            <div class="border rounded-3 mb-3 p-3 shadow-sm" style="border-color: #fd7e14 !important; background-color: #fffaf5;">
+                <div class="fw-bolder mb-2" style="font-size: 1rem; color:#b8360a;" id="anomalyModalDeadlineTitle">
                     📌 請同仁於次月 X 日前確認完畢
                 </div>
-                <div class="fw-bold text-danger mb-3" style="font-size: 0.9rem; line-height: 1.6;" id="anomalyModalOtMsg">
-                    ⚡ 若因公務加班，請務必於次月 X 日前申請加班單並簽核完畢。
+                <div class="fw-bold mb-3" style="font-size: 0.9rem; line-height: 1.6; color:#dc3545;" id="anomalyModalOtMsg">
+                    ⚡ 若因公務加班，請必於次月 X 日前申請加班單並簽核完畢。
                 </div>
-                <div class="text-center p-3 rounded-3" style="background-color: #7f0000; border: 2px solid #dc3545;">
-                    <div id="anomalyModalWarnText" style="color:#fff; font-size:1.05rem; font-weight:900; line-height:1.7;">
-                        ⛔ 未處理即視為「私人因素停留公司」<br>
-                        <span style="font-size:0.85rem; font-weight:700; opacity:0.9;">（次月X日 09:00 後系統自動鎖定，無法修改）</span>
+                <div class="text-center p-3 rounded-3" style="background-color: #fff3cd; border: 2px solid #ffc107;">
+                    <div id="anomalyModalWarnBox" style="color:#7d4e00; font-size:1rem; font-weight:900; line-height:1.7;">
+                        ⚠️ <strong>逾期未處理，系統視為「私人因素停留公司」！</strong><br>
+                        <span style="font-size:0.82rem; font-weight:700;">（次月X日 09:00 後系統自動鎖定，無法修改）</span>
                     </div>
                 </div>
             </div>
+
+            <div id="anomalyCurrentItemInfo" style="display:none;"></div>
 
             <div id="anomalyChecklistArea" class="mb-3"></div>
             
