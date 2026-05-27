@@ -4965,6 +4965,7 @@ function showMaintenanceShield(message) {
                   infoEl.style.display = 'block';
                   listEl.style.display = 'none'; // 單筆模式：把下方的批次勾選箱藏起來
                   if (item) {
+                      infoEl.style.display = 'block';
                       infoEl.innerHTML = `
                         <div class="p-3 rounded-3 border border-danger bg-white shadow-sm mb-3 text-start" style="border-left: 5px solid #dc3545 !important;">
                             <div class="fw-bold text-danger mb-2" style="font-size:0.92rem;">📝 您正在填寫單筆異常說明：</div>
