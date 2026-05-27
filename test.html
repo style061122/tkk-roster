@@ -3193,25 +3193,6 @@ function showMaintenanceShield(message) {
                   let sysLeave = String(r.sys_leave || "").trim(); let sysLeaveType = String(r.sys_leaveType || "").trim();
                   let sysAbnormal = String(r.sys_abnormal || "").trim();
                   let leaveHrs = parseFloat(r.sys_leaveHrs) || 0;
-                  
-                  // ★ [第一刀] 異常分類引擎：統一收集待填與已填
-                  const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
-                  if (sysAbnormal) {
-                      let rReasons = (r.sys_anomaly_reason || "").split(',');
-                      let rTimes = (r.sys_anomaly_time || "").split(',');
-                      let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date);
-                      rReasons.forEach((rsn, ridx) => {
-                          rsn = rsn.trim();
-                          if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
-                          let tPeriod = (rTimes[ridx] || "").trim();
-                          let answered = hLogs.find(h => h.reason === rsn);
-                          if (answered) {
-                              answeredCatList.push({ date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, hLog: answered });
-                          } else {
-                              pendingCatList.push({ date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod });
-                          }
-                      });
-                  }
 
                   sumH += h; sumAA += aa; 
                   if (s === '休') countRest++; else if (s === '例') countReg++; else if (s === '國') countNat++; else if (s === '空班') countEmpty++;
@@ -3920,24 +3901,6 @@ function showMaintenanceShield(message) {
                       if (!storeAbnDetails[name]) storeAbnDetails[name] = [];
                       storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
                       
-                      // ★ [第一刀] 異常分類引擎：同步更新全域清單，供 Modal 讀取
-                      const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
-                      let rReasons = (r.sys_anomaly_reason || "").split(',');
-                      let rTimes = (r.sys_anomaly_time || "").split(',');
-                      let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && h.name === name);
-                      
-                      rReasons.forEach((rsn, ridx) => {
-                          rsn = rsn.trim();
-                          if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
-                          let tPeriod = (rTimes[ridx] || "").trim();
-                          let answered = hLogs.find(h => h.reason === rsn);
-                          if (answered) {
-                              window.answeredCatList.push({ name: name, date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, hLog: answered, store: targetStore });
-                          } else {
-                              window.pendingCatList.push({ name: name, date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, store: targetStore });
-                          }
-                      });
-                  }
                   if(r.supports && r.supports.length>0) {
                       let aaStart = sF;
                       if (h > 0 || z > 0) aaStart = sF + h + z + restVal;
@@ -7235,6 +7198,45 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
+            /**
+     * 異常分類引擎：統一處理待填與已填邏輯
+     * @param {Array} dataList - 原始數據
+     * @param {string} storeName - 當前目標門市 (若為 null 則處理全店)
+     */
+    window.processAnomalyData = function(dataList, storeName = null) {
+        window.pendingCatList = [];
+        window.answeredCatList = [];
+        const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
+
+        dataList.forEach(r => {
+            // 若指定門市，則過濾
+            if (storeName && r.store !== storeName) return;
+        
+            if (r.sys_abnormal) {
+                let rReasons = (r.sys_anomaly_reason || "").split(',');
+                let rTimes = (r.sys_anomaly_time || "").split(',');
+                let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && h.name === r.name);
+            
+                rReasons.forEach((rsn, ridx) => {
+                    rsn = rsn.trim();
+                    if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
+                
+                    let tPeriod = (rTimes[ridx] || "").trim();
+                    let answered = hLogs.find(h => h.reason === rsn);
+                    let itemObj = { 
+                        name: r.name, date: r.date, shortDate: r.date.split('/').slice(1).join('/'), 
+                        reason: rsn, time: tPeriod, store: r.store 
+                    };
+
+                    if (answered) {
+                        window.answeredCatList.push({ ...itemObj, hLog: answered });
+                    } else {
+                        window.pendingCatList.push(itemObj);
+                    }
+                });
+            }
+        });
+    };
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -7394,6 +7396,5 @@ function showMaintenanceShield(message) {
             onclick="openAnomalyModal()">
         📝 批次異常回報 (<span id="anomalyCartCount" class="badge bg-white text-danger ms-1 fs-6">0</span>)
     </button>
-
   </body>
 </html>
