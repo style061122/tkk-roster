@@ -4656,9 +4656,10 @@ function showMaintenanceShield(message) {
                           ${answeredCatList.map(item => `
                           <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                  <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} ─ ${item.reason}</span>
-                                  <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
-                              </div>
+                                      <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} ─ ${item.reason}</span>
+                                      <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                                  </div>
+                                  ${item.time ? `<div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">⏰ 時段：${item.time}</div>` : ''}
                               ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted" style="font-size:0.7rem;">（無文字說明）</div>'}
                           </div>`).join('')}
                       </div>` : ''}
