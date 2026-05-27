@@ -7202,45 +7202,40 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
-            /**
-     * 異常分類引擎：統一處理待填與已填邏輯
-     * @param {Array} dataList - 原始數據
-     * @param {string} storeName - 當前目標門市 (若為 null 則處理全店)
-     */
-    window.processAnomalyData = function(dataList, storeName = null) {
-        window.pendingCatList = [];
-        window.answeredCatList = [];
-        const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
+      window.processAnomalyData = function(dataList, storeName = null) {
+          window.pendingCatList = [];
+          window.answeredCatList = [];
+          const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
 
-        dataList.forEach(r => {
-            // 若指定門市，則過濾
-            if (storeName && r.store !== storeName) return;
+          dataList.forEach(r => {
+              // 若指定門市，則過濾
+              if (storeName && r.store !== storeName) return;
         
-            if (r.sys_abnormal) {
-                let rReasons = (r.sys_anomaly_reason || "").split(',');
-                let rTimes = (r.sys_anomaly_time || "").split(',');
-                let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && h.name === r.name);
+              if (r.sys_abnormal) {
+                  let rReasons = (r.sys_anomaly_reason || "").split(',');
+                  let rTimes = (r.sys_anomaly_time || "").split(',');
+                  let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && h.name === r.name);
             
-                rReasons.forEach((rsn, ridx) => {
-                    rsn = rsn.trim();
-                    if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
-                
-                    let tPeriod = (rTimes[ridx] || "").trim();
-                    let answered = hLogs.find(h => h.reason === rsn);
-                    let itemObj = { 
-                        name: r.name, date: r.date, shortDate: r.date.split('/').slice(1).join('/'), 
-                        reason: rsn, time: tPeriod, store: r.store 
-                    };
+                  rReasons.forEach((rsn, ridx) => {
+                      rsn = rsn.trim();
+                      if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
+                      
+                      let tPeriod = (rTimes[ridx] || "").trim();
+                      let answered = hLogs.find(h => h.reason === rsn);
+                      let itemObj = { 
+                          name: r.name, date: r.date, shortDate: r.date.split('/').slice(1).join('/'), 
+                          reason: rsn, time: tPeriod, store: r.store 
+                      };
 
-                    if (answered) {
-                        window.answeredCatList.push({ ...itemObj, hLog: answered });
-                    } else {
-                        window.pendingCatList.push(itemObj);
-                    }
-                });
-            }
-        });
-    };
+                      if (answered) {
+                          window.answeredCatList.push({ ...itemObj, hLog: answered });
+                      } else {
+                          window.pendingCatList.push(itemObj);
+                      }
+                  });
+              }
+          });
+      };
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
