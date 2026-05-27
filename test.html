@@ -3193,6 +3193,25 @@ function showMaintenanceShield(message) {
                   let sysLeave = String(r.sys_leave || "").trim(); let sysLeaveType = String(r.sys_leaveType || "").trim();
                   let sysAbnormal = String(r.sys_abnormal || "").trim();
                   let leaveHrs = parseFloat(r.sys_leaveHrs) || 0;
+                  
+                  // ★ [第一刀] 異常分類引擎：統一收集待填與已填
+                  const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
+                  if (sysAbnormal) {
+                      let rReasons = (r.sys_anomaly_reason || "").split(',');
+                      let rTimes = (r.sys_anomaly_time || "").split(',');
+                      let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date);
+                      rReasons.forEach((rsn, ridx) => {
+                          rsn = rsn.trim();
+                          if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
+                          let tPeriod = (rTimes[ridx] || "").trim();
+                          let answered = hLogs.find(h => h.reason === rsn);
+                          if (answered) {
+                              answeredCatList.push({ date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, hLog: answered });
+                          } else {
+                              pendingCatList.push({ date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod });
+                          }
+                      });
+                  }
 
                   sumH += h; sumAA += aa; 
                   if (s === '休') countRest++; else if (s === '例') countReg++; else if (s === '國') countNat++; else if (s === '空班') countEmpty++;
@@ -3896,16 +3915,15 @@ function showMaintenanceShield(message) {
                       let stName = (s==='上班')?'平日':((s==='休')?'休息日':((s==='國')?'國定假日':'其他'));
                       zGroups[stName].norm+=normZ; zGroups[stName].nat+=natZ; zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                   }
-                  if(sysAbnormal!=="") {
+                  if (sysAbnormal !== "") {
                       storeAbnCount++;
-                      if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
+                      if (!storeAbnDetails[name]) storeAbnDetails[name] = [];
                       storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
                       
-                      // ★ 異常分類引擎：統一收集待填與已填
+                      // ★ [第一刀] 異常分類引擎：同步更新全域清單，供 Modal 讀取
                       const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
                       let rReasons = (r.sys_anomaly_reason || "").split(',');
                       let rTimes = (r.sys_anomaly_time || "").split(',');
-                      // 必須同時比對日期與姓名
                       let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && h.name === name);
                       
                       rReasons.forEach((rsn, ridx) => {
@@ -3914,9 +3932,9 @@ function showMaintenanceShield(message) {
                           let tPeriod = (rTimes[ridx] || "").trim();
                           let answered = hLogs.find(h => h.reason === rsn);
                           if (answered) {
-                              window.answeredCatList.push({ name: name, date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, hLog: answered, store: r.store });
+                              window.answeredCatList.push({ name: name, date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, hLog: answered, store: targetStore });
                           } else {
-                              window.pendingCatList.push({ name: name, date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, store: r.store });
+                              window.pendingCatList.push({ name: name, date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, store: targetStore });
                           }
                       });
                   }
