@@ -4940,41 +4940,37 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          // ★ 問題 3 & 4：動態帶入關帳月日，精準套用紅字
-          let ci = window.personalClosingInfo || {};
-          let nextM = ci.nextMonth || ((new Date().getMonth() + 1) % 12) + 1;
-          let closeD = ci.closeDay || 4;
-          let deadlineStr = `${nextM}月${closeD}日`;
+          // ★ 問題 3：動態關帳日
+          let deadlineStr = `${window.personalClosingInfo.nextMonth}月${window.personalClosingInfo.closeDay}日`;
 
           let titleEl = document.getElementById('anomalyModalDeadlineTitle');
           let otEl    = document.getElementById('anomalyModalOtMsg');
           let warnEl  = document.getElementById('anomalyModalWarnBox');
-          if (titleEl) titleEl.innerHTML = `📌 請於 <span class="text-danger fw-bold">${deadlineStr}前</span>確認完畢`;
-          if (otEl)    otEl.innerHTML    = `⚡ 若因公務加班,請於 <span class="text-danger fw-bold">${deadlineStr}前</span>申請加班單並簽核完畢`;
+          
+          if (titleEl) titleEl.innerHTML = `📌 請於 <span class="text-danger fw-bold">${deadlineStr}前</span> 確認完畢`;
+          if (otEl)    otEl.innerHTML    = `⚡ 若因公務加班,請於 <span class="text-danger fw-bold">${deadlineStr}前</span> 申請加班單並簽核完畢`;
           if (warnEl)  warnEl.innerHTML  = `⚠️ 逾期未處理系統即視為「<span class="text-danger fw-bold">私人因素停留公司</span>」`;
 
           let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
-
+          
+          // ★ 問題 1：單筆填寫時，在發生原因上方顯示「正在設定」資訊
           let infoEl = document.getElementById('anomalyCurrentItemInfo');
           let listEl = document.getElementById('anomalyChecklistArea');
           
-          if (infoEl && listEl) {
-              if (isSingle) {
-                  let item = catList.find(i => i.date === targetDate);
-                  infoEl.style.display = 'block';
-                  listEl.style.display = 'none'; // 單筆模式隱藏勾選清單
-                  // ★ 問題 1：單筆填寫上方顯示「正在設定：姓名 (日期)」與事由時段
-                  if (item) {
-                      infoEl.innerHTML = `
-                          <div class="p-2 mb-3 border border-primary rounded text-center bg-white shadow-sm">
-                              <div class="fw-bold" style="color: #0d6efd; font-size: 1rem;">正在設定：${window.personalName} (${item.date})</div>
-                              <div class="text-danger fw-bold mt-1" style="font-size: 0.9rem;">${item.reason} ${item.time ? `(${item.time})` : ''}</div>
-                          </div>`;
-                  }
-              } else {
-                  infoEl.style.display = 'none';
-                  listEl.style.display = 'block'; // ★ 問題 2：一鍵填寫展開勾選清單
+          if (isSingle) {
+              let item = catList.find(i => i.date === targetDate);
+              infoEl.style.display = 'block';
+              listEl.style.display = 'none';
+              if (item) {
+                  infoEl.innerHTML = `
+                      <div class="p-2 mb-3 border rounded text-center bg-white shadow-sm" style="border: 1px solid #0d6efd;">
+                          <div class="fw-bold" style="color: #0d6efd; font-size: 0.95rem;">正在設定：${window.personalName} (${item.date})</div>
+                          <div class="text-danger fw-bold mt-1" style="font-size: 0.9rem;">${item.reason} ${item.time ? `(${item.time})` : ''}</div>
+                      </div>`;
               }
+          } else {
+              infoEl.style.display = 'none';
+              listEl.style.display = 'block';
           }
 
           if (listEl) {
@@ -4993,24 +4989,19 @@ function showMaintenanceShield(message) {
               });
           }
 
-          // ★ 問題 5：拔除"請選擇"，強制預設為"私事逗留"
+          // ★ 問題 5：發生原因預設為「私事逗留」
           let select = document.getElementById('anomalyReasonSelect');
-          if (select) {
-              select.innerHTML = '';
-              let hasDefault = false;
-              if (window.anomalyReasonList && window.anomalyReasonList.length > 0) {
-                  window.anomalyReasonList.forEach(opt => {
-                      let isDef = (opt.includes('私事逗留') || opt.includes('私事停留')) ? 'selected' : '';
-                      if (isDef) hasDefault = true;
-                      select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
-                  });
-              }
-              if (!hasDefault) {
-                  select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML;
-              }
-              if (window.anomalyOtherLabel) {
-                  select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
-              }
+          select.innerHTML = '';
+          let hasDefault = false;
+          if (window.anomalyReasonList) {
+              window.anomalyReasonList.forEach(opt => {
+                  let isDef = (opt.includes('私事逗留') || opt.includes('私事停留')) ? 'selected' : '';
+                  if (isDef) hasDefault = true;
+                  select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
+              });
+          }
+          if (!hasDefault) {
+              select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML;
           }
 
           document.getElementById('anomalyOtherInput').value = '';
@@ -5051,15 +5042,13 @@ function showMaintenanceShield(message) {
                   return;
               }
           }
-          // 收集打包選取的資料
-          let records = [];
+          // ★ 抓取全域變數，確保姓名絕對正確
           let realName = window.personalName || ""; 
 
           checkedBoxes.forEach(cb => {
               records.push({
                   date: cb.value,
-                  name: realName,
-                  // ★ 核心修復：reason 必須傳送原始異常事由(如提前打卡異常)讓後端對齊，explanation 才是傳送下拉選單的理由！
+                  // ★ 修正：reason 傳送原始異常事由 (data-reason)，explanation 傳送使用者填寫的內容
                   reason: cb.getAttribute('data-reason'), 
                   timePeriod: cb.getAttribute('data-time') || '',
                   explanation: reasonVal === 'OTHER' ? explanation : reasonVal,
@@ -7156,123 +7145,6 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
-        
-      // ==========================================
-      // ★ 階段三-2：異常回報購物車與關鍵字攔截引擎
-      // ==========================================
-
-      // 1. 監聽勾選動作，控制購物車按鈕顯示
-      window.updateAnomalyCart = function() {
-          const checked = document.querySelectorAll('.anomaly-cb:checked');
-          const cartBtn = document.getElementById('anomalyCartBtn');
-          if (checked.length > 0) {
-              cartBtn.style.display = 'block';
-              document.getElementById('anomalyCartCount').innerText = checked.length;
-              // 加上一點彈跳動畫吸引注意
-              cartBtn.style.transform = 'scale(1.1)';
-              setTimeout(() => cartBtn.style.transform = 'scale(1)', 150);
-          } else {
-              cartBtn.style.display = 'none';
-          }
-      };
-
-      // 2. 開啟填寫視窗
-      window.openAnomalyModal = function() {
-          const select = document.getElementById('anomalyReasonSelect');
-          select.innerHTML = '<option value="">請選擇原因...</option>';
-          
-          // 帶入從後端取得的選項 (參數設定 B13)
-          if (window.anomalyReasonList) {
-              window.anomalyReasonList.forEach(opt => {
-                  select.innerHTML += `<option value="${opt}">${opt}</option>`;
-              });
-          }
-          // 帶入其他選項 (參數設定 B14)
-          if (window.anomalyOtherLabel) {
-              select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
-          }
-          
-          document.getElementById('anomalyOtherInput').value = "";
-          document.getElementById('anomalyOtherGroup').style.display = 'none';
-          
-          new bootstrap.Modal(document.getElementById('anomalyReportModal')).show();
-      };
-
-      // 3. 切換「其他」文字框
-      window.toggleAnomalyOtherInput = function() {
-          const val = document.getElementById('anomalyReasonSelect').value;
-          document.getElementById('anomalyOtherGroup').style.display = (val === 'OTHER') ? 'block' : 'none';
-      };
-
-      // 4. 執行存檔與防呆攔截
-      window.saveAnomalyData = function() {
-          const reasonVal = document.getElementById('anomalyReasonSelect').value;
-          let explanation = "";
-          
-          if (!reasonVal) {
-              Swal.fire('提示', '請選擇發生原因', 'warning'); return;
-          }
-          
-          // ★ 關鍵字防護網啟動
-          if (reasonVal === 'OTHER') {
-              explanation = document.getElementById('anomalyOtherInput').value.trim();
-              if (!explanation) {
-                  Swal.fire('提示', '請確實填寫原因說明', 'warning'); return;
-              }
-              
-              const blockKeywords = ['加班', '客人', '打掃', '公事'];
-              const hasBlockedWord = blockKeywords.some(kw => explanation.includes(kw));
-              
-              if (hasBlockedWord) {
-                  Swal.fire({
-                      icon: 'warning',
-                      title: '⚠️ 說明內容包含關鍵字',
-                      html: '<div style="text-align:left; font-size:0.95rem; line-height:1.5;">您的說明中包含「加班 / 公事 / 客人 / 打掃」等字眼。<br><br>若是處理公務，請關閉此視窗，並改選 <b>【公事-已申請加班】</b> 選項，且務必記得至系統補送加班單！</div>',
-                      confirmButtonText: '我知道了',
-                      confirmButtonColor: '#dc3545'
-                  });
-                  return; // 攔截！不准送出！
-              }
-          }
-          
-          // 收集打包選取的資料
-          const checkedBoxes = document.querySelectorAll('.anomaly-cb:checked');
-          let records = [];
-          
-          // ★ 抓取真實姓名 (直接使用全域變數，100% 解決無效提交錯誤)
-          let realName = window.personalName || "";
-          if (!realName) {
-              Swal.fire('錯誤', '無法取得員工姓名，請重新整理頁面', 'error'); 
-              return;
-          }
-          
-          // 送往 GAS 儲存
-          const btn = document.getElementById('submitAnomalyBtn');
-          btn.disabled = true; btn.innerHTML = "傳送中...";
-          
-          callApi('saveAnomaly', { u: window.personalUserKey, records: records }).then(res => {
-              btn.disabled = false; btn.innerHTML = "📤 確定送出";
-              if (res.success) {
-                  Swal.fire({
-                      icon: 'success', 
-                      title: '回報成功', 
-                      text: '異常說明已成功送出！', 
-                      timer: 2000, 
-                      showConfirmButton: false
-                  }).then(() => {
-                      bootstrap.Modal.getInstance(document.getElementById('anomalyReportModal')).hide();
-                      document.getElementById('anomalyCartBtn').style.display = 'none';
-                      // 重新載入個人班表，讓歷史足跡印上去！
-                      window.loadPersonalData(window.personalPwd); 
-                  });
-              } else {
-                  Swal.fire('錯誤', res.message, 'error');
-              }
-          }).catch(err => {
-              btn.disabled = false; btn.innerHTML = "📤 確定送出";
-              errorHandler(err);
-          });
-      };
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -7383,7 +7255,7 @@ function showMaintenanceShield(message) {
                     </div>
                 <div class="fw-bold mb-3 text-dark" style="font-size: 0.9rem; line-height: 1.6;" id="anomalyModalOtMsg">
                     </div>
-                <div class="text-center p-2 rounded-3 bg-white" style="border: 1px dashed #dc3545;">
+                <div class="text-center p-2 rounded-3 bg-white" style="border: 2px dashed #dc3545;">
                     <div id="anomalyModalWarnBox" style="color:#dc3545; font-size:1rem; font-weight:900; line-height:1.7;">
                         </div>
                 </div>
