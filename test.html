@@ -3300,6 +3300,30 @@ function showMaintenanceShield(message) {
                       abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
                   }
               });
+              // 1. 取得該員工專屬的異常分類 (替換掉原本只顯示文字的 abnormalDetails)
+              let { pending, answered } = getAnomalyObjects(pData);
+
+              // 2. 準備渲染用的異常 HTML (我們把它獨立成變數)
+              let anomalyUI = '';
+              if (pending.length > 0 || answered.length > 0) {
+                  anomalyUI = `<div class="mt-2 border-top pt-2">`;
+                  // 待填寫區塊
+                  if (pending.length > 0) {
+                      anomalyUI += `<div class="alert alert-danger p-2 small">
+                          <div class="d-flex justify-content-between"><strong>⚠️ 待回報 (${pending.length})</strong>
+                          <button class="btn btn-danger btn-sm" onclick="openAnomalyModal()">⚡ 一鍵填寫</button></div>
+                          ${pending.map(i => `<div>${i.shortDate} ${i.reason} <button class="btn btn-link btn-sm" onclick="openAnomalyModal('${i.date}','${i.reason}','${i.name}')">填寫</button></div>`).join('')}
+                      </div>`;
+                  }
+                  // 已填寫區塊
+                  if (answered.length > 0) {
+                      anomalyUI += `<div class="alert alert-success p-2 small">
+                          <strong>✅ 已填寫 (${answered.length})</strong>
+                          ${answered.map(i => `<div>${i.shortDate} ${i.reason} (由${i.hLog.reporter}填寫) <button class="btn btn-link btn-sm" onclick="openAnomalyModal('${i.date}','${i.reason}','${i.name}')">修改</button></div>`).join('')}
+                      </div>`;
+                  }
+                  anomalyUI += `</div>`;
+              }
 
               // ★ Z 顯示格式防呆
               let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : (sumZ_nat > 0 ? `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumZ_nat.toFixed(1)}</small>` : `${sumZ_norm.toFixed(1)}`);
@@ -3394,7 +3418,11 @@ function showMaintenanceShield(message) {
                       </div>
                   </div>
                       <div class="collapse" id="${cardId}-support"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5; font-size: 0.8rem;">${sumSupOut>0?supportOutHtml:'<span class="text-black-50 opacity-75">無跨店支援紀錄</span>'}</div></div>
-                      <div class="collapse" id="${cardId}-abnormal"><div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">${abnormalDetails.length>0?`<strong class="text-danger">異常:</strong><br>${abnormalDetails.join('<br>')}`:'<span class="text-black-50 opacity-75">無異常紀錄</span>'}</div></div>
+                      <div class="collapse" id="${cardId}-abnormal">
+                          <div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
+                              ${anomalyUI || '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
+                          </div>
+                      </div>
                   </div>
               </div>`;
               
@@ -4225,6 +4253,29 @@ function showMaintenanceShield(message) {
               });
           }
       };
+      // 獨立引擎：將原始異常字串解析成互動物件
+      function getAnomalyObjects(pData) {
+          let pending = [], answered = [];
+          const TARGET_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
+    
+          pData.forEach(r => {
+              if (!r.sys_abnormal) return;
+              let reasons = (r.sys_anomaly_reason || "").split(',');
+              let times = (r.sys_anomaly_time || "").split(',');
+              let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && h.name === r.name);
+        
+              reasons.forEach((rsn, idx) => {
+                  rsn = rsn.trim();
+                  if (!rsn || !TARGET_KWS.some(kw => rsn.includes(kw))) return;
+                  let answeredLog = hLogs.find(h => h.reason === rsn);
+                  let item = { date: r.date, shortDate: r.date, reason: rsn, time: times[idx] || '', name: r.name };
+            
+                  if (answeredLog) answered.push({ ...item, hLog: answeredLog });
+                  else pending.push(item);
+              });
+          });
+          return { pending, answered };
+      }
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
       function updateRowState(tr) {
         const status = tr.querySelector('.status-select').value; const inputs = tr.querySelectorAll('.time-select, .rest-select'); const hInput = tr.querySelector('.hours-input');
