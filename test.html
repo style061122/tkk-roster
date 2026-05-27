@@ -3163,6 +3163,9 @@ function showMaintenanceShield(message) {
 
           let outboundStores = {}; let inboundStores = {};  
           
+          // 在產生 HTML 的迴圈之前，呼叫一次引擎
+          window.processAnomalyData(currentData, currentStore);
+          
           myStaffNames.forEach((name, idx) => {
               let pData = currentData.filter(r => r.name === name && r.store === currentStore);
               if (pData.length === 0) return;
@@ -3852,6 +3855,9 @@ function showMaintenanceShield(message) {
 
           let myStaffNames = [...new Set(pDataAll.map(r => r.name))];
           
+          // 在產生 HTML 的迴圈之前，呼叫一次引擎
+          window.processAnomalyData(currentData, currentStore);
+          
           myStaffNames.forEach(name => {
               let empData = pDataAll.filter(r => r.name === name);
               if(empData.length === 0) return;
@@ -4039,15 +4045,13 @@ function showMaintenanceShield(message) {
           // ★ 替換為新版：呼叫 buildStoreDetailList 帶入對應顏色
           let storeOutHtml = buildStoreDetailList(storeOutStoreTotals, '#3d1a87') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
           let storeInHtml = buildStoreDetailList(storeInStoreTotals, '#055160') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
-          
-          // ★ [第二刀] 針對單店卡片，精準分類 Pending 與 Answered
+          // 預先過濾當前目標店的資料
           let sPending = (window.pendingCatList || []).filter(i => i.store === targetStore);
           let sAnswered = (window.answeredCatList || []).filter(i => i.store === targetStore);
-          
           let fullAbnHtml = '';
           // 原始系統異常明細
           if (Object.keys(storeAbnDetails).length > 0) {
-              fullAbnHtml += `<div class="mb-3"><strong class="text-danger">🚨 系統原始異常紀錄：</strong><br>${buildStoreAbnList(storeAbnDetails)}</div>`;
+              fullAbnHtml += `<div class="mb-3"><strong class="text-danger">🚨 系統異常紀錄：</strong><br>${buildStoreAbnList(storeAbnDetails)}</div>`;
           }
           
           // 待填寫區塊 (植入一鍵填寫按鈕)
