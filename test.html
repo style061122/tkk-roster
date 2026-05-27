@@ -4077,23 +4077,23 @@ function showMaintenanceShield(message) {
           let storeOutHtml = buildStoreDetailList(storeOutStoreTotals, '#3d1a87') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
           let storeInHtml = buildStoreDetailList(storeInStoreTotals, '#055160') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
           
-          // ★ 組合單店的異常報表 (包含待填、已填與原始異常明細)
+          // ★ [第二刀] 針對單店卡片，精準分類 Pending 與 Answered
           let sPending = (window.pendingCatList || []).filter(i => i.store === targetStore);
           let sAnswered = (window.answeredCatList || []).filter(i => i.store === targetStore);
           
           let fullAbnHtml = '';
+          // 原始系統異常明細
           if (Object.keys(storeAbnDetails).length > 0) {
               fullAbnHtml += `<div class="mb-3"><strong class="text-danger">🚨 系統原始異常紀錄：</strong><br>${buildStoreAbnList(storeAbnDetails)}</div>`;
-          } else {
-              fullAbnHtml += '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
           }
           
+          // 待填寫區塊 (植入一鍵填寫按鈕)
           if (sPending.length > 0) {
               fullAbnHtml += `
               <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
                   <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
                       <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${sPending.length} 筆待填</span></strong>
-                      ${window.isRegionOverview ? '' : `<button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal()">⚡ 一鍵填寫</button>`}
+                      <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal()">⚡ 一鍵填寫</button>
                   </div>
                   ${sPending.map(item => `
                   <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
@@ -4107,6 +4107,7 @@ function showMaintenanceShield(message) {
               </div>`;
           }
           
+          // 已填寫區塊
           if (sAnswered.length > 0) {
               fullAbnHtml += `
               <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
