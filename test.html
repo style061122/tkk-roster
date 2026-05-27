@@ -3161,15 +3161,17 @@ function showMaintenanceShield(message) {
           let outboundStores = {}; let inboundStores = {};  
           
           // ★ 先在迴圈外將資料一次全部計算好，產生一個「以姓名為 Key」的異常清單
-          let allAnomalyData = getAnomalyObjects(currentData); 
+          let results = getAnomalyObjects(currentData);
+          window.pendingCatList = results.pending;
+          window.answeredCatList = results.answered;
 
           myStaffNames.forEach((name, idx) => {
               let pData = currentData.filter(r => r.name === name && r.store === currentStore);
               if (pData.length === 0) return;
               
               // ★ 這裡：從總清單中「精準篩選」該員工的資料
-              let sPending = allAnomalyData.pending.filter(i => i.name === name);
-              let sAnswered = allAnomalyData.answered.filter(i => i.name === name);
+              let sPending = (window.pendingCatList || []).filter(i => i.name && pDataAll.find(p => p.name === i.name));
+              let sAnswered = (window.answeredCatList || []).filter(i => i.name && pDataAll.find(p => p.name === i.name));
               let salaryType = pData[0].salaryType || "";
               let isMonthly = salaryType.includes("月薪");
 
