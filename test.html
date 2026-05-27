@@ -4934,16 +4934,16 @@ function showMaintenanceShield(message) {
       // ==========================================
       // 開啟填寫視窗 (若傳入 targetDate，則預設只勾選那一天；否則全勾)
       window.openAnomalyModal = function(targetDate = null, targetReason = null) {
-          let catList = window.pendingAnomalies || [];
+          let catList = window.pendingCatList || []; // ★ 修正：抓取正確的分類清單
           if (catList.length === 0) {
               Swal.fire('提示', '目前沒有需要填寫說明的異常時段', 'info');
               return;
           }
 
-          // ★ 修正二：精準對齊，動態帶入與班表底部一模一樣的關帳月日
+          // ★ 問題 3 & 4：動態帶入關帳月日，精準套用紅字
           let ci = window.personalClosingInfo || {};
           let nextM = ci.nextMonth || ((new Date().getMonth() + 1) % 12) + 1;
-          let closeD = ci.closeDay || 1;
+          let closeD = ci.closeDay || 4;
           let deadlineStr = `${nextM}月${closeD}日`;
 
           let titleEl = document.getElementById('anomalyModalDeadlineTitle');
@@ -4955,7 +4955,6 @@ function showMaintenanceShield(message) {
 
           let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
 
-          // ★ 修正五 & 六：單筆與批次看板分流
           let infoEl = document.getElementById('anomalyCurrentItemInfo');
           let listEl = document.getElementById('anomalyChecklistArea');
           
@@ -4963,66 +4962,58 @@ function showMaintenanceShield(message) {
               if (isSingle) {
                   let item = catList.find(i => i.date === targetDate);
                   infoEl.style.display = 'block';
-                  listEl.style.display = 'none'; // 單筆模式：把下方的批次勾選箱藏起來
+                  listEl.style.display = 'none'; // 單筆模式隱藏勾選清單
+                  // ★ 問題 1：單筆填寫上方顯示「正在設定：姓名 (日期)」與事由時段
                   if (item) {
-                      infoEl.style.display = 'block';
                       infoEl.innerHTML = `
-                        <div class="p-3 rounded-3 border border-danger bg-white shadow-sm mb-3 text-start" style="border-left: 5px solid #dc3545 !important;">
-                            <div class="fw-bold text-danger mb-2" style="font-size:0.92rem;">📝 您正在填寫單筆異常說明：</div>
-                            <div class="mb-1"><b>📅 異常日期：</b><span class="badge bg-secondary fs-6">${item.date}</span></div>
-                            <div class="mb-1"><b>🚨 異常事由：</b><span class="badge bg-danger fs-6">${item.reason}</span></div>
-                            <div><b>⏰ 異常時段：</b><span class="badge bg-light text-dark border fs-6">${item.time || '未有打卡紀錄'}</span></div>
-                        </div>`;
+                          <div class="p-2 mb-3 border border-primary rounded text-center bg-white shadow-sm">
+                              <div class="fw-bold" style="color: #0d6efd; font-size: 1rem;">正在設定：${window.personalName} (${item.date})</div>
+                              <div class="text-danger fw-bold mt-1" style="font-size: 0.9rem;">${item.reason} ${item.time ? `(${item.time})` : ''}</div>
+                          </div>`;
                   }
               } else {
                   infoEl.style.display = 'none';
-                  listEl.style.display = 'block'; // 批次模式：展開核取清單供自選
+                  listEl.style.display = 'block'; // ★ 問題 2：一鍵填寫展開勾選清單
               }
           }
 
-          // 生成核取項目
           if (listEl) {
               listEl.innerHTML = '';
               catList.forEach(item => {
                   let isChecked = isSingle ? (item.date === targetDate) : true;
                   listEl.innerHTML += `
-                      <label class="d-flex align-items-start p-2 mb-2 border rounded bg-white shadow-sm" style="cursor: pointer; border-color: ${isChecked ? '#dc3545' : '#dee2e6'} !important; ${isSingle ? 'display:none;' : ''}">
-                          <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1 border-danger" style="transform: scale(1.3);" 
+                      <label class="d-flex align-items-start p-2 mb-2 border rounded bg-white shadow-sm" style="cursor:pointer; border-color:${isChecked ? '#dc3545' : '#dee2e6'} !important; ${isSingle ? 'display:none;' : ''}">
+                          <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1 border-danger" style="transform:scale(1.3);"
                                  value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" ${isChecked ? 'checked' : ''}>
                           <div>
-                              <div class="fw-bold text-danger" style="font-size:0.9rem;">🗓️ ${item.date} - ${item.reason}</div>
-                              <div class="text-secondary fw-bold" style="font-size:0.8rem;">時段: ${item.time || '─'}</div>
+                              <div class="fw-bold text-danger" style="font-size:0.85rem;">🗓️ ${item.shortDate} ─ ${item.reason}</div>
+                              ${item.time ? `<div class="text-muted fw-bold" style="font-size:0.78rem;">⏰ ${item.time}</div>` : ''}
                           </div>
-                      </label>
-                  `;
+                      </label>`;
               });
           }
 
-          // ★ 設定下拉（拔除"請選擇"，強制預設私事逗留）
+          // ★ 問題 5：拔除"請選擇"，強制預設為"私事逗留"
           let select = document.getElementById('anomalyReasonSelect');
           if (select) {
-              select.innerHTML = ''; 
+              select.innerHTML = '';
               let hasDefault = false;
               if (window.anomalyReasonList && window.anomalyReasonList.length > 0) {
                   window.anomalyReasonList.forEach(opt => {
-                      // 檢查是否包含"私事逗留"或"私事停留"
                       let isDef = (opt.includes('私事逗留') || opt.includes('私事停留')) ? 'selected' : '';
                       if (isDef) hasDefault = true;
                       select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
                   });
               }
-              
-              // 如果後端清單裡真的沒有私事逗留，我們強制塞一個在最前面並預設選取！
               if (!hasDefault) {
                   select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML;
               }
-              
               if (window.anomalyOtherLabel) {
                   select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
               }
           }
-          
-          document.getElementById('anomalyOtherInput').value = "";
+
+          document.getElementById('anomalyOtherInput').value = '';
           document.getElementById('anomalyOtherGroup').style.display = 'none';
           new bootstrap.Modal(document.getElementById('anomalyReportModal')).show();
       };
@@ -5062,16 +5053,16 @@ function showMaintenanceShield(message) {
           }
           // 收集打包選取的資料
           let records = [];
-          // ★ 修正：拋棄不穩定的 DOM 解析，直連全域乾淨變數，100% 修正「無效提交」錯誤
           let realName = window.personalName || ""; 
 
           checkedBoxes.forEach(cb => {
               records.push({
                   date: cb.value,
                   name: realName,
-                  reason: reasonVal === 'OTHER' ? (window.anomalyOtherLabel || '其他') : reasonVal,
+                  // ★ 核心修復：reason 必須傳送原始異常事由(如提前打卡異常)讓後端對齊，explanation 才是傳送下拉選單的理由！
+                  reason: cb.getAttribute('data-reason'), 
                   timePeriod: cb.getAttribute('data-time') || '',
-                  explanation: explanation,
+                  explanation: reasonVal === 'OTHER' ? explanation : reasonVal,
                   reporter: '員工本人'
               });
           });
@@ -7389,15 +7380,12 @@ function showMaintenanceShield(message) {
             
             <div class="border rounded-3 mb-3 p-3 shadow-sm bg-white" style="border-color: #dee2e6 !important;">
                 <div class="fw-bolder mb-2 text-dark" style="font-size: 1rem;" id="anomalyModalDeadlineTitle">
-                    📌 請於 X月X日前確認完畢
-                </div>
+                    </div>
                 <div class="fw-bold mb-3 text-dark" style="font-size: 0.9rem; line-height: 1.6;" id="anomalyModalOtMsg">
-                    ⚡ 若因公務加班,請於 X月X日前申請加班單並簽核完畢
-                </div>
+                    </div>
                 <div class="text-center p-2 rounded-3 bg-white" style="border: 1px dashed #dc3545;">
                     <div id="anomalyModalWarnBox" style="color:#dc3545; font-size:1rem; font-weight:900; line-height:1.7;">
-                        ⚠️ 逾期未處理系統即視為「私人因素停留公司」
-                    </div>
+                        </div>
                 </div>
             </div>
 
