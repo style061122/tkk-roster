@@ -4992,7 +4992,7 @@ function showMaintenanceShield(message) {
       };
 
       // 執行存檔與防呆攔截
-      window.saveAnomalyData = function() {
+      window.saveAnomalyData = function(mode = 'SELF') {
           const reasonVal = document.getElementById('anomalyReasonSelect').value;
           let explanation = "";
     
@@ -5019,20 +5019,20 @@ function showMaintenanceShield(message) {
               }
           }
           
-          // ★ 修正：確保 records 在此處被正確定義
-          let records = []; 
-          let realName = window.personalName || ""; 
+          // ★ 核心邏輯：如果是店長端，reporter 名稱自動帶入登入者姓名
+              let reporterName = (mode === 'ADMIN') ? (sessionStorage.getItem('tkk_store') || '店長') + '代填' : '員工本人';
+              let realName = window.personalName || ""; 
 
-          checkedBoxes.forEach(cb => {
-              records.push({
-                  date: cb.value,
-                  name: realName,
-                  reason: cb.getAttribute('data-reason'), // 傳送原始異常事由
-                  timePeriod: cb.getAttribute('data-time') || '',
-                  explanation: reasonVal === 'OTHER' ? explanation : reasonVal, // 傳送使用者填寫的內容
-                  reporter: '員工本人'
+              checkedBoxes.forEach(cb => {
+                  records.push({
+                      date: cb.value,
+                      name: realName,
+                      reason: cb.getAttribute('data-reason'), 
+                      timePeriod: cb.getAttribute('data-time') || '',
+                      explanation: reasonVal === 'OTHER' ? explanation : reasonVal,
+                      reporter: reporterName // ★ 這裡會自動帶入「XXX代填」或「員工本人」
+                  });
               });
-          });
           
           if (records.length === 0) { Swal.fire('提示', '請勾選要回報的異常項目', 'warning'); return; }
 
