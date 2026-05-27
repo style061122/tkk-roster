@@ -4820,33 +4820,6 @@ function showMaintenanceShield(message) {
                           
                           <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 140px; padding: 6px;">
                               <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
-                              
-                              ${(()=>{ 
-                              let reasonStr = r.sys_anomaly_reason || ""; 
-                              let timeStr = r.sys_anomaly_time || "";
-                              let hHtml = "";
-                              let reasons = reasonStr ? reasonStr.split(',') : [];
-                              let times = timeStr ? timeStr.split(',') : [];
-                              let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date);
-                              
-                              // 僅累計 pendingAnomalies，按鈕已移至上方微型網格
-                              reasons.forEach((rsn, idx) => {
-                                  let tPeriod = times[idx] || "";
-                                  if (!hLogs.some(h => h.reason === rsn)) {
-                                      window.pendingAnomalies.push({ date: r.date, reason: rsn, time: tPeriod });
-                                  }
-                              });
-
-                              if (hLogs.length > 0) {
-                                  hHtml = hLogs.map(h => `
-                                  <div class="mt-1 p-1 rounded text-start shadow-sm" style="background-color: #eafaf1; border: 1px solid #a3cfbb; font-size: 0.75rem; line-height: 1.3;">
-                                      <span class="badge ${h.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'} me-1" style="font-size:0.65rem;">${h.reporter}</span>
-                                      <span class="fw-bold text-success">${h.reason}</span>
-                                  </div>`).join('');
-                              }
-                              
-                              return hHtml; // ★ 只回傳歷史足跡
-                          })()}
                           </td>
                       </tr>
                   `;
