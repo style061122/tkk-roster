@@ -4637,7 +4637,7 @@ function showMaintenanceShield(message) {
                       <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
                           <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
                               <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${pendingCatList.length} 筆待填</span></strong>
-                              <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal()">📝 批次填寫</button>
+                              <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal()">⚡ 一鍵填寫</button>
                           </div>
                           ${pendingCatList.map(item => `
                           <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
@@ -4949,9 +4949,9 @@ function showMaintenanceShield(message) {
           let titleEl = document.getElementById('anomalyModalDeadlineTitle');
           let otEl    = document.getElementById('anomalyModalOtMsg');
           let warnEl  = document.getElementById('anomalyModalWarnBox');
-          if (titleEl) titleEl.innerHTML = `📌 請同仁於 <span class="text-decoration-underline fw-bold">${deadlineStr}</span> 前確認完畢`;
-          if (otEl)    otEl.innerHTML    = `⚡ 若因公務加班，請務必於 <span class="fw-bold">${deadlineStr}</span> 前申請加班單並簽核完成。`;
-          if (warnEl)  warnEl.innerHTML  = `🔥 逾期未處理，系統將於 <strong>${deadlineStr} 09:00</strong> 強制鎖定！<br><span style="font-size:0.88rem; font-weight:900;">屆時未處理之時段，系統即視為「私人因素停留公司」！</span>`;
+          if (titleEl) titleEl.innerHTML = `📌 請於 <span class="text-danger fw-bold">${deadlineStr}前</span>確認完畢`;
+          if (otEl)    otEl.innerHTML    = `⚡ 若因公務加班,請於 <span class="text-danger fw-bold">${deadlineStr}前</span>申請加班單並簽核完畢`;
+          if (warnEl)  warnEl.innerHTML  = `⚠️ 逾期未處理系統即視為「<span class="text-danger fw-bold">私人因素停留公司</span>」`;
 
           let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
 
@@ -4998,22 +4998,25 @@ function showMaintenanceShield(message) {
               });
           }
 
-          // ★ 修正三 & 七：強填選單，將「私事停留」設為首選預設值
+          // ★ 設定下拉（拔除"請選擇"，強制預設私事逗留）
           let select = document.getElementById('anomalyReasonSelect');
           if (select) {
-              select.innerHTML = '';
+              select.innerHTML = ''; 
               let hasDefault = false;
               if (window.anomalyReasonList && window.anomalyReasonList.length > 0) {
                   window.anomalyReasonList.forEach(opt => {
-                      let isDef = opt.includes('私事停留') ? 'selected' : '';
+                      // 檢查是否包含"私事逗留"或"私事停留"
+                      let isDef = (opt.includes('私事逗留') || opt.includes('私事停留')) ? 'selected' : '';
                       if (isDef) hasDefault = true;
                       select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
                   });
               }
-              // 如果後端設定表沒寫，前端主動防禦加在最前面
+              
+              // 如果後端清單裡真的沒有私事逗留，我們強制塞一個在最前面並預設選取！
               if (!hasDefault) {
-                  select.innerHTML = `<option value="私事停留" selected>私事停留</option>` + select.innerHTML;
+                  select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML;
               }
+              
               if (window.anomalyOtherLabel) {
                   select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
               }
@@ -7245,20 +7248,12 @@ function showMaintenanceShield(message) {
           const checkedBoxes = document.querySelectorAll('.anomaly-cb:checked');
           let records = [];
           
-          // 抓取真實姓名 (假設標題為 "2026年 1月 - 王大明 ...")
-          const titleText = document.getElementById('personalNameDisplay').innerText;
-          const realName = titleText.split('-')[1].trim().split(' ')[0];
-
-          checkedBoxes.forEach(cb => {
-              records.push({
-                  date: cb.value,
-                  name: realName,
-                  reason: reasonVal === 'OTHER' ? window.anomalyOtherLabel : reasonVal,
-                  timePeriod: cb.getAttribute('data-time'),
-                  explanation: explanation,
-                  reporter: '員工本人'
-              });
-          });
+          // ★ 抓取真實姓名 (直接使用全域變數，100% 解決無效提交錯誤)
+          let realName = window.personalName || "";
+          if (!realName) {
+              Swal.fire('錯誤', '無法取得員工姓名，請重新整理頁面', 'error'); 
+              return;
+          }
           
           // 送往 GAS 儲存
           const btn = document.getElementById('submitAnomalyBtn');
@@ -7392,15 +7387,17 @@ function showMaintenanceShield(message) {
           </div>
           <div class="modal-body p-3 p-md-4">
             
-            <div class="card bg-danger text-white border-0 rounded-3 mb-3 p-3 shadow-sm text-start" style="box-shadow: 0 4px 10px rgba(220,53,69,0.25) !important;">
-                <div class="fw-black mb-1" style="font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);" id="anomalyModalDeadlineTitle">
-                    📌 請同仁確認完畢
+            <div class="border rounded-3 mb-3 p-3 shadow-sm bg-white" style="border-color: #dee2e6 !important;">
+                <div class="fw-bolder mb-2 text-dark" style="font-size: 1rem;" id="anomalyModalDeadlineTitle">
+                    📌 請於 X月X日前確認完畢
                 </div>
-                <div class="fw-bold mb-2 opacity-90" style="font-size: 0.88rem; line-height: 1.5;" id="anomalyModalOtMsg">
-                    ⚡ 若因公務加班，請務必申請加班單並簽核完畢。
+                <div class="fw-bold mb-3 text-dark" style="font-size: 0.9rem; line-height: 1.6;" id="anomalyModalOtMsg">
+                    ⚡ 若因公務加班,請於 X月X日前申請加班單並簽核完畢
                 </div>
-                <div class="p-2 rounded-3 mt-2 text-center" id="anomalyModalWarnBox" style="background-color: rgba(0,0,0,0.15); font-size:0.92rem; font-weight:bold; line-height:1.6; border: 1px dashed rgba(255,255,255,0.4);">
-                    ⚠️ 逾期未處理，系統將判定為私人因素停留！
+                <div class="text-center p-2 rounded-3 bg-white" style="border: 1px dashed #dc3545;">
+                    <div id="anomalyModalWarnBox" style="color:#dc3545; font-size:1rem; font-weight:900; line-height:1.7;">
+                        ⚠️ 逾期未處理系統即視為「私人因素停留公司」
+                    </div>
                 </div>
             </div>
 
