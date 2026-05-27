@@ -3419,8 +3419,51 @@ function showMaintenanceShield(message) {
                   </div>
                       <div class="collapse" id="${cardId}-support"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5; font-size: 0.8rem;">${sumSupOut>0?supportOutHtml:'<span class="text-black-50 opacity-75">無跨店支援紀錄</span>'}</div></div>
                       <div class="collapse" id="${cardId}-abnormal">
-                          <div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
-                              ${anomalyUI || '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
+                          <div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.85rem;">
+        
+                              ${abnormalDetails.length > 0 ? `
+                                  <div class="mb-3">
+                                      <strong class="text-danger">🚨 系統原始異常紀錄：</strong><br>
+                                      <div class="text-secondary">${abnormalDetails.join('<br>')}</div>
+                                  </div>` : ''
+                              }
+
+                              ${(sPending.length > 0 || sAnswered.length > 0) ? `
+                                  ${sPending.length > 0 ? `
+                                  <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
+                                      <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
+                                          <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${sPending.length} 筆待填</span></strong>
+                                          <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal()">⚡ 一鍵填寫</button>
+                                      </div>
+                                      ${sPending.map(item => `
+                                      <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                                          <div>
+                                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate}</div>
+                                              <div class="text-danger fw-bold" style="font-size:0.78rem;">${item.reason}${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                                          </div>
+                                          <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
+                                              onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}')">📝 填寫</button>
+                                      </div>`).join('')}
+                                  </div>` : ''}
+
+                                  ${sAnswered.length > 0 ? `
+                                  <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
+                                      <div class="fw-bold text-success border-bottom border-success pb-1 mb-2" style="font-size:0.9rem;">✅ 已填寫說明 (${sAnswered.length} 筆)</div>
+                                      ${sAnswered.map(item => `
+                                      <div class="mb-2 p-2 bg-white rounded border shadow-sm">
+                                          <div class="d-flex justify-content-between align-items-center mb-1">
+                                              <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate}</span>
+                                              <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                                          </div>
+                                          <div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">🚨 ${item.reason} ${item.time ? `(${item.time})` : ''}</div>
+                                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted" style="font-size:0.7rem;">（無文字說明）</div>'}
+                                          <div class="text-end mt-1">
+                                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}')">✏️ 修改說明</button>
+                                          </div>
+                                      </div>`).join('')}
+                                  </div>` : ''}
+                              ` : (abnormalDetails.length === 0 ? '<span class="text-black-50 opacity-75">無異常紀錄</span>' : '')}
+        
                           </div>
                       </div>
                   </div>
