@@ -4131,9 +4131,21 @@ function showMaintenanceShield(message) {
           // ==========================================
           let { pending: storePending, answered: storeAnswered } = getAnomalyObjects(pDataAll);
           let totalInteractiveAbn = storePending.length + storeAnswered.length;
-          let displayAbnCount = totalInteractiveAbn > 0 ? totalInteractiveAbn : storeAbnCount;
+          let displayAbnCount = storeAbnCount > 0 ? storeAbnCount : totalInteractiveAbn;
 
           let fullAbnHtml = "";
+          
+          // ★ 修復：第一部分先疊加「系統原始異常紀錄」
+          let rawAbnHtml = buildStoreAbnList(storeAbnDetails);
+          if (rawAbnHtml) {
+              fullAbnHtml += `
+              <div class="mb-3">
+                  <div class="text-danger fw-bold mb-2" style="font-size:0.9rem;">🚨 系統異常紀錄：</div>
+                  <div class="p-2 rounded bg-light border">${rawAbnHtml}</div>
+              </div>`;
+          }
+
+          // ★ 第二部分再疊加「待填寫」與「已填寫」互動區塊
           if (totalInteractiveAbn > 0) {
               // 待填寫區塊 (全店)
               if (storePending.length > 0) {
@@ -4176,8 +4188,10 @@ function showMaintenanceShield(message) {
                       </div>`).join('')}
                   </div>`;
               }
-          } else {
-              fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
+          }
+          
+          if (!fullAbnHtml) {
+              fullAbnHtml = '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
           }
 
           let storeZDisplay = storeTotZ_nat > 0 ? `${storeTotZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotZ_nat.toFixed(1)}</small>` : `${storeTotZ_norm.toFixed(1)}`;
@@ -4245,7 +4259,7 @@ function showMaintenanceShield(message) {
                               <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${displayAbnCount>0?'#dc3545':'#6c757d'};">⚠️ 全店異常一覽</div>
                               <div class="d-flex flex-column align-items-end me-3 my-1">
                                   <div class="fw-bolder ${displayAbnCount>0?'text-danger':'text-muted'}" style="font-size: 1rem; line-height: 1;">${displayAbnCount>0?displayAbnCount+' 筆':'無'}</div>
-                                  ${storePending.length > 0 ? `<span class="text-danger fw-bold mt-1" style="font-size:0.72rem; line-height: 1;">⚠️ 異常說明</span>` : ''}
+                                  ${storePending.length > 0 ? `<span class="text-danger fw-bold mt-1" style="font-size:0.72rem; line-height: 1;">⚠️ 請點我填寫異常說明</span>` : ''}
                               </div>
                               <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           </div>
