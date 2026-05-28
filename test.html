@@ -5435,6 +5435,17 @@ function showMaintenanceShield(message) {
                                           }
                                       }
                                   }
+
+                                  // ==========================================
+                                  // ★ 魔法重繪：系統狀態 (單人明細頁面)
+                                  // ==========================================
+                                  if (typeof renderIndividualTable === 'function') {
+                                      let indivSelect = document.getElementById('indivSelect');
+                                      // 如果該下拉選單存在，且目前有選中員工，就觸發瞬間重繪
+                                      if (indivSelect && indivSelect.value !== "") {
+                                          renderIndividualTable();
+                                      }
+                                  }
                               }
                           }).catch(() => showLoading(false));
                       }
