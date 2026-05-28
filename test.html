@@ -5593,7 +5593,7 @@ function showMaintenanceShield(message) {
                       abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
                   }
               }
-              
+          });
           // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
           
