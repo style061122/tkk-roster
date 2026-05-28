@@ -4125,7 +4125,60 @@ function showMaintenanceShield(message) {
           // ★ 替換為新版：呼叫 buildStoreDetailList 帶入對應顏色
           let storeOutHtml = buildStoreDetailList(storeOutStoreTotals, '#3d1a87') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
           let storeInHtml = buildStoreDetailList(storeInStoreTotals, '#055160') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
-          let fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
+          
+          // ==========================================
+          // ★ 完美移植：為「全店卡片」打造專屬的待填與已填 UI
+          // ==========================================
+          let { pending: storePending, answered: storeAnswered } = getAnomalyObjects(pDataAll);
+          let totalInteractiveAbn = storePending.length + storeAnswered.length;
+          let displayAbnCount = totalInteractiveAbn > 0 ? totalInteractiveAbn : storeAbnCount;
+
+          let fullAbnHtml = "";
+          if (totalInteractiveAbn > 0) {
+              // 待填寫區塊 (全店)
+              if (storePending.length > 0) {
+                  fullAbnHtml += `
+                  <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
+                      <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
+                          <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${storePending.length} 筆待填</span></strong>
+                          <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'PENDING', '${targetStore}')">⚡ 全店一鍵代填</button>
+                      </div>
+                      ${storePending.map(item => `
+                      <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                          <div>
+                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${item.name}</div>
+                              <div class="text-danger fw-bold" style="font-size:0.78rem;">${item.reason} ${item.time ? `<span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          </div>
+                          <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
+                              onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'PENDING', '${targetStore}')">📝 代填</button>
+                      </div>`).join('')}
+                  </div>`;
+              }
+              // 已填寫區塊 (全店)
+              if (storeAnswered.length > 0) {
+                  fullAbnHtml += `
+                  <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
+                      <div class="d-flex justify-content-between align-items-center border-bottom border-success pb-1 mb-2">
+                          <div class="fw-bold text-success" style="font-size:0.9rem;">✅ 已填寫 (${storeAnswered.length})</div>
+                          <button class="btn btn-success btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'ANSWERED', '${targetStore}')">✏️ 全店一鍵修改</button>
+                      </div>
+                      ${storeAnswered.map(item => `
+                      <div class="mb-2 p-2 bg-white rounded border shadow-sm">
+                          <div class="d-flex justify-content-between align-items-center mb-1">
+                              <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${item.name}</span>
+                              <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                          </div>
+                          <div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">🚨 ${item.reason} ${item.time ? `(${item.time})` : ''}</div>
+                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted" style="font-size:0.7rem;">（無文字說明）</div>'}
+                          <div class="text-end mt-1">
+                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'ANSWERED', '${targetStore}')">✏️ 修改</button>
+                          </div>
+                      </div>`).join('')}
+                  </div>`;
+              }
+          } else {
+              fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
+          }
 
           let storeZDisplay = storeTotZ_nat > 0 ? `${storeTotZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotZ_nat.toFixed(1)}</small>` : `${storeTotZ_norm.toFixed(1)}`;
           let storeODisplay = storeTotO_nat > 0 ? `${storeTotO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotO_nat.toFixed(1)}</small>` : `${storeTotO_norm.toFixed(1)}`;
@@ -4188,9 +4241,13 @@ function showMaintenanceShield(message) {
                           </div>
                       </div>
                       <div class="col-12">
-                          <div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${storeAbnCount>0?'#ffffff':'#f8f9fa'}; border-color: ${storeAbnCount>0?'#dc3545':'#dee2e6'} !important; border-width: ${storeAbnCount>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#${prefixId}-abn">
-                              <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${storeAbnCount>0?'#dc3545':'#6c757d'};">⚠️ 全店異常一覽</div>
-                              <div class="fw-bolder ${storeAbnCount>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${storeAbnCount>0?storeAbnCount+' 筆':'無'} <span class="text-muted" style="font-size: 0.75rem;">▾</span></div>
+                          <div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${displayAbnCount>0?'#fff0f0':'#f8f9fa'}; border-color: ${displayAbnCount>0?'#dc3545':'#dee2e6'} !important; border-width: ${displayAbnCount>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#${prefixId}-abn">
+                              <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${displayAbnCount>0?'#dc3545':'#6c757d'};">⚠️ 全店異常一覽</div>
+                              <div class="d-flex flex-column align-items-end me-3 my-1">
+                                  <div class="fw-bolder ${displayAbnCount>0?'text-danger':'text-muted'}" style="font-size: 1rem; line-height: 1;">${displayAbnCount>0?displayAbnCount+' 筆':'無'}</div>
+                                  ${storePending.length > 0 ? `<span class="text-danger fw-bold mt-1" style="font-size:0.72rem; line-height: 1;">⚠️ 異常說明</span>` : ''}
+                              </div>
+                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           </div>
                       </div>
                   </div>
@@ -4367,7 +4424,8 @@ function showMaintenanceShield(message) {
                       time: times[idx] || '', 
                       name: r.name,
                       pkey: currentPkey,
-                      clockText: clockText // ★ 將打卡時間存入物件
+                      clockText: clockText,
+                      store: r.store // ★ 新增：綁定門市名稱，供督導視角全店代填時過濾用
                   };
       
                   if (answeredLog) answered.push({ ...item, hLog: answeredLog });
@@ -5075,17 +5133,15 @@ function showMaintenanceShield(message) {
       // ==========================================
       // ★ 階段三-2：Modal 引擎與關鍵字攔截網 (支援模式切換終極版)
       // ==========================================
-      // 加入第五個參數 mode，預設為 'PENDING'
-      window.openAnomalyModal = function(targetDate = null, targetReason = null, targetName = null, targetPkey = null, mode = 'PENDING') {
+      // 加入第 6 個參數 targetStore
+      window.openAnomalyModal = function(targetDate = null, targetReason = null, targetName = null, targetPkey = null, mode = 'PENDING', targetStore = null) {
           let catList = [];
           let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
 
-          // ★ 核心分流邏輯：單筆與一鍵的分離
+          // 核心分流邏輯
           if (isSingle) {
-              // 單筆點擊 (填寫或修改)：合併清單以便精準撈取該筆資料
               catList = [...(window.pendingCatList || []), ...(window.answeredCatList || [])];
           } else {
-              // 一鍵批次點擊：依照 mode 嚴格分流！
               if (mode === 'PENDING') {
                   catList = window.pendingCatList || [];
               } else if (mode === 'ANSWERED') {
@@ -5093,7 +5149,12 @@ function showMaintenanceShield(message) {
               }
           }
 
-          // ★ 如果是店長/督導點擊單人卡片，過濾出該名員工
+          // ★ 升級防呆：如果是點擊「全店一鍵代填」，過濾出該門市的所有人
+          if (targetStore) {
+              catList = catList.filter(i => i.store === targetStore);
+          }
+
+          // 如果有傳入單一員工，再進一步過濾
           if (targetPkey) {
               catList = catList.filter(i => i.pkey === targetPkey);
           } else if (targetName) {
