@@ -5241,9 +5241,9 @@ function showMaintenanceShield(message) {
           callApi('saveAnomaly', { u: userKey, records: records }).then(res => {
               btn.disabled = false; btn.innerHTML = '📤 確定送出';
               if (res.success) {
-                  Swal.fire({ icon:'success', title:'回報成功', text:'異常說明已成功送出！', timer:2000, showConfirmButton:false })
+                  Swal.fire({ icon:'success', title:'回報成功', text:'異常說明已成功更新！', timer:1500, showConfirmButton:false })
                   .then(() => {
-                      // ★ 安全關閉 Modal 防崩潰
+                      // 1. 安全關閉 Modal 防崩潰
                       let modalEl = document.getElementById('anomalyReportModal');
                       let mInst = bootstrap.Modal.getInstance(modalEl);
                       if (mInst) { mInst.hide(); } else { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); }
@@ -5253,17 +5253,39 @@ function showMaintenanceShield(message) {
                       document.body.classList.remove('modal-open');
                       document.body.style = '';
 
-                      // ★ 安全重整畫面
+                      // 2. 依據身分執行無感重整
                       if (isPersonalMode && typeof window.loadPersonalData === 'function') {
                           window.loadPersonalData(window.personalPwd);
                       } else {
-                          // 嘗試呼叫店長端重整，若因缺少參數報錯，則直接整頁重新載入！
-                          try {
-                              if (typeof loadAdminData === 'function') loadAdminData();
-                              else window.location.reload();
-                          } catch (err) {
-                              window.location.reload();
-                          }
+                          // ★ 終極修復：拒絕 reload，改用背景靜默更新！
+                          showLoading(true, "資料同步中...");
+                          callApi('getStoreData', { 
+                              store: currentStore, 
+                              monthMode: typeof currentMonthMode !== 'undefined' ? currentMonthMode : 'current' 
+                          }).then(res => {
+                              showLoading(false);
+                              if (res.success) {
+                                  // 更新全域記憶體
+                                  currentData = res.data || [];
+                                  window.currentOtData = res.otData || [];
+                                  window.historicalAnomalies = res.anomalyData || []; 
+                                  
+                                  // 重繪底層主班表
+                                  if (typeof renderTable === 'function') renderTable();
+                                  
+                                  // ★ 瞬間重繪「門市月統計」的畫面 (不關閉視窗)
+                                  if (typeof generateMonthlyReportHTML === 'function') {
+                                      // 智慧尋找月統計的專屬容器
+                                      let selectEl = document.querySelector('select[onchange="filterMonthlyReport(this.value)"]');
+                                      if (selectEl) {
+                                          let targetContainer = selectEl.closest('.modal-body') || selectEl.parentElement.parentElement;
+                                          if (targetContainer) {
+                                              targetContainer.innerHTML = generateMonthlyReportHTML();
+                                          }
+                                      }
+                                  }
+                              }
+                          }).catch(() => showLoading(false));
                       }
                   });
               } else { Swal.fire('錯誤', res.message, 'error'); }
