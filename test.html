@@ -3308,7 +3308,18 @@ function showMaintenanceShield(message) {
                   }
 
                   if (sysAbnormal !== "") {
-                      abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                      // ★ 智慧異常消除：比對這名員工專屬的 sAnswered 清單
+                      let myAns = sAnswered.filter(a => a.date === r.date);
+                      if (myAns.length > 0) {
+                          let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                          abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
+                          sysAbnormal = abnParts.join(' / ');
+                      }
+                      
+                      // 只有在消除後，字串還不是空的，才加進去顯示
+                      if (sysAbnormal !== "") {
+                          abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                      }
                   }
               });
               // 1. 取得該員工專屬的異常分類 (替換掉原本只顯示文字的 abnormalDetails)
@@ -3940,7 +3951,10 @@ function showMaintenanceShield(message) {
           let pDataAll = currentData.filter(r => r.store === targetStore);
           if (pDataAll.length === 0) return "";
 
-          let storeOHtml = ""; // ✅ 加在這裡！每次產生新卡片就重置為空白
+          let storeOHtml = ""; 
+          
+          // ★ 新增這行：先在最上方算出這家店所有的待填與已填異常
+          let { pending: storePending, answered: storeAnswered } = getAnomalyObjects(pDataAll);
 
           const getStartFloat = (t) => { if(!t) return 0; if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); } return parseFloat(t) || 0; };
           const ft = (t) => { if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val); };
@@ -3997,9 +4011,19 @@ function showMaintenanceShield(message) {
                       zGroups[stName].norm+=normZ; zGroups[stName].nat+=natZ; zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                   }
                   if(sysAbnormal!=="") {
-                      storeAbnCount++;
-                      if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
-                      storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                      // ★ 智慧異常消除：比對這家店的 storeAnswered 總表
+                      let myAns = storeAnswered.filter(a => a.date === r.date && a.name === r.name);
+                      if (myAns.length > 0) {
+                          let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                          abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
+                          sysAbnormal = abnParts.join(' / ');
+                      }
+
+                      if (sysAbnormal !== "") {
+                          storeAbnCount++; // 只統計那些真正還沒解決的異常
+                          if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
+                          storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                      }
                   }
                   if(r.supports && r.supports.length>0) {
                       let aaStart = sF;
@@ -4143,7 +4167,6 @@ function showMaintenanceShield(message) {
           // ==========================================
           // ★ 完美移植：為「全店卡片」打造專屬的待填與已填 UI
           // ==========================================
-          let { pending: storePending, answered: storeAnswered } = getAnomalyObjects(pDataAll);
           let totalInteractiveAbn = storePending.length + storeAnswered.length;
           let displayAbnCount = storeAbnCount > 0 ? storeAbnCount : totalInteractiveAbn;
 
@@ -4694,17 +4717,14 @@ function showMaintenanceShield(message) {
                       }
 
                       if (sysAbnormal !== "") {
-                          abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
                           // ★ 建立三種需填說明的分類清單
                           const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
                           let rReasons = (r.sys_anomaly_reason || "").split(',');
                           let rTimes = (r.sys_anomaly_time || "").split(',');
                           
-                          // ★ 抓取該筆資料的金鑰
                           let currentPkey = r.pkey || r.pKey || window.personalUserKey || ""; 
                           let rHLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && (!h.pkey || h.pkey === currentPkey));
                           
-                          // ★ 致命錯誤修復：將上下班時間在這裡提前解析，不依賴下方的宣告！
                           let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
                           let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
 
@@ -4714,13 +4734,11 @@ function showMaintenanceShield(message) {
                               let tPeriod = (rTimes[ridx] || "").trim();
                               let answered = rHLogs.find(h => h.reason === rsn);
                               
-                              // ★ 判斷要顯示哪個打卡時間 (使用上方專屬解析好的時間)
                               let clockText = "";
                               if (rsn.includes('提前打卡異常')) clockText = sysInLocal ? `(${sysInLocal})` : "";
                               else if (rsn.includes('延後打卡異常')) clockText = sysOutLocal ? `(${sysOutLocal})` : "";
                               else if (rsn.includes('非工作日打卡')) clockText = (sysInLocal || sysOutLocal) ? `(${sysInLocal}~${sysOutLocal})` : "";
 
-                              // ★ 封裝包含 clockText 的物件
                               let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey, clockText: clockText };
 
                               if (answered) {
@@ -4729,6 +4747,19 @@ function showMaintenanceShield(message) {
                                   pendingCatList.push(itemObj);
                               }
                           });
+
+                          // ==========================================
+                          // ★ 智慧異常消除：如果歷史紀錄 (rHLogs) 有這筆事由，就從畫面上消除它！
+                          // ==========================================
+                          if (rHLogs.length > 0) {
+                              let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                              abnParts = abnParts.filter(part => !rHLogs.some(ans => part.includes(ans.reason)));
+                              sysAbnormal = abnParts.join(' / ');
+                          }
+
+                          if (sysAbnormal !== "") {
+                              abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                          }
                       }
                   });
               }
