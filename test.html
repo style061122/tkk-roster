@@ -4761,6 +4761,7 @@ function showMaintenanceShield(message) {
                               abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
                           }
                       }
+                  }); // ★★★ 補上這行！這是 pData.forEach 迴圈的完美結尾 ★★★
 
               let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
               let tYear = String(meta.year);
