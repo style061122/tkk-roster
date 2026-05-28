@@ -6819,6 +6819,8 @@ function showMaintenanceShield(message) {
              if (res.success) {
                  currentData = res.data || []; 
                  window.currentOtData = res.otData || []; // 📥 接收加班包裹！
+                 // ★★★★ 必須要有這行！店長端才抓得到歷史紀錄！ ★★★★
+                 window.historicalAnomalies = res.anomalyData || [];
                  monthlyTargets = res.targets || {}; 
                  
                  const select = document.getElementById('hqIndivSelect');
