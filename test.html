@@ -5315,15 +5315,17 @@ function showMaintenanceShield(message) {
           if (!reasonVal) { Swal.fire('提示', '請選擇發生原因', 'warning'); return; }
     
           if (reasonVal === 'OTHER') {
-              explanation = document.getElementById('anomalyOtherInput').value.trim();
-              if (!explanation) { Swal.fire('提示', '請確實填寫原因說明', 'warning'); return; }
+              let rawExplanation = document.getElementById('anomalyOtherInput').value.trim();
+              if (!rawExplanation) { Swal.fire('提示', '請確實填寫原因說明', 'warning'); return; }
               const blockKws = ['加班', '客人', '打掃', '公事'];
-              if (blockKws.some(kw => explanation.includes(kw))) {
+              if (blockKws.some(kw => rawExplanation.includes(kw))) {
                   Swal.fire({ icon:'warning', title:'⚠️ 說明內容包含關鍵字',
-                      html:'您的說明中包含「加班/公事/客人/打掃」等字眼。<br>若是公務，請改選【公事已申請加班】並記得補送加班單！',
+                      html:'您的說明中包含「加班/公事/客人/打掃」等字眼。<br>若是公務，請改選【公事-已申請加班】並記得補送加班單！',
                       confirmButtonText:'我知道了', confirmButtonColor:'#dc3545' });
                   return;
               }
+              // ★ 核心優化：防呆過關後，自動在字首補上「私事其他-」
+              explanation = "私事其他-" + rawExplanation;
           }
           
           // ★ 智慧判斷操作者身分 (解決需求3與需求4)
