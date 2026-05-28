@@ -1962,6 +1962,8 @@ function showMaintenanceShield(message) {
              if (res && res.success) {
                  currentData = res.data || [];
                  window.currentOtData = res.otData || []; // 📥 接收加班包裹！
+                 // ★★★★ 必須要有這行！店長端才抓得到歷史紀錄！ ★★★★
+                 window.historicalAnomalies = res.anomalyData || [];
                  // ★★★ 終極無損快照：在拿到最新資料的瞬間，立刻備份一份最乾淨的狀態！★★★
                  window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                  window.currentSyncVersion = res.syncVersion || ""; // ★ 記下現在的系統版本號
@@ -5077,10 +5079,18 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          // 動態帶入關帳日
-          let ci = window.personalClosingInfo || {};
-          let nextM = ci.nextMonth || ((new Date().getMonth() + 1) % 12) + 1;
-          let closeD = ci.closeDay || 4;
+          // ★ 動態帶入關帳日 (相容店長端與員工端)
+          let nextM, closeD;
+          if (typeof currentParams !== 'undefined' && currentParams['target_month']) {
+              // 店長端：從全域 currentParams 抓取
+              nextM = (parseInt(currentParams['target_month']) % 12) + 1;
+              closeD = currentParams['closing_day'] || 4;
+          } else {
+              // 員工端：從 personalClosingInfo 抓取
+              let ci = window.personalClosingInfo || {};
+              nextM = ci.nextMonth || ((new Date().getMonth() + 1) % 12) + 1;
+              closeD = ci.closeDay || 4;
+          }
           let deadlineStr = `${nextM}月${closeD}日`;
 
           // ★ 動態變更 Modal 標題 (讓店長清楚現在是在填寫還是修改)
@@ -5233,12 +5243,27 @@ function showMaintenanceShield(message) {
               if (res.success) {
                   Swal.fire({ icon:'success', title:'回報成功', text:'異常說明已成功送出！', timer:2000, showConfirmButton:false })
                   .then(() => {
-                      bootstrap.Modal.getInstance(document.getElementById('anomalyReportModal')).hide();
-                      // ★ 依據身分重整畫面
-                      if (isPersonalMode) {
+                      // ★ 安全關閉 Modal 防崩潰
+                      let modalEl = document.getElementById('anomalyReportModal');
+                      let mInst = bootstrap.Modal.getInstance(modalEl);
+                      if (mInst) { mInst.hide(); } else { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); }
+                      
+                      // 移除可能卡住的黑灰遮罩
+                      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                      document.body.classList.remove('modal-open');
+                      document.body.style = '';
+
+                      // ★ 安全重整畫面
+                      if (isPersonalMode && typeof window.loadPersonalData === 'function') {
                           window.loadPersonalData(window.personalPwd);
                       } else {
-                          if (typeof loadAdminData === 'function') loadAdminData();
+                          // 嘗試呼叫店長端重整，若因缺少參數報錯，則直接整頁重新載入！
+                          try {
+                              if (typeof loadAdminData === 'function') loadAdminData();
+                              else window.location.reload();
+                          } catch (err) {
+                              window.location.reload();
+                          }
                       }
                   });
               } else { Swal.fire('錯誤', res.message, 'error'); }
