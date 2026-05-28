@@ -5580,7 +5580,18 @@ function showMaintenanceShield(message) {
                       let parts = r.date.split('/');
                       if (parts.length >= 3) shortDate = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
                   }
-                  abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                  
+                  // ★ 智慧異常消除：比對最上方已經算好的 sAnswered
+                  let myAns = sAnswered.filter(a => a.date === r.date);
+                  if (myAns.length > 0) {
+                      let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                      abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
+                      sysAbnormal = abnParts.join(' / ');
+                  }
+                  
+                  if (sysAbnormal !== "") {
+                      abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                  }
               }
           });
 
