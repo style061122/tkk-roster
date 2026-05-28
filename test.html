@@ -5141,18 +5141,23 @@ function showMaintenanceShield(message) {
           let select = document.getElementById('anomalyReasonSelect');
           select.innerHTML = '';
           let hasDefault = false;
-          if (window.anomalyReasonList) {
-              window.anomalyReasonList.forEach(opt => {
+          
+          // ★ 修正 1：相容店長端 (currentParams) 與 員工端 (window.anomalyReasonList)
+          let reasonList = window.anomalyReasonList || (currentParams && currentParams['anomaly_reasons']) || [];
+          let otherLabel = window.anomalyOtherLabel || (currentParams && currentParams['anomaly_other']) || "其他";
+
+          if (reasonList && reasonList.length > 0) {
+              reasonList.forEach(opt => {
                   let isDef = (opt.includes('私事逗留') || opt.includes('私事停留')) ? 'selected' : '';
                   if (isDef) hasDefault = true;
                   select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
               });
           }
-          if (!hasDefault) {
-              select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML;
+          if (!hasDefault) { 
+              select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML; 
           }
-          if (window.anomalyOtherLabel) {
-              select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
+          if (otherLabel) { 
+              select.innerHTML += `<option value="OTHER">${otherLabel}</option>`; 
           }
 
           document.getElementById('anomalyOtherInput').value = '';
@@ -5204,10 +5209,13 @@ function showMaintenanceShield(message) {
           let realName = window.personalName || ""; 
 
           checkedBoxes.forEach(cb => {
+              let cbPkey = cb.getAttribute('data-pkey') || "";
+              
               records.push({
                   date: cb.value,
                   name: cb.getAttribute('data-name') || realName,
-                  pkey: cb.getAttribute('data-pkey') || "", // ★ 精準傳送金鑰
+                  pkey: cbPkey, // ★ 傳送小寫，相容新版後端
+                  pKey: cbPkey, // ★ 傳送大寫，相容舊版後端！(雙重保險，確保後端絕對抓得到)
                   reason: cb.getAttribute('data-reason'), 
                   timePeriod: cb.getAttribute('data-time') || '',
                   explanation: reasonVal === 'OTHER' ? explanation : reasonVal, 
