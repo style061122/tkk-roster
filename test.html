@@ -4694,9 +4694,50 @@ function showMaintenanceShield(message) {
                       }
 
                       if (sysAbnormal !== "") {
-                          abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
                           // ★ 建立三種需填說明的分類清單
                           const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
+                          let rReasons = (r.sys_anomaly_reason || "").split(',');
+                          let rTimes = (r.sys_anomaly_time || "").split(',');
+                          
+                          let currentPkey = r.pkey || r.pKey || window.personalUserKey || ""; 
+                          let rHLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && (!h.pkey || h.pkey === currentPkey));
+                          
+                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+
+                          rReasons.forEach((rsn, ridx) => {
+                              rsn = rsn.trim();
+                              if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
+                              let tPeriod = (rTimes[ridx] || "").trim();
+                              let answered = rHLogs.find(h => h.reason === rsn);
+                              
+                              let clockText = "";
+                              if (rsn.includes('提前打卡異常')) clockText = sysInLocal ? `(${sysInLocal})` : "";
+                              else if (rsn.includes('延後打卡異常')) clockText = sysOutLocal ? `(${sysOutLocal})` : "";
+                              else if (rsn.includes('非工作日打卡')) clockText = (sysInLocal || sysOutLocal) ? `(${sysInLocal}~${sysOutLocal})` : "";
+
+                              let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey, clockText: clockText };
+
+                              if (answered) {
+                                  answeredCatList.push({ ...itemObj, hLog: answered });
+                              } else {
+                                  pendingCatList.push(itemObj);
+                              }
+                          });
+
+                          // ==========================================
+                          // ★ 智慧異常消除：如果歷史紀錄 (rHLogs) 有這筆事由，就從畫面上消除它！
+                          // ==========================================
+                          if (rHLogs.length > 0) {
+                              let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                              abnParts = abnParts.filter(part => !rHLogs.some(ans => part.includes(ans.reason)));
+                              sysAbnormal = abnParts.join(' / ');
+                          }
+
+                          if (sysAbnormal !== "") {
+                              abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                          }
+                      }
                           let rReasons = (r.sys_anomaly_reason || "").split(',');
                           let rTimes = (r.sys_anomaly_time || "").split(',');
                           
