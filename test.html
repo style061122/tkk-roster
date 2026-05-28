@@ -3169,9 +3169,10 @@ function showMaintenanceShield(message) {
               let pData = currentData.filter(r => r.name === name && r.store === currentStore);
               if (pData.length === 0) return;
               
-              // ★ 這裡：從總清單中「精準篩選」該員工的資料
-              let sPending = (window.pendingCatList || []).filter(i => i.name && pDataAll.find(p => p.name === i.name));
-              let sAnswered = (window.answeredCatList || []).filter(i => i.name && pDataAll.find(p => p.name === i.name));
+              // ★ 這裡：從總清單中「精準篩選」該員工的資料 (修復 pDataAll 錯誤，並啟用金鑰過濾)
+              let empPkey = pData[0].pkey || pData[0].pKey || ""; // 抓取該員工的金鑰
+              let sPending = (window.pendingCatList || []).filter(i => empPkey ? i.pkey === empPkey : i.name === name);
+              let sAnswered = (window.answeredCatList || []).filter(i => empPkey ? i.pkey === empPkey : i.name === name);
               let salaryType = pData[0].salaryType || "";
               let isMonthly = salaryType.includes("月薪");
 
@@ -3431,7 +3432,7 @@ function showMaintenanceShield(message) {
         
                               ${abnormalDetails.length > 0 ? `
                               <div class="mb-3">
-                                  <strong class="text-danger">🚨 系統原始異常紀錄：</strong><br>
+                                  <strong class="text-danger">🚨 系統異常紀錄：</strong><br>
                                   <div class="text-secondary">${abnormalDetails.join('<br>')}</div>
                               </div>` : ''}
 
@@ -3440,22 +3441,36 @@ function showMaintenanceShield(message) {
                                   <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
                                       <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
                                           <strong class="text-danger" style="font-size:0.9rem;">⚠️ 待回報 (${sPending.length})</strong>
+                                          <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${empPkey}', 'PENDING')">⚡ 一鍵代填</button>
                                       </div>
                                       ${sPending.map(item => `
-                                      <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-                                          <div><div class="fw-bold text-danger" style="font-size:0.78rem;">${item.reason} (${item.time})</div></div>
-                                          <button class="btn btn-outline-danger btn-sm" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}')">📝 填寫</button>
+                                      <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                                          <div>
+                                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate}</div>
+                                              <div class="text-danger fw-bold" style="font-size:0.78rem;">${item.reason} ${item.time ? `<span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                                          </div>
+                                          <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
+                                              onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
                                       </div>`).join('')}
                                   </div>` : ''}
 
                                   ${sAnswered.length > 0 ? `
                                   <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
-                                      <div class="fw-bold text-success border-bottom border-success pb-1 mb-2" style="font-size:0.9rem;">✅ 已填寫 (${sAnswered.length})</div>
+                                      <div class="d-flex justify-content-between align-items-center border-bottom border-success pb-1 mb-2">
+                                          <div class="fw-bold text-success" style="font-size:0.9rem;">✅ 已填寫 (${sAnswered.length})</div>
+                                          <button class="btn btn-success btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${empPkey}', 'ANSWERED')">✏️ 一鍵修改</button>
+                                      </div>
                                       ${sAnswered.map(item => `
                                       <div class="mb-2 p-2 bg-white rounded border shadow-sm">
-                                          <div class="fw-bold text-danger" style="font-size:0.78rem;">${item.reason}</div>
-                                          <div class="text-secondary small">答覆：${item.hLog.explanation}</div>
-                                          <div class="text-end"><button class="btn btn-sm btn-link" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}')">修改</button></div>
+                                          <div class="d-flex justify-content-between align-items-center mb-1">
+                                              <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate}</span>
+                                              <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                                          </div>
+                                          <div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">🚨 ${item.reason} ${item.time ? `(${item.time})` : ''}</div>
+                                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted" style="font-size:0.7rem;">（無文字說明）</div>'}
+                                          <div class="text-end mt-1">
+                                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">✏️ 修改</button>
+                                          </div>
                                       </div>`).join('')}
                                   </div>` : ''}
                               ` : (abnormalDetails.length === 0 ? '<span class="text-black-50 opacity-75">無異常紀錄</span>' : '')}
@@ -4291,23 +4306,40 @@ function showMaintenanceShield(message) {
               });
           }
       };
-      // 獨立引擎：將原始異常字串解析成互動物件
+      // 獨立引擎：將原始異常字串解析成互動物件 (金鑰升級版)
       function getAnomalyObjects(pData) {
           let pending = [], answered = [];
           const TARGET_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
-    
+      
           pData.forEach(r => {
               if (!r.sys_abnormal) return;
+              
+              // ★ 抓取該筆排班的金鑰 (相容各種大小寫)
+              let currentPkey = r.pkey || r.pKey || r.key || ""; 
+
               let reasons = (r.sys_anomaly_reason || "").split(',');
               let times = (r.sys_anomaly_time || "").split(',');
-              let hLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && h.name === r.name);
-        
+              
+              // ★ 優先使用金鑰比對歷史紀錄
+              let hLogs = (window.historicalAnomalies || []).filter(h => 
+                  h.date === r.date && ((currentPkey && h.pkey === currentPkey) || h.name === r.name)
+              );
+      
               reasons.forEach((rsn, idx) => {
                   rsn = rsn.trim();
                   if (!rsn || !TARGET_KWS.some(kw => rsn.includes(kw))) return;
                   let answeredLog = hLogs.find(h => h.reason === rsn);
-                  let item = { date: r.date, shortDate: r.date, reason: rsn, time: times[idx] || '', name: r.name };
-            
+                  
+                  // ★ 把金鑰包進物件裡
+                  let item = { 
+                      date: r.date, 
+                      shortDate: r.date.split('/').slice(1).join('/'), 
+                      reason: rsn, 
+                      time: times[idx] || '', 
+                      name: r.name,
+                      pkey: currentPkey // 新增金鑰
+                  };
+      
                   if (answeredLog) answered.push({ ...item, hLog: answeredLog });
                   else pending.push(item);
               });
