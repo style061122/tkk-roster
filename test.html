@@ -3649,7 +3649,12 @@ function showMaintenanceShield(message) {
          let rSupIn=0, rSupIn_norm=0, rSupIn_aa=0;    // ★ 擴充全區借入抽屜
          
          let lvD={}, aaD={}, zD={}, outD={}, inD={};
-         let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, '其他': {} };
+         // ★ 擴充異常分類容器，保留舊有並加入三大新指標
+         let abnGroups = { 
+             '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, 
+             '提前打卡異常': {}, '延後打卡異常': {}, '非工作日打卡': {}, 
+             '其他': {} 
+         };
 
          // ★ 補上遺失的大腦連線：全區 O 欄計算與 HTML 產生
          let regOHtml = "";
@@ -3683,14 +3688,22 @@ function showMaintenanceShield(message) {
               if(z>0) { let natZ=0, normZ=z; if(!isHourly&&s==='國'){natZ=Math.min(z,8);normZ=Math.max(0,z-8);} rZ_nat+=natZ; rZ_norm+=normZ; zD[st].total+=z; zD[st].norm+=normZ; zD[st].nat+=natZ; zD[st].groups[sName]+=z; }
               // (★ 舊版 O 的計算邏輯已徹底移除，改由上方大腦負責)
               
-              // ★ 異常分流判定 (方案一：多重影分身法)
+              // ★ 異常分流判定 (方案一：多重影分身法 - 8大分類版)
               if (sysAbn !== "") { 
                   rAbn++; // 總筆數 (以列為單位) 不變，維持外面卡片數字準確
                   let matched = false;
+                  
+                  // 原有分類
                   if (sysAbn.includes('未打卡')) { abnGroups['未打卡'][st] = (abnGroups['未打卡'][st] || 0) + 1; matched = true; }
                   if (sysAbn.includes('打卡異常')) { abnGroups['打卡異常'][st] = (abnGroups['打卡異常'][st] || 0) + 1; matched = true; }
                   if (sysAbn.includes('遲到')) { abnGroups['遲到'][st] = (abnGroups['遲到'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('早退')) { abnGroups['早退'][st] = (abnGroups['早退'][st] || 0) + 1; matched = true; } // ★ 新增早退
+                  if (sysAbn.includes('早退')) { abnGroups['早退'][st] = (abnGroups['早退'][st] || 0) + 1; matched = true; }
+                  
+                  // 新增三大分類
+                  if (sysAbn.includes('提前打卡異常')) { abnGroups['提前打卡異常'][st] = (abnGroups['提前打卡異常'][st] || 0) + 1; matched = true; }
+                  if (sysAbn.includes('延後打卡異常')) { abnGroups['延後打卡異常'][st] = (abnGroups['延後打卡異常'][st] || 0) + 1; matched = true; }
+                  if (sysAbn.includes('非工作日打卡')) { abnGroups['非工作日打卡'][st] = (abnGroups['非工作日打卡'][st] || 0) + 1; matched = true; }
+                  
                   if (!matched) { abnGroups['其他'][st] = (abnGroups['其他'][st] || 0) + 1; }
               }
 
@@ -3794,11 +3807,12 @@ function showMaintenanceShield(message) {
           }).join('');
 
           // ★ 產生全區異常多重分組 HTML (加入溫馨提示)
-          const buildAbnGroupHtml = (groups) => {
-              let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 同一排班若有多項異常，將於各分類中獨立計算</div>`;
-              let hasData = false;
-              // ★ 把早退加入迴圈
-              ['未打卡', '打卡異常', '遲到', '早退', '其他'].forEach(k => {
+         const buildAbnGroupHtml = (groups) => {
+             let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 同一排班若有多項異常，將於各分類中獨立計算</div>`;
+             let hasData = false;
+             
+             // ★ 8 大分類依序渲染
+             ['未打卡', '打卡異常', '遲到', '早退', '提前打卡異常', '延後打卡異常', '非工作日打卡', '其他'].forEach(k => {
                   let stores = groups[k];
                   if(Object.keys(stores).length > 0) {
                       hasData = true;
