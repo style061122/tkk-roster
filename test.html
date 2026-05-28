@@ -3457,7 +3457,7 @@ function showMaintenanceShield(message) {
                                       ${sPending.map(item => `
                                       <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
                                           <div>
-                                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate}</div>
+                                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span></div>
                                               <div class="text-danger fw-bold" style="font-size:0.78rem;">${item.reason} ${item.time ? `<span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
                                           </div>
                                           <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
@@ -3474,7 +3474,7 @@ function showMaintenanceShield(message) {
                                       ${sAnswered.map(item => `
                                       <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                                           <div class="d-flex justify-content-between align-items-center mb-1">
-                                              <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate}</span>
+                                              <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span></span>
                                               <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                                           </div>
                                           <div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">🚨 ${item.reason} ${item.time ? `(${item.time})` : ''}</div>
@@ -4319,39 +4319,55 @@ function showMaintenanceShield(message) {
               });
           }
       };
-      // 獨立引擎：將原始異常字串解析成互動物件 (相容店長端與員工端的 API 變數落差)
+      // 獨立引擎：將原始異常字串解析成互動物件 (終極防呆比對版 + 打卡時間輔助)
       function getAnomalyObjects(pData) {
           let pending = [], answered = [];
           const TARGET_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
-      
+          const cleanStr = (s) => String(s || "").replace(/\s+/g, "");
+
           pData.forEach(r => {
               if (!r.sys_abnormal) return;
-              
-              let currentPkey = r.pkey || r.pKey || r.key || ""; 
 
-              // ★ 致命斷層修復：若找不到 sys_anomaly_reason，就去抓 input_should_end (店長端專用)
+              let currentPkey = String(r.pkey || r.pKey || r.key || "").trim(); 
               let reasonStr = r.sys_anomaly_reason || r.input_should_end || "";
               let timeStr = r.sys_anomaly_time || r.input_should_rest || "";
 
               let reasons = reasonStr.split(',');
               let times = timeStr.split(',');
               
-              let hLogs = (window.historicalAnomalies || []).filter(h => 
-                  h.date === r.date && ((currentPkey && h.pkey === currentPkey) || h.name === r.name)
-              );
+              let safeRName = cleanStr(r.name);
+              
+              // ★ 取得上下班打卡時間 (J 與 K 欄)
+              let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+              let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+
+              let hLogs = (window.historicalAnomalies || []).filter(h => {
+                  if (h.date !== r.date) return false;
+                  let hPkey = String(h.pkey || h.pKey || h.key || "").trim();
+                  let safeHName = cleanStr(h.name);
+                  return (currentPkey && hPkey === currentPkey) || (safeHName === safeRName);
+              });
       
               reasons.forEach((rsn, idx) => {
                   rsn = rsn.trim();
                   if (!rsn || !TARGET_KWS.some(kw => rsn.includes(kw))) return;
-                  let answeredLog = hLogs.find(h => h.reason === rsn);
                   
+                  let answeredLog = hLogs.find(h => cleanStr(h.reason) === cleanStr(rsn));
+                  
+                  // ★ 判斷要顯示哪個打卡時間
+                  let clockText = "";
+                  if (rsn.includes('提前打卡異常')) clockText = sysIn ? `(${sysIn})` : "";
+                  else if (rsn.includes('延後打卡異常')) clockText = sysOut ? `(${sysOut})` : "";
+                  else if (rsn.includes('非工作日打卡')) clockText = (sysIn || sysOut) ? `(${sysIn}~${sysOut})` : "";
+
                   let item = { 
                       date: r.date, 
                       shortDate: r.date.split('/').slice(1).join('/'), 
                       reason: rsn, 
                       time: times[idx] || '', 
                       name: r.name,
-                      pkey: currentPkey 
+                      pkey: currentPkey,
+                      clockText: clockText // ★ 將打卡時間存入物件
                   };
       
                   if (answeredLog) answered.push({ ...item, hLog: answeredLog });
@@ -4608,8 +4624,14 @@ function showMaintenanceShield(message) {
                               let tPeriod = (rTimes[ridx] || "").trim();
                               let answered = rHLogs.find(h => h.reason === rsn);
                               
-                              // ★ 升級：將姓名與金鑰封裝進去，供店長端 Modal 辨識
-                              let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey };
+                              // ★ 判斷要顯示哪個打卡時間
+                              let clockText = "";
+                              if (rsn.includes('提前打卡異常')) clockText = sysIn ? `(${sysIn})` : "";
+                              else if (rsn.includes('延後打卡異常')) clockText = sysOut ? `(${sysOut})` : "";
+                              else if (rsn.includes('非工作日打卡')) clockText = (sysIn || sysOut) ? `(${sysIn}~${sysOut})` : "";
+
+                              // ★ 封裝包含 clockText 的物件
+                              let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey, clockText: clockText };
 
                               if (answered) {
                                   answeredCatList.push({ ...itemObj, hLog: answered });
@@ -4785,7 +4807,7 @@ function showMaintenanceShield(message) {
                           ${pendingCatList.map(item => `
                           <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
                               <div>
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate}</div>
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span></div>
                                   <div class="text-danger fw-bold" style="font-size:0.78rem;">${item.reason}${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
                               </div>
                               <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
@@ -4799,7 +4821,7 @@ function showMaintenanceShield(message) {
                           ${answeredCatList.map(item => `
                           <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                      <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} ─ ${item.reason}</span>
+                                      <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ ${item.reason}</span>
                                       <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                                   </div>
                                   ${item.time ? `<div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">⏰ 時段：${item.time}</div>` : ''}
@@ -5139,7 +5161,7 @@ function showMaintenanceShield(message) {
                       <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1 border-danger" style="transform:scale(1.3); cursor:pointer;"
                              value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" data-name="${displayName}" data-pkey="${item.pkey || ''}" ${isChecked ? 'checked' : ''}>
                       <div>
-                          <div class="fw-bold text-danger" style="font-size:0.85rem;">🗓️ ${item.shortDate} ─ 👤 ${displayName}</div>
+                          <div class="fw-bold text-danger" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${displayName}</div>
                           <div class="fw-bold text-dark mt-1" style="font-size:0.85rem;">${item.reason}</div>
                           ${item.time ? `<div class="text-muted fw-bold" style="font-size:0.78rem;">⏰ ${item.time}</div>` : ''}
                           ${item.hLog ? `<div class="text-success mt-1" style="font-size:0.75rem;">(原答覆: ${item.hLog.explanation})</div>` : ''}
