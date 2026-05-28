@@ -6284,6 +6284,13 @@ function showMaintenanceShield(message) {
           let firstDayOfWeek = firstDayDate.getDay(); 
           let shift = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
+          // ★ 終極升級：先掃描出哪些異常「已經填寫說明」了！
+          let answeredAnomalies = [];
+          if (typeof getAnomalyObjects === 'function') {
+              let anomalyResult = getAnomalyObjects(currentData);
+              answeredAnomalies = anomalyResult.answered || [];
+          }
+
           // ==========================================
           // ★ 核心 1：資料分流引擎 (準備 1~31 天的陣列)
           // ==========================================
@@ -6347,7 +6354,29 @@ function showMaintenanceShield(message) {
                   punchStr = (startVal !== "" && endVal !== "") ? `排班：${startVal}~${endVal}` : "無打卡";
               }
               
+              // ==========================================
+              // ★ 智慧異常消除引擎：若已填寫說明，則隱藏該項異常！
+              // ==========================================
               let sysAbnormal = String(r.sys_abnormal || "").trim();
+              
+              // 尋找這名員工這一天，有哪些事由是「已填寫」的
+              let myAnswered = answeredAnomalies.filter(a => a.date === r.date && a.name === r.name);
+              
+              if (sysAbnormal !== "" && myAnswered.length > 0) {
+                  // 將原本的異常字串 (可能包含多個，用 '/' 分開) 拆解成陣列
+                  let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                  
+                  // 過濾掉那些「已經填寫過」的項目
+                  abnParts = abnParts.filter(part => {
+                      // 檢查這個異常項目 (part) 是否出現在已填寫的清單 (myAnswered) 中
+                      let isResolved = myAnswered.some(ans => part.includes(ans.reason));
+                      return !isResolved; // 如果沒解決，就保留它
+                  });
+                  
+                  // 重新組裝過濾後的字串 (如果全空了，就會變成 "")
+                  sysAbnormal = abnParts.join(' / ');
+              }
+
               let abnormalHtml = sysAbnormal ? `<br><span class="text-danger fw-bold">${sysAbnormal}</span>` : "";
               let hasLeave = r.sys_leave && String(r.sys_leave).trim() !== "";
 
