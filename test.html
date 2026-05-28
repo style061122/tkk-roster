@@ -5508,6 +5508,13 @@ function showMaintenanceShield(message) {
           
           // ★ 判斷是否為時薪人員
           let isHourly = pData.length > 0 && pData[0].salaryType && String(pData[0].salaryType).includes("時薪");
+          
+          // ==========================================
+          // ★ 完美移植：取得該員工專屬的異常分類清單
+          // ==========================================
+          let { pending: sPending, answered: sAnswered } = getAnomalyObjects(pData);
+          window.pendingCatList = sPending;   // 餵給 Modal 的待填資料
+          window.answeredCatList = sAnswered; // 餵給 Modal 的已填資料
 
           pData.forEach(r => {
               let s = r.input_status || "";
