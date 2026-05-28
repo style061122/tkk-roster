@@ -5358,7 +5358,6 @@ function showMaintenanceShield(message) {
                       let mInst = bootstrap.Modal.getInstance(modalEl);
                       if (mInst) { mInst.hide(); } else { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); }
                       
-                      // 移除可能卡住的黑灰遮罩
                       document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
                       document.body.classList.remove('modal-open');
                       document.body.style = '';
@@ -5367,10 +5366,16 @@ function showMaintenanceShield(message) {
                       if (isPersonalMode && typeof window.loadPersonalData === 'function') {
                           window.loadPersonalData(window.personalPwd);
                       } else {
-                          // ★ 終極修復：拒絕 reload，改用背景靜默更新！
+                          // ★ 核心修復：動態偵測畫面上到底載入了哪些門市，組合後發給 API，絕對不會抓空！
+                          let loadedStores = [];
+                          if (typeof currentData !== 'undefined' && currentData.length > 0) {
+                              loadedStores = [...new Set(currentData.map(r => r.store))].filter(s => s);
+                          }
+                          let apiStoreParam = loadedStores.length > 0 ? loadedStores.join(',') : (typeof currentStore !== 'undefined' ? currentStore : 'ALL');
+
                           showLoading(true, "資料同步中...");
                           callApi('getStoreData', { 
-                              store: currentStore, 
+                              store: apiStoreParam, 
                               monthMode: typeof currentMonthMode !== 'undefined' ? currentMonthMode : 'current' 
                           }).then(res => {
                               showLoading(false);
@@ -5380,12 +5385,34 @@ function showMaintenanceShield(message) {
                                   window.currentOtData = res.otData || [];
                                   window.historicalAnomalies = res.anomalyData || []; 
                                   
+                                  // ★ 即時更新全域異常清單
+                                  if (typeof getAnomalyObjects === 'function') {
+                                      let globalAnomalies = getAnomalyObjects(currentData);
+                                      window.pendingCatList = globalAnomalies.pending;
+                                      window.answeredCatList = globalAnomalies.answered;
+                                  }
+
                                   // 重繪底層主班表
                                   if (typeof renderTable === 'function') renderTable();
                                   
-                                  // ★ 瞬間重繪「門市月統計」的畫面 (不關閉視窗)
+                                  // ==========================================
+                                  // ★ 魔法重繪：掃描畫面上所有的「單店卡片」，原地無縫替換！
+                                  // ==========================================
+                                  if (typeof generateSingleStoreDashboard === 'function') {
+                                      document.querySelectorAll('h6').forEach(h6 => {
+                                          if (h6.innerText.includes('🏢')) {
+                                              let stName = h6.innerText.replace('🏢', '').trim();
+                                              let cardEl = h6.closest('.card');
+                                              if (cardEl && cardEl.id) {
+                                                  // 瞬間產生最新卡片 HTML 並覆蓋舊卡片 (畫面不閃爍)
+                                                  cardEl.outerHTML = generateSingleStoreDashboard(stName, cardEl.id);
+                                              }
+                                          }
+                                      });
+                                  }
+
+                                  // 針對「單店月統計(含個人卡片)」內部的重繪
                                   if (typeof generateMonthlyReportHTML === 'function') {
-                                      // 智慧尋找月統計的專屬容器
                                       let selectEl = document.querySelector('select[onchange="filterMonthlyReport(this.value)"]');
                                       if (selectEl) {
                                           let targetContainer = selectEl.closest('.modal-body') || selectEl.parentElement.parentElement;
