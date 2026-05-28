@@ -4761,16 +4761,6 @@ function showMaintenanceShield(message) {
                               abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
                           }
                       }
-                          let rReasons = (r.sys_anomaly_reason || "").split(',');
-                          let rTimes = (r.sys_anomaly_time || "").split(',');
-                          
-                          // ★ 抓取該筆資料的金鑰
-                          let currentPkey = r.pkey || r.pKey || window.personalUserKey || ""; 
-                          let rHLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && (!h.pkey || h.pkey === currentPkey));
-                          
-                          // ★ 致命錯誤修復：將上下班時間在這裡提前解析，不依賴下方的宣告！
-                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
-                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
 
               let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
               let tYear = String(meta.year);
