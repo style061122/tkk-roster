@@ -5149,6 +5149,15 @@ function showMaintenanceShield(message) {
       // ==========================================
       // 加入第 6 個參數 targetStore
       window.openAnomalyModal = function(targetDate = null, targetReason = null, targetName = null, targetPkey = null, mode = 'PENDING', targetStore = null) {
+          
+          // ★ 終極修復：只要是管理端 (記憶體有 currentData)，開啟視窗瞬間即時重算「全區」異常！
+          // 這樣就完全不依賴畫面切換時的函數，確保「全區總覽」也能精準抓到所有門市的資料。
+          if (typeof currentData !== 'undefined' && currentData.length > 0) {
+              let globalAnomalies = getAnomalyObjects(currentData);
+              window.pendingCatList = globalAnomalies.pending;
+              window.answeredCatList = globalAnomalies.answered;
+          }
+
           let catList = [];
           let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
 
