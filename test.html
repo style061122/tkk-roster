@@ -5604,13 +5604,6 @@ function showMaintenanceShield(message) {
           // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
           
-          // ==========================================
-          // ★ 完美移植：取得該員工專屬的異常分類清單
-          // ==========================================
-          let { pending: sPending, answered: sAnswered } = getAnomalyObjects(pData);
-          window.pendingCatList = sPending;   // 餵給 Modal 的待填資料
-          window.answeredCatList = sAnswered; // 餵給 Modal 的已填資料
-          
           // ★ 呼叫大腦！補上系統正在查看的年月
           let tYear = String(monthlyTargets.year);
           let tMonth = String(monthlyTargets.month);
