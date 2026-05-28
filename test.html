@@ -3319,7 +3319,7 @@ function showMaintenanceShield(message) {
                   // 待填寫區塊
                   if (pending.length > 0) {
                       anomalyUI += `<div class="alert alert-danger p-2 small">
-                          <div class="d-flex justify-content-between"><strong>⚠️ 待回報 (${pending.length})</strong>
+                          <div class="d-flex justify-content-between"><strong>⚠️ 異常說明 (${pending.length})</strong>
                           <button class="btn btn-danger btn-sm" onclick="openAnomalyModal()">⚡ 一鍵填寫</button></div>
                           ${pending.map(i => `<div>${i.shortDate} ${i.reason} <button class="btn btn-link btn-sm" onclick="openAnomalyModal('${i.date}','${i.reason}','${i.name}')">填寫</button></div>`).join('')}
                       </div>`;
@@ -3449,7 +3449,7 @@ function showMaintenanceShield(message) {
                                   ${sPending.length > 0 ? `
                                   <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
                                       <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
-                                          <strong class="text-danger" style="font-size:0.9rem;">⚠️ 待回報 (${sPending.length})</strong>
+                                          <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${pendingCatList.length} 筆待填</span></strong>
                                           <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${empPkey}', 'PENDING')">⚡ 一鍵代填</button>
                                       </div>
                                       ${sPending.map(item => `
