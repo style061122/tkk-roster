@@ -5001,13 +5001,27 @@ function showMaintenanceShield(message) {
       }
 
       // ==========================================
-      // ★ 階段三-2：Modal 引擎與關鍵字攔截網 (終極版 - 支援多身分與金鑰)
+      // ★ 階段三-2：Modal 引擎與關鍵字攔截網 (支援模式切換終極版)
       // ==========================================
-      window.openAnomalyModal = function(targetDate = null, targetReason = null, targetName = null, targetPkey = null) {
-          // ★ 修正 1：合併「待填」與「已填」，讓「修改」按鈕能抓到歷史資料
-          let catList = [...(window.pendingCatList || []), ...(window.answeredCatList || [])];
-          
-          // ★ 修正 2：如果傳入了金鑰或姓名，只過濾該名員工的異常 (店長端專用)
+      // 加入第五個參數 mode，預設為 'PENDING'
+      window.openAnomalyModal = function(targetDate = null, targetReason = null, targetName = null, targetPkey = null, mode = 'PENDING') {
+          let catList = [];
+          let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
+
+          // ★ 核心分流邏輯：單筆與一鍵的分離
+          if (isSingle) {
+              // 單筆點擊 (填寫或修改)：合併清單以便精準撈取該筆資料
+              catList = [...(window.pendingCatList || []), ...(window.answeredCatList || [])];
+          } else {
+              // 一鍵批次點擊：依照 mode 嚴格分流！
+              if (mode === 'PENDING') {
+                  catList = window.pendingCatList || [];
+              } else if (mode === 'ANSWERED') {
+                  catList = window.answeredCatList || [];
+              }
+          }
+
+          // ★ 如果是店長/督導點擊單人卡片，過濾出該名員工
           if (targetPkey) {
               catList = catList.filter(i => i.pkey === targetPkey);
           } else if (targetName) {
@@ -5015,7 +5029,8 @@ function showMaintenanceShield(message) {
           }
 
           if (catList.length === 0) {
-              Swal.fire('提示', '目前沒有需要處理的異常項目', 'info'); return;
+              Swal.fire('提示', '目前沒有需要處理的異常項目', 'info');
+              return;
           }
 
           // 動態帶入關帳日
@@ -5024,19 +5039,28 @@ function showMaintenanceShield(message) {
           let closeD = ci.closeDay || 4;
           let deadlineStr = `${nextM}月${closeD}日`;
 
-          // 更新介面文字
+          // ★ 動態變更 Modal 標題 (讓店長清楚現在是在填寫還是修改)
+          let modalTitleEl = document.querySelector('#anomalyReportModal .modal-title');
+          if (modalTitleEl) {
+              if (isSingle) {
+                  modalTitleEl.innerHTML = '⚠️ 填寫 / 修改異常說明';
+              } else {
+                  modalTitleEl.innerHTML = mode === 'ANSWERED' ? '⚠️ 一鍵修改已填寫說明' : '⚠️ 一鍵填寫異常說明';
+              }
+          }
+
           document.getElementById('anomalyModalDeadlineTitle').innerHTML = `📌 請於 <span class="text-danger fw-bold">${deadlineStr}前</span>確認完畢`;
           document.getElementById('anomalyModalOtMsg').innerHTML = `⚡ 若因公務加班,請於 <span class="text-danger fw-bold">${deadlineStr}前</span>申請加班單並簽核完畢`;
           document.getElementById('anomalyModalWarnBox').innerHTML = `⚠️ 逾期未處理系統即視為「<span class="text-danger fw-bold">私人因素停留公司</span>」`;
 
-          let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
           let infoEl = document.getElementById('anomalyCurrentItemInfo');
           let listEl = document.getElementById('anomalyChecklistArea');
           
           // 處理資訊顯示區
           if (isSingle) {
-              let item = catList.find(i => i.date === targetDate && i.reason === targetReason && (!targetPkey || i.pkey === targetPkey) && (!targetName || i.name === targetName));
-              infoEl.style.display = 'block'; listEl.style.display = 'none';
+              let item = catList.find(i => i.date === targetDate && i.reason === targetReason);
+              infoEl.style.display = 'block';
+              listEl.style.display = 'none';
               if (item) {
                   let displayName = item.name || window.personalName;
                   infoEl.innerHTML = `
@@ -5046,13 +5070,14 @@ function showMaintenanceShield(message) {
                     </div>`;
               }
           } else {
-              infoEl.style.display = 'none'; listEl.style.display = 'block';
+              infoEl.style.display = 'none';
+              listEl.style.display = 'block';
           }
 
-          // ★ 產生勾選清單 (加入金鑰與名字)
+          // 產生勾選清單
           listEl.innerHTML = '';
           catList.forEach(item => {
-              let isChecked = isSingle ? (item.date === targetDate && item.reason === targetReason && (!targetPkey || item.pkey === targetPkey) && (!targetName || item.name === targetName)) : true;
+              let isChecked = isSingle ? (item.date === targetDate && item.reason === targetReason) : true;
               let displayName = item.name || window.personalName;
               
               listEl.innerHTML += `
@@ -5079,8 +5104,12 @@ function showMaintenanceShield(message) {
                   select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
               });
           }
-          if (!hasDefault) { select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML; }
-          if (window.anomalyOtherLabel) { select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`; }
+          if (!hasDefault) {
+              select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML;
+          }
+          if (window.anomalyOtherLabel) {
+              select.innerHTML += `<option value="OTHER">${window.anomalyOtherLabel}</option>`;
+          }
 
           document.getElementById('anomalyOtherInput').value = '';
           document.getElementById('anomalyOtherGroup').style.display = 'none';
