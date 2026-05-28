@@ -3308,18 +3308,7 @@ function showMaintenanceShield(message) {
                   }
 
                   if (sysAbnormal !== "") {
-                      // ★ 智慧異常消除：比對這名員工專屬的 sAnswered 清單
-                      let myAns = sAnswered.filter(a => a.date === r.date);
-                      if (myAns.length > 0) {
-                          let abnParts = sysAbnormal.split('/').map(s => s.trim());
-                          abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
-                          sysAbnormal = abnParts.join(' / ');
-                      }
-                      
-                      // 只有在消除後，字串還不是空的，才加進去顯示
-                      if (sysAbnormal !== "") {
-                          abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
-                      }
+                      abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
                   }
               });
               // 1. 取得該員工專屬的異常分類 (替換掉原本只顯示文字的 abnormalDetails)
@@ -3951,10 +3940,7 @@ function showMaintenanceShield(message) {
           let pDataAll = currentData.filter(r => r.store === targetStore);
           if (pDataAll.length === 0) return "";
 
-          let storeOHtml = ""; 
-          
-          // ★ 新增這行：先在最上方算出這家店所有的待填與已填異常
-          let { pending: storePending, answered: storeAnswered } = getAnomalyObjects(pDataAll);
+          let storeOHtml = ""; // ✅ 加在這裡！每次產生新卡片就重置為空白
 
           const getStartFloat = (t) => { if(!t) return 0; if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); } return parseFloat(t) || 0; };
           const ft = (t) => { if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val); };
@@ -4011,19 +3997,9 @@ function showMaintenanceShield(message) {
                       zGroups[stName].norm+=normZ; zGroups[stName].nat+=natZ; zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                   }
                   if(sysAbnormal!=="") {
-                      // ★ 智慧異常消除：比對這家店的 storeAnswered 總表
-                      let myAns = storeAnswered.filter(a => a.date === r.date && a.name === r.name);
-                      if (myAns.length > 0) {
-                          let abnParts = sysAbnormal.split('/').map(s => s.trim());
-                          abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
-                          sysAbnormal = abnParts.join(' / ');
-                      }
-
-                      if (sysAbnormal !== "") {
-                          storeAbnCount++; // 只統計那些真正還沒解決的異常
-                          if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
-                          storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
-                      }
+                      storeAbnCount++;
+                      if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
+                      storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
                   }
                   if(r.supports && r.supports.length>0) {
                       let aaStart = sF;
@@ -4167,6 +4143,7 @@ function showMaintenanceShield(message) {
           // ==========================================
           // ★ 完美移植：為「全店卡片」打造專屬的待填與已填 UI
           // ==========================================
+          let { pending: storePending, answered: storeAnswered } = getAnomalyObjects(pDataAll);
           let totalInteractiveAbn = storePending.length + storeAnswered.length;
           let displayAbnCount = storeAbnCount > 0 ? storeAbnCount : totalInteractiveAbn;
 
@@ -4522,14 +4499,14 @@ function showMaintenanceShield(message) {
               document.getElementById('personalSection').style.display = 'block';
               
               const meta = data.meta || {};
-              window.currentOtData = data.otData || []; 
-              window.pendingAnomalies = []; 
-              
+              window.currentOtData = data.otData || []; // 📥 接收加班包裹！
+              window.pendingAnomalies = []; // ★ 階段三：每次渲染時清空異常暫存陣列
+              // ★ 補充設定：確保 anomalyReasonList 在渲染時一定存在
               if (data.anomaly_reasons && data.anomaly_reasons.length > 0) {
                   window.anomalyReasonList = data.anomaly_reasons;
                   window.anomalyOtherLabel = data.anomaly_other || "其他";
               }
-              
+              // ★ 儲存關帳日資訊供 Modal 動態顯示
               window.personalClosingInfo = { 
                   nextMonth: (parseInt(meta.month || 1) % 12) + 1, 
                   closeDay: parseInt(meta.closingDay) || 4 
@@ -4544,10 +4521,14 @@ function showMaintenanceShield(message) {
               let totalZ_norm=0, totalZ_nat=0, totalO_norm=0, totalO_nat=0, totalAA=0, totalSupOut=0;
               let totalLeaveHrs=0, abnormalCount=0; 
 
+              // ★ 判斷是否為時薪人員 (從員工 API 傳回的資料判斷)
               let isHourly = data.isHourly === true;
               let isMonthly = !isHourly; 
+              
+              // ★ 終極修復：直接讀取後端的 isStoreStaff 標記！若不是門市人員，就是總部人員
               let isHQEmployee = (data.isStoreStaff === false);
 
+              // 讀取後端基本統計
               if (data.stats) {
                   hrs = parseFloat(data.stats.hrs) || 0;
                   rest = parseInt(data.stats.rest) || 0;
@@ -4555,9 +4536,12 @@ function showMaintenanceShield(message) {
                   nat = parseInt(data.stats.nat) || 0;
               }
 
+              // ==========================================
+              // ★ 產生標題與「應有(H)」徽章
+              // ==========================================
               let targetH = parseFloat(meta.hrs) || 0;
               let salaryStr = isHourly ? "時薪制" : "月薪制"; 
-              
+    
               let hBadge = '';
               if (currentUserRole === 'HQ' || isHourly || isHQEmployee) {
                   hBadge = `<span class="badge bg-success shadow-sm align-middle ms-1" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
@@ -4572,14 +4556,15 @@ function showMaintenanceShield(message) {
               }
 
               let salaryBadge = `<span class="badge bg-dark rounded-pill align-middle ms-2" style="font-size: 0.75rem;">${salaryStr}</span>`;
+
               document.getElementById('personalNameDisplay').innerHTML = `${meta.year}年 ${meta.month}月 - ${data.name} ${salaryBadge} ${hBadge}`;
-              window.personalName = data.name; 
+              window.personalName = data.name; // ★ 新增：直接在全域鎖定乾淨的姓名，避免後續 DOM 解析出錯導致「無效提交資料」
 
               let detailWork=[], detailRest=[], detailReg=[], detailNat=[], detailEmpty=[];
               let aaDetails = [], leaveDetails = {}, abnormalDetails = [];
-              let pendingCatList = [], answeredCatList = []; 
-              window.pendingCatList = pendingCatList;   
-              window.answeredCatList = answeredCatList; 
+              let pendingCatList = [], answeredCatList = []; // ★ 分類：待填 / 已填
+              window.pendingCatList = pendingCatList;   // ★ 共享引用，Modal 可存取
+              window.answeredCatList = answeredCatList; // ★ 共享引用，Modal 可存取
               let zGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let oGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let supportOutGroups = {};
@@ -4594,44 +4579,7 @@ function showMaintenanceShield(message) {
                   let val = parseFloat(t); while (val >= 24) val -= 24; return String(val);
               };
 
-              // ★ 先把表格的 head 跟 body 準備好
-              const thead = document.querySelector('#personalSection table thead');
-              const pTable = document.querySelector('#personalSection table');
-              if(pTable) pTable.classList.remove('mobile-card-mode');
-              
-              const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
-              const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
-              const thStyleRight = "position: sticky; top: 0; z-index: 20; background-color: #212529; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #495057; border: none;";
-
-              thead.innerHTML = `
-                  <tr>
-                      <th style="${thStyleLeftCorner}">日期</th>
-                      <th style="${thStyleLeft}">狀態</th>
-                      <th style="${thStyleLeft}">應有時段</th>
-                      <th style="${thStyleLeft}">應有H</th>
-                      <th style="${thStyleLeft}">加班時段</th>
-                      <th style="${thStyleLeft}">獎金基數</th>
-                      <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
-                      <th style="${thStyleRight}">系統狀態</th>
-                      <th style="${thStyleRight}">上班卡</th>
-                      <th style="${thStyleRight}">下班卡</th>
-                      <th style="${thStyleRight}">請假</th>
-                      <th style="${thStyleRight}">假別</th>
-                      <th style="${thStyleRight}">加班</th>
-                      <th style="${thStyleRight}">加班時數</th>
-                      <th style="${thStyleRight}">異常</th>
-                  </tr>
-              `;
-
-              const tbody = document.getElementById('personalTableBody');
-              tbody.innerHTML = "";
-
-              if (!data.data || data.data.length === 0) { 
-                  tbody.innerHTML = "<tr><td colspan='15' class='text-muted text-center py-4'>本月目前無資料</td></tr>"; 
-              } else {
-                  // ==========================================
-                  // ★ 單一無敵迴圈：處理統計與每一行 HTML 的組合
-                  // ==========================================
+              if (data.data) {
                   data.data.forEach(r => { 
                       let shortDate = r.date;
                       if (r.date && r.date.includes('/')) {
@@ -4662,27 +4610,27 @@ function showMaintenanceShield(message) {
                       if (eF < sF) eF += 24;
                       let currTime = sF;
                       let hasTime = (sVal !== "" && eVal !== "");
-                      let strH = "-", strZ = "-", strAA = "-";
+                      let strH = "", strZ = "", strAA = "";
 
                       if (hasTime && (h > 0 || z > 0 || aa > 0 || s === '上班')) {
                           if (h > 0) { 
                               let endT = currTime + h + restVal; 
-                              let rTag = restVal > 0 ? `(休${restVal})` : "";
-                              strH = `${ft(currTime)}-${ft(endT)}${rTag}`; 
+                              let rTag = restVal > 0 ? ` 休${restVal}` : "";
+                              strH = `(${ft(currTime)}~${ft(endT)}${rTag})`; 
                               currTime = endT; 
                           }
                           if (z > 0) { 
                               let zRest = (h === 0) ? restVal : 0; 
                               let endT = currTime + z + zRest; 
-                              let rTag = zRest > 0 ? `(休${zRest})` : "";
-                              strZ = `${ft(currTime)}-${ft(endT)}${rTag}`; 
+                              let rTag = zRest > 0 ? ` 休${zRest}` : "";
+                              strZ = `(${ft(currTime)}~${ft(endT)}${rTag})`; 
                               currTime = endT; 
                           }
                           if (aa > 0) { 
                               let aaRest = (h === 0 && z === 0) ? restVal : 0; 
                               let endT = currTime + aa + aaRest; 
-                              let rTag = aaRest > 0 ? `(休${aaRest})` : "";
-                              strAA = `${ft(currTime)}-${ft(endT)}${rTag}`; 
+                              let rTag = aaRest > 0 ? ` 休${aaRest}` : "";
+                              strAA = ""; 
                           }
                       }
 
@@ -4722,7 +4670,6 @@ function showMaintenanceShield(message) {
                           totalLeaveHrs += leaveHrs;
                       }
 
-                      let supStrs = [];
                       if (r.support_str) {
                           let groups = String(r.support_str).split('|');
                           groups.forEach(g => {
@@ -4740,56 +4687,40 @@ function showMaintenanceShield(message) {
                                           if (!supportOutGroups[tgtStore]) supportOutGroups[tgtStore] = { total: 0, details: [] };
                                           supportOutGroups[tgtStore].total += hr;
                                           supportOutGroups[tgtStore].details.push(`🗓️ ${shortDate} (${parts[1].trim().replace('~', '-')}) 共${hr.toFixed(1)}H`);
-                                          supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${tgtStore} ${parts[1].trim().replace('~','-')}(${hr.toFixed(1)}H)</span>`);
                                       }
                                   }
                               }
                           });
                       }
-                      let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
 
-                      let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
-                      let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
-                      
-                      let rDateParts = String(r.date).split('/');
-                      let rShortDate = rDateParts.length >= 3 ? `${parseInt(rDateParts[1])}/${parseInt(rDateParts[2])}` : r.date;
-                      
-                      let dailyOt = window.currentOtData.filter(o => {
-                          let oDateParts = String(o.date).split('/');
-                          let oShortDate = oDateParts.length >= 3 ? `${parseInt(oDateParts[1])}/${parseInt(oDateParts[2])}` : 
-                                             (oDateParts.length === 2 ? `${parseInt(oDateParts[0])}/${parseInt(oDateParts[1])}` : o.date);
-                          return String(o.name).replace(/\s+/g, '') === String(data.name).replace(/\s+/g, '') && 
-                                 oShortDate === rShortDate && 
-                                 o.status === '已核准';
-                      });
-                      let sysOtRangeStr = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
-                      let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
-                      
-                      let sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
-                      
-                      let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
-                      let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
-
-                      // ★ 異常解析與動態消除
                       if (sysAbnormal !== "") {
+                          abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                          // ★ 建立三種需填說明的分類清單
                           const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
                           let rReasons = (r.sys_anomaly_reason || "").split(',');
                           let rTimes = (r.sys_anomaly_time || "").split(',');
                           
+                          // ★ 抓取該筆資料的金鑰
                           let currentPkey = r.pkey || r.pKey || window.personalUserKey || ""; 
                           let rHLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && (!h.pkey || h.pkey === currentPkey));
                           
+                          // ★ 致命錯誤修復：將上下班時間在這裡提前解析，不依賴下方的宣告！
+                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+
                           rReasons.forEach((rsn, ridx) => {
                               rsn = rsn.trim();
                               if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
                               let tPeriod = (rTimes[ridx] || "").trim();
                               let answered = rHLogs.find(h => h.reason === rsn);
                               
+                              // ★ 判斷要顯示哪個打卡時間 (使用上方專屬解析好的時間)
                               let clockText = "";
                               if (rsn.includes('提前打卡異常')) clockText = sysInLocal ? `(${sysInLocal})` : "";
                               else if (rsn.includes('延後打卡異常')) clockText = sysOutLocal ? `(${sysOutLocal})` : "";
                               else if (rsn.includes('非工作日打卡')) clockText = (sysInLocal || sysOutLocal) ? `(${sysInLocal}~${sysOutLocal})` : "";
 
+                              // ★ 封裝包含 clockText 的物件
                               let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey, clockText: clockText };
 
                               if (answered) {
@@ -4798,52 +4729,10 @@ function showMaintenanceShield(message) {
                                   pendingCatList.push(itemObj);
                               }
                           });
-
-                          if (rHLogs.length > 0) {
-                              let abnParts = sysAbnormal.split('/').map(s => s.trim());
-                              abnParts = abnParts.filter(part => !rHLogs.some(ans => part.includes(ans.reason)));
-                              sysAbnormal = abnParts.join(' / ');
-                          }
-
-                          if (sysAbnormal !== "") {
-                              abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
-                          }
                       }
-
-                      // ★ 組合單行 Table HTML
-                      const tdLeftCorner = `position: sticky; left: 0; z-index: 10; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
-                      const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
-                      const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
-
-                      tbody.innerHTML += `
-                          <tr>
-                              <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
-                              <td class="fw-bold" style="${tdLeft} color:#084298;">${s}</td>
-                              <td style="${tdLeft}">${strH !== "-" ? strH : (sVal && eVal ? `(${sVal}-${eVal})` : "-")}</td>
-                              <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
-                              <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
-                              <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545; font-weight:bold;">${aaVal > 0 ? aaVal.toFixed(1) : "-"}</td>
-                              <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
-                              
-                              <td style="${tdRight}">${sysStatus}</td>
-                              <td style="${tdRight}">${sysInLocal}</td>
-                              <td style="${tdRight}">${sysOutLocal}</td>
-                              <td style="${tdRight}">${sysLeaveRange}</td>
-                              <td style="${tdRight}">${sysLeaveType}</td>
-                              <td style="${tdRight}">${sysOtRangeStr}</td>
-                              <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
-                              
-                              <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 140px; padding: 6px;">
-                                  <div class="text-danger fw-bold" style="font-size:0.85rem;">${sysAbnormal}</div>
-                              </td>
-                          </tr>
-                      `;
-                  }); // 迴圈完美結束
+                  });
               }
 
-              // ==========================================
-              // ★ 渲染頂部卡片區塊
-              // ==========================================
               let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
               let tYear = String(meta.year);
               let tMonth = String(meta.month);
@@ -4872,7 +4761,8 @@ function showMaintenanceShield(message) {
                   order.forEach(k => {
                       if(groups[k] && groups[k].items.length > 0) {
                           let g = groups[k];
-                          let dTotal = isHourly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
+                          let isHrly = typeof isHourly !== 'undefined' ? isHourly : !isMonthly;
+                          let dTotal = isHrly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
                           html += `<div class="mt-1 fw-bold" style="color:${color}; font-size: 0.85rem;">🔹 ${k} ${dTotal}</div>`;
                           html += `<div class="text-muted ps-3 mb-1" style="font-size: 0.8rem;">${g.items.join('<br>')}</div>`;
                       }
@@ -4955,6 +4845,8 @@ function showMaintenanceShield(message) {
                       </div>
                   </div>
 
+                  
+
                   <div class="collapse" id="${cardId}-status">
                       <div class="p-2 bg-white rounded text-muted small border-start border-3 border-secondary mb-1 shadow-sm" style="line-height:1.5; font-size: 0.8rem;">
                           ${detailWork.length > 0 ? `<strong style="color:#084298;">上班:</strong><br>${detailWork.join('<br>')}<br>` : ''}
@@ -5029,8 +4921,168 @@ function showMaintenanceShield(message) {
                   </div>
               </div>`;
               
+              const thead = document.querySelector('#personalSection table thead');
+              const pTable = document.querySelector('#personalSection table');
+              
+              if(pTable) pTable.classList.remove('mobile-card-mode');
+              
               // ==========================================
-              // ★ 雙捲軸硬體加速引擎
+              // ★ 3. 雙向凍結表頭
+              // ==========================================
+              const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
+              const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
+              const thStyleRight = "position: sticky; top: 0; z-index: 20; background-color: #212529; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #495057; border: none;";
+
+              thead.innerHTML = `
+                  <tr>
+                      <th style="${thStyleLeftCorner}">日期</th>
+                      <th style="${thStyleLeft}">狀態</th>
+                      <th style="${thStyleLeft}">應有時段</th>
+                      <th style="${thStyleLeft}">應有H</th>
+                      <th style="${thStyleLeft}">加班時段</th>
+                      <th style="${thStyleLeft}">獎金基數</th>
+                      <th style="${thStyleLeft} box-shadow: inset -3px -1px 0 #dee2e6;">跨店支援</th>
+                      
+                      <th style="${thStyleRight}">系統狀態</th>
+                      <th style="${thStyleRight}">上班卡</th>
+                      <th style="${thStyleRight}">下班卡</th>
+                      <th style="${thStyleRight}">請假</th>
+                      <th style="${thStyleRight}">假別</th>
+                      <th style="${thStyleRight}">加班</th>
+                      <th style="${thStyleRight}">加班時數</th>
+                      <th style="${thStyleRight}">異常</th>
+                  </tr>
+              `;
+
+              const tbody = document.getElementById('personalTableBody');
+              tbody.innerHTML = "";
+              
+              if (!data.data || data.data.length === 0) { 
+                  tbody.innerHTML = "<tr><td colspan='15' class='text-muted text-center py-4'>本月目前無資料</td></tr>"; 
+                  return; 
+              }
+
+              // ==========================================
+              // ★ 4. 逐行繪製 (採用您指定的時段切割與翻譯邏輯)
+              // ==========================================
+              data.data.forEach(r => {
+                  let sVal = r.input_start; 
+                  let eVal = r.input_end;     
+                  let restVal = parseFloat(r.input_rest) || 0; 
+                  let hVal = parseFloat(r.calc_hours) || 0;
+                  let zVal = parseFloat(r.input_est_overtime) || 0; 
+                  let aaVal = parseFloat(r.calc_excess) || 0;
+                  let status = String(r.input_status || "").trim();
+
+                  let strH = "-", strZ = "-", strAA = "-";
+
+                  // 執行您的分配邏輯
+                  if (sVal && eVal && (hVal > 0 || zVal > 0 || aaVal > 0 || status === '上班')) {
+                      let sF = String(sVal).includes(':') ? (parseInt(String(sVal).split(':')[0]) + parseInt(String(sVal).split(':')[1])/60) : parseFloat(sVal);
+                      if(isNaN(sF)) sF = 0; 
+                      let currTime = sF;
+                      
+                      // 1. 應有時段分配
+                      if (hVal > 0) { 
+                          let endT = currTime + hVal + restVal; 
+                          let restTag = restVal > 0 ? `(休${restVal})` : "";
+                          strH = `${ft(currTime)}-${ft(endT)}${restTag}`; 
+                          currTime = endT; 
+                      }
+                      // 2. 加班時段分配 
+                      if (zVal > 0) { 
+                          let zRest = (hVal === 0) ? restVal : 0; 
+                          let endT = currTime + zVal + zRest; 
+                          let restTag = zRest > 0 ? `(休${zRest})` : "";
+                          strZ = `${ft(currTime)}-${ft(endT)}${restTag}`; 
+                          currTime = endT; 
+                      }
+                      // 3. 超時時段分配 
+                      if (aaVal > 0) { 
+                          let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; 
+                          let endT = currTime + aaVal + aaRest; 
+                          let restTag = aaRest > 0 ? `(休${aaRest})` : "";
+                          strAA = `${ft(currTime)}-${ft(endT)}${restTag}`; 
+                      }
+                  }
+
+                  let supStrs = [];
+                  if (r.support_str) {
+                      let groups = String(r.support_str).split('|');
+                      groups.forEach(g => {
+                          let parts = g.trim().split(',');
+                          if (parts.length >= 3) {
+                              let store = parts[0].trim();
+                              let timeRange = parts[1].trim();
+                              let restTime = parseFloat(parts[2].replace('休','')) || 0;
+                              let tParts = timeRange.split('~');
+                              let hrsVal = "";
+                              
+                              if (tParts.length === 2) {
+                                  let st = parseFloat(tParts[0]); let en = parseFloat(tParts[1]);
+                                  if (en < st) en += 24;
+                                  let hr = en - st - restTime;
+                                  if (hr > 0) hrsVal = hr.toFixed(1) + "H";
+                              }
+                              supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${store} ${timeRange.replace('~','-')}(${hrsVal})</span>`);
+                          }
+                      });
+                  }
+                  let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
+
+                  let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
+                  let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+                  
+                  let rDateParts = String(r.date).split('/');
+                  let rShortDate = rDateParts.length >= 3 ? `${parseInt(rDateParts[1])}/${parseInt(rDateParts[2])}` : r.date;
+                  
+                  let dailyOt = window.currentOtData.filter(o => {
+                      let oDateParts = String(o.date).split('/');
+                      let oShortDate = oDateParts.length >= 3 ? `${parseInt(oDateParts[1])}/${parseInt(oDateParts[2])}` : 
+                                       (oDateParts.length === 2 ? `${parseInt(oDateParts[0])}/${parseInt(oDateParts[1])}` : o.date);
+                      return String(o.name).replace(/\s+/g, '') === String(data.name).replace(/\s+/g, '') && 
+                             oShortDate === rShortDate && 
+                             o.status === '已核准';
+                  });
+                  let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
+                  let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
+                  
+                  let sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
+                  
+                  let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
+                  let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
+
+                  const tdLeftCorner = `position: sticky; left: 0; z-index: 10; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
+                  const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
+                  const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
+
+                  tbody.innerHTML += `
+                      <tr>
+                          <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
+                          <td class="fw-bold" style="${tdLeft} color:#084298;">${status}</td>
+                          <td style="${tdLeft}">${strH}</td>
+                          <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
+                          <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
+                          <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545; font-weight:bold;">${aaVal > 0 ? aaVal.toFixed(1) : "-"}</td>
+                          <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
+                          
+                          <td style="${tdRight}">${r.sys_status || ""}</td>
+                          <td style="${tdRight}">${sysIn}</td>
+                          <td style="${tdRight}">${sysOut}</td>
+                          <td style="${tdRight}">${sysLeaveRange}</td>
+                          <td style="${tdRight}">${r.sys_leaveType||""}</td>
+                          <td style="${tdRight}">${sysOtRange}</td>
+                          <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
+                          
+                          <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 140px; padding: 6px;">
+                              <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
+                          </td>
+                      </tr>
+                  `;
+              });
+
+              // ==========================================
+              // ★ 5. 終極絲滑體驗：雙捲軸硬體加速引擎
               // ==========================================
               setTimeout(() => {
                   const tableContainer = document.querySelector('#personalSection .table-responsive');
@@ -5092,6 +5144,8 @@ function showMaintenanceShield(message) {
                       dummy.style.width = table.scrollWidth + 'px'; 
                   }
                   
+                  // ★★★ 在所有表格與網格繪製完畢後，執行最後的同步更新 ★★★
+                  // 這一步會將 pendingAnomalies 中收集到的異常數量，更新到上方微型網格的「異常」標籤中！
                   const anomalyBadge = document.querySelector(`#${cardId}-abnormal`).previousElementSibling.querySelector('.text-danger.fw-bold');
                   if (anomalyBadge && window.pendingAnomalies && window.pendingAnomalies.length > 0) {
                        anomalyBadge.innerText = `${window.pendingAnomalies.length} 筆`;
@@ -5495,18 +5549,7 @@ function showMaintenanceShield(message) {
                       let parts = r.date.split('/');
                       if (parts.length >= 3) shortDate = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
                   }
-                  
-                  // ★ 智慧異常消除：比對最上方已經算好的 sAnswered
-                  let myAns = sAnswered.filter(a => a.date === r.date);
-                  if (myAns.length > 0) {
-                      let abnParts = sysAbnormal.split('/').map(s => s.trim());
-                      abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
-                      sysAbnormal = abnParts.join(' / ');
-                  }
-                  
-                  if (sysAbnormal !== "") {
-                      abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
-                  }
+                  abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
               }
           });
 
