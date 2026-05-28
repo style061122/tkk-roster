@@ -4749,31 +4749,6 @@ function showMaintenanceShield(message) {
                           let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
                           let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
 
-                          rReasons.forEach((rsn, ridx) => {
-                              rsn = rsn.trim();
-                              if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
-                              let tPeriod = (rTimes[ridx] || "").trim();
-                              let answered = rHLogs.find(h => h.reason === rsn);
-                              
-                              // ★ 判斷要顯示哪個打卡時間 (使用上方專屬解析好的時間)
-                              let clockText = "";
-                              if (rsn.includes('提前打卡異常')) clockText = sysInLocal ? `(${sysInLocal})` : "";
-                              else if (rsn.includes('延後打卡異常')) clockText = sysOutLocal ? `(${sysOutLocal})` : "";
-                              else if (rsn.includes('非工作日打卡')) clockText = (sysInLocal || sysOutLocal) ? `(${sysInLocal}~${sysOutLocal})` : "";
-
-                              // ★ 封裝包含 clockText 的物件
-                              let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey, clockText: clockText };
-
-                              if (answered) {
-                                  answeredCatList.push({ ...itemObj, hLog: answered });
-                              } else {
-                                  pendingCatList.push(itemObj);
-                              }
-                          });
-                      }
-                  });
-              }
-
               let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
               let tYear = String(meta.year);
               let tMonth = String(meta.month);
