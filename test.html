@@ -4614,21 +4614,25 @@ function showMaintenanceShield(message) {
                           let rReasons = (r.sys_anomaly_reason || "").split(',');
                           let rTimes = (r.sys_anomaly_time || "").split(',');
                           
-                          // ★ 升級：抓取該筆資料的金鑰
+                          // ★ 抓取該筆資料的金鑰
                           let currentPkey = r.pkey || r.pKey || window.personalUserKey || ""; 
                           let rHLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && (!h.pkey || h.pkey === currentPkey));
                           
+                          // ★ 致命錯誤修復：將上下班時間在這裡提前解析，不依賴下方的宣告！
+                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+
                           rReasons.forEach((rsn, ridx) => {
                               rsn = rsn.trim();
                               if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
                               let tPeriod = (rTimes[ridx] || "").trim();
                               let answered = rHLogs.find(h => h.reason === rsn);
                               
-                              // ★ 判斷要顯示哪個打卡時間
+                              // ★ 判斷要顯示哪個打卡時間 (使用上方專屬解析好的時間)
                               let clockText = "";
-                              if (rsn.includes('提前打卡異常')) clockText = sysIn ? `(${sysIn})` : "";
-                              else if (rsn.includes('延後打卡異常')) clockText = sysOut ? `(${sysOut})` : "";
-                              else if (rsn.includes('非工作日打卡')) clockText = (sysIn || sysOut) ? `(${sysIn}~${sysOut})` : "";
+                              if (rsn.includes('提前打卡異常')) clockText = sysInLocal ? `(${sysInLocal})` : "";
+                              else if (rsn.includes('延後打卡異常')) clockText = sysOutLocal ? `(${sysOutLocal})` : "";
+                              else if (rsn.includes('非工作日打卡')) clockText = (sysInLocal || sysOutLocal) ? `(${sysInLocal}~${sysOutLocal})` : "";
 
                               // ★ 封裝包含 clockText 的物件
                               let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey, clockText: clockText };
