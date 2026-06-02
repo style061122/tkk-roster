@@ -3792,17 +3792,23 @@ function showMaintenanceShield(message) {
               }
           });
           
-          // ★ 終極精準大腦：回歸斜線切割，完美破解同天多筆異常與吃字問題
+          // ==========================================
+          // ★ 雙引擎精準分流大腦：完美破解同天多筆異常與吃字問題
+          // ==========================================
           rAbn = 0; // 重設總數，改由真實切割後的待處理筆數累加
           allStores.forEach(st => {
               let stData = currentData.filter(r => r.store === st);
               if(stData.length === 0) return;
              
-              // 1. 呼叫大腦取得該門市的「已填寫」資料
-              let { answered } = getAnomalyObjects(stData);
               let stats = storeAbnStats[st];
 
-              // 2. 先處理【已填寫 (Answered)】的統計
+              // ------------------------------------------------
+              // 🚀 引擎 A：專職處理【需填寫項目】(提前/延後/非工作日)
+              // ------------------------------------------------
+              // 直接請前端超級大腦吐出乾淨的 pending(待處理) 與 answered(已填寫)
+              let { pending, answered } = getAnomalyObjects(stData);
+
+              // A-1. 處理已填寫
               answered.forEach(a => {
                   stats.hasAnswered = true;
                   let exp = (a.hLog && a.hLog.explanation) ? a.hLog.explanation : (a.explanation || a.exp || "");
@@ -3811,33 +3817,39 @@ function showMaintenanceShield(message) {
                   else if (exp.includes("公事") || exp.includes("加班")) stats.aOfficial++;
               });
 
-              // 3. 處理【待處理 (Pending)】的統計 (回歸原始資料的 sys_abnormal 進行 / 切割！)
+              // A-2. 處理待處理的需填寫項目
+              pending.forEach(p => {
+                  stats.pTotal++;
+                  rAbn++; 
+                  let txt = p.reason || p.text || p.event || ""; 
+                  if (txt.includes("提前")) stats.pEarlyAbn++;
+                  else if (txt.includes("延後")) stats.pLateAbn++;
+                  else if (txt.includes("非工作日")) stats.pNonWorkDay++;
+                  else stats.pExp++; // 其他需填寫防呆
+              });
+
+              // ------------------------------------------------
+              // 🚀 引擎 B：專職處理【系統異常項目】(遲到/早退/未打卡/純打卡異常)
+              // ------------------------------------------------
               stData.forEach(r => {
                   let sysAbn = String(r.sys_abnormal || "").trim();
                   if (sysAbn === "") return;
 
-                  // 抓出這天這個人已經被歸類到「已填寫」的異常
-                  let myAns = answered.filter(a => a.date === r.date && a.name === r.name);
-
+                  // 將 P欄(sys_abnormal) 的文字用斜線切開，逐筆檢查
                   let abnParts = sysAbn.split('/').map(s => s.trim()).filter(s => s !== "");
                  
                   abnParts.forEach(part => {
-                      // 檢查這筆異常是否已經被填寫過了
-                      let isAnswered = myAns.some(ans => part.includes(ans.reason));
-                      if (isAnswered) return; // 已經填寫過，跳過不計入待處理
+                      // ★ 核心防護罩：只要這段文字包含「提前、延後、非工作日」，代表已經被引擎 A 算過了，直接跳過！
+                      if (part.includes("提前") || part.includes("延後") || part.includes("非工作日")) {
+                          return; 
+                      }
 
-                      // 確實是待處理！
+                      // 剩下的保證都是純系統異常，且不需要填寫，絕對是待處理！
                       stats.pTotal++;
                       rAbn++; 
 
-                      // ★ 嚴格防呆比對順序：先比對長的(提前/延後)，再比對短的(打卡異常)
-                      if (part.includes("提前打卡") || part.includes("提前異常")) {
-                          stats.pEarlyAbn++;
-                      } else if (part.includes("延後打卡") || part.includes("延後異常")) {
-                          stats.pLateAbn++;
-                      } else if (part.includes("非工作日")) {
-                          stats.pNonWorkDay++;
-                      } else if (part.includes("未打卡")) {
+                      // 嚴格比對，絕對不會再發生吃字問題
+                      if (part.includes("未打卡")) {
                           stats.pNoPunch++;
                       } else if (part.includes("打卡異常")) {
                           stats.pError++;
@@ -3846,7 +3858,7 @@ function showMaintenanceShield(message) {
                       } else if (part.includes("早退")) {
                           stats.pEarly++;
                       } else {
-                          stats.pExp++; 
+                          stats.pExp++; // 無法歸類的系統異常
                       }
                   });
               });
