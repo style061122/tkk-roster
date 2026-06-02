@@ -3660,12 +3660,16 @@ function showMaintenanceShield(message) {
          let rSupIn=0, rSupIn_norm=0, rSupIn_aa=0;    // ★ 擴充全區借入抽屜
          
          let lvD={}, aaD={}, zD={}, outD={}, inD={};
-         // ★ 擴充異常分類容器，保留舊有並加入三大新指標
-         let abnGroups = { 
-             '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, 
-             '提前打卡異常': {}, '延後打卡異常': {}, '非工作日打卡': {}, 
-             '其他': {} 
-         };
+         // ★ 督導端異常戰情大腦：改以「門市」為單位收集
+         let storeAbnStats = {};
+         allStores.forEach(st => {
+             storeAbnStats[st] = {
+                 name: st, pTotal: 0, 
+                 pNoPunch: 0, pError: 0, pLate: 0, pEarly: 0, 
+                 pEarlyAbn: 0, pLateAbn: 0, pNonWorkDay: 0, pExp: 0,
+                 aPersonal: 0, aPersonalOther: 0, aOfficial: 0, hasAnswered: false
+             };
+         });
 
          // ★ 補上遺失的大腦連線：全區 O 欄計算與 HTML 產生
          let regOHtml = "";
@@ -3699,24 +3703,8 @@ function showMaintenanceShield(message) {
               if(z>0) { let natZ=0, normZ=z; if(!isHourly&&s==='國'){natZ=Math.min(z,8);normZ=Math.max(0,z-8);} rZ_nat+=natZ; rZ_norm+=normZ; zD[st].total+=z; zD[st].norm+=normZ; zD[st].nat+=natZ; zD[st].groups[sName]+=z; }
               // (★ 舊版 O 的計算邏輯已徹底移除，改由上方大腦負責)
               
-              // ★ 異常分流判定 (方案一：多重影分身法 - 8大分類版)
-              if (sysAbn !== "") { 
-                  rAbn++; // 總筆數 (以列為單位) 不變，維持外面卡片數字準確
-                  let matched = false;
-                  
-                  // 原有分類
-                  if (sysAbn.includes('未打卡')) { abnGroups['未打卡'][st] = (abnGroups['未打卡'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('打卡異常')) { abnGroups['打卡異常'][st] = (abnGroups['打卡異常'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('遲到')) { abnGroups['遲到'][st] = (abnGroups['遲到'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('早退')) { abnGroups['早退'][st] = (abnGroups['早退'][st] || 0) + 1; matched = true; }
-                  
-                  // 新增三大分類
-                  if (sysAbn.includes('提前打卡異常')) { abnGroups['提前打卡異常'][st] = (abnGroups['提前打卡異常'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('延後打卡異常')) { abnGroups['延後打卡異常'][st] = (abnGroups['延後打卡異常'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('非工作日打卡')) { abnGroups['非工作日打卡'][st] = (abnGroups['非工作日打卡'][st] || 0) + 1; matched = true; }
-                  
-                  if (!matched) { abnGroups['其他'][st] = (abnGroups['其他'][st] || 0) + 1; }
-              }
+              // ★ 舊有異常分類判定已移除，改由後方 getAnomalyObjects 統一精準處理
+              // 這裡不計算 rAbn，統一到後方累加，確保與顯示數字完全一致
 
               // ★ 升級跨店(出)資料收集：除了總時數，也要記錄是哪個員工去的
               if(r.supports && r.supports.length>0) { 
@@ -3803,6 +3791,41 @@ function showMaintenanceShield(message) {
                   });
               }
           });
+          
+          // ★ 呼叫前端超級大腦：精準分析全區異常 (區分待處理與已填寫)
+          // 這段會重設 rAbn 為 0，並根據真實的未處理筆數重新累加
+          rAbn = 0;
+          allStores.forEach(st => {
+              let stData = currentData.filter(r => r.store === st);
+              if(stData.length === 0) return;
+              
+              // 呼叫 getAnomalyObjects 取得該門市的精準資料
+              let { pending, answered } = getAnomalyObjects(stData);
+              let stats = storeAbnStats[st];
+
+              pending.forEach(p => {
+                  stats.pTotal++;
+                  rAbn++; // 精準累加全區待處理總數
+                  
+                  let txt = p.reason || "";
+                  if (txt.includes("未打卡")) stats.pNoPunch++;
+                  else if (txt.includes("打卡異常")) stats.pError++;
+                  else if (txt.includes("遲到")) stats.pLate++;
+                  else if (txt.includes("早退")) stats.pEarly++;
+                  else if (txt.includes("提前打卡異常")) stats.pEarlyAbn++;
+                  else if (txt.includes("延後打卡異常")) stats.pLateAbn++;
+                  else if (txt.includes("非工作日打卡")) stats.pNonWorkDay++;
+                  else stats.pExp++; 
+              });
+
+              answered.forEach(a => {
+                  stats.hasAnswered = true;
+                  let exp = (a.hLog && a.hLog.explanation) ? a.hLog.explanation : "";
+                  if (exp.includes("私事其他")) stats.aPersonalOther++;
+                  else if (exp.includes("私事")) stats.aPersonal++;
+                  else if (exp.includes("公事") || exp.includes("加班")) stats.aOfficial++;
+              });
+          });
 
           // 全區彈窗 HTML 組裝器
           const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
@@ -3817,27 +3840,51 @@ function showMaintenanceShield(message) {
               return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${storeHrText}</span></div>${empsHtml}</div>`;
           }).join('');
 
-          // ★ 產生全區異常多重分組 HTML (加入溫馨提示)
-         const buildAbnGroupHtml = (groups) => {
-             let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 同一排班若有多項異常，將於各分類中獨立計算</div>`;
-             let hasData = false;
-             
-             // ★ 8 大分類依序渲染
-             ['未打卡', '打卡異常', '遲到', '早退', '提前打卡異常', '延後打卡異常', '非工作日打卡', '其他'].forEach(k => {
-                  let stores = groups[k];
-                  if(Object.keys(stores).length > 0) {
-                      hasData = true;
-                      html += `<div class="mb-2"><div class="fw-bold text-danger border-bottom border-danger border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">🚨 ${k}</div>`;
-                      
-                      // ★ 異常排行榜魔法：依照筆數 (count, 也就是陣列的第 1 個元素) 由大到小排序
-                      Object.entries(stores).sort((a, b) => b[1] - a[1]).forEach(([store, count]) => {
-                          html += `<div class="d-flex justify-content-between text-dark ms-2 mb-1" style="font-size:0.8rem;"><span>📍 ${store}</span><span class="fw-bolder text-danger">${count} 筆</span></div>`;
-                      });
-                      
-                      html += `</div>`;
-                  }
+          // ★ 產生全區異常卡片 (微型網格戰情膠囊版)
+          const buildStoreAbnDashboard = (statsMap) => {
+              let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 依照各門市「待處理筆數」由高至低排序</div>`;
+              
+              // 將物件轉成陣列並排序 (pTotal 由大到小)
+              let sortedStores = Object.values(statsMap)
+                  .filter(st => st.pTotal > 0 || st.hasAnswered)
+                  .sort((a, b) => b.pTotal - a.pTotal);
+
+              if (sortedStores.length === 0) return "";
+
+              let rankNum = 1;
+
+              sortedStores.forEach(st => {
+                  // 只有筆數大於 0 才渲染膠囊 (0筆自動隱形)
+                  let badgesPendingHtml = "";
+                  if (st.pNoPunch > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🚨 未打卡 ${st.pNoPunch}</span>`;
+                  if (st.pError > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#fef3c7; color:#92400e; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⚠️ 打卡異常 ${st.pError}</span>`;
+                  if (st.pLate > 0)       badgesPendingHtml += `<span style="display:inline-block; background-color:#fff7ed; color:#c2410c; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⏳ 遲到 ${st.pLate}</span>`;
+                  if (st.pEarly > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🕒 早退 ${st.pEarly}</span>`;
+                  if (st.pEarlyAbn > 0)   badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">提前打卡 ${st.pEarlyAbn}</span>`;
+                  if (st.pLateAbn > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">延後打卡 ${st.pLateAbn}</span>`;
+                  if (st.pNonWorkDay > 0) badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">非工作日 ${st.pNonWorkDay}</span>`;
+                  if (st.pExp > 0)        badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">其他異常 ${st.pExp}</span>`;
+
+                  let badgesAnsweredHtml = "";
+                  if (st.aPersonal > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#ecfdf5; color:#065f46; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">✅ 私事 ${st.aPersonal}</span>`;
+                  if (st.aPersonalOther > 0) badgesAnsweredHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">‼️ 私事其他 ${st.aPersonalOther}</span>`;
+                  if (st.aOfficial > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">💼 公事已申請加班 ${st.aOfficial}</span>`;
+
+                  html += `
+                  <div class="mb-2 p-2 bg-white rounded border shadow-sm" style="border-left: 4px solid #dc3545 !important;">
+                      <div class="fw-bold text-dark border-bottom border-secondary border-opacity-10 pb-1 mb-1 d-flex justify-content-between" style="font-size:0.85rem;">
+                          <span>${rankNum}. 🔴 ${st.name}</span>
+                          <span class="text-danger fw-bolder">待處理：${st.pTotal} 筆</span>
+                      </div>
+                      <div style="line-height: 1.4; word-break: break-all;">
+                          <div style="margin-bottom: 2px;">${badgesPendingHtml}</div>
+                          ${badgesAnsweredHtml ? `<div style="border-top: 1px dashed #edf2f7; margin-top: 4px; padding-top: 4px;"><strong style="font-size:0.75rem; color:#198754;">✅ 已填寫異常說明</strong><br>${badgesAnsweredHtml}</div>` : ''}
+                      </div>
+                  </div>`;
+                  rankNum++;
               });
-              return hasData ? html : "";
+
+              return html;
           };
 
           const bAA = (d) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
@@ -3903,7 +3950,7 @@ function showMaintenanceShield(message) {
                   <div class="collapse" id="reg-o"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f8fdf9; border-color: #198754 !important;">${regOHtml||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-out"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bDetailList(outD,'#3d1a87')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-in"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #e0fbfc; border-color: #0dcaf0 !important;">${bDetailList(inD,'#055160')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
-                  <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #fffcfc; border-color: #dc3545 !important;">${buildAbnGroupHtml(abnGroups)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #f8f9fa; border-color: #dc3545 !important;">${buildStoreAbnDashboard(storeAbnStats)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
               </div>
           </div>`;
           
