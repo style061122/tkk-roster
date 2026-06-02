@@ -3792,35 +3792,34 @@ function showMaintenanceShield(message) {
               }
           });
           
-          // ★ 呼叫前端超級大腦：精準分析全區異常 (區分待處理與已填寫)
-          // 這段會重設 rAbn 為 0，並根據真實的未處理筆數重新累加
-          rAbn = 0;
+          // ★ 呼叫前端超級大腦：精準分析全區異常 (完美破解同天多筆異常問題)
+          rAbn = 0; // 重設總數，改由真實切割後的待處理筆數累加
           allStores.forEach(st => {
               let stData = currentData.filter(r => r.store === st);
               if(stData.length === 0) return;
-              
-              // 呼叫 getAnomalyObjects 取得該門市的精準資料
+             
+              // 呼叫大腦取得該門市的精準資料 (底層已完成 split 切割與已填寫比對)
               let { pending, answered } = getAnomalyObjects(stData);
               let stats = storeAbnStats[st];
 
               pending.forEach(p => {
                   stats.pTotal++;
-                  rAbn++; // 精準累加全區待處理總數
-                  
-                  let txt = p.reason || "";
+                  rAbn++; 
+                 
+                  let txt = p.reason || p.text || p.event || ""; 
                   if (txt.includes("未打卡")) stats.pNoPunch++;
                   else if (txt.includes("打卡異常")) stats.pError++;
                   else if (txt.includes("遲到")) stats.pLate++;
                   else if (txt.includes("早退")) stats.pEarly++;
-                  else if (txt.includes("提前打卡異常")) stats.pEarlyAbn++;
-                  else if (txt.includes("延後打卡異常")) stats.pLateAbn++;
-                  else if (txt.includes("非工作日打卡")) stats.pNonWorkDay++;
+                  else if (txt.includes("提前打卡") || txt.includes("提前異常")) stats.pEarlyAbn++;
+                  else if (txt.includes("延後打卡") || txt.includes("延後異常")) stats.pLateAbn++;
+                  else if (txt.includes("非工作日")) stats.pNonWorkDay++;
                   else stats.pExp++; 
               });
 
               answered.forEach(a => {
                   stats.hasAnswered = true;
-                  let exp = (a.hLog && a.hLog.explanation) ? a.hLog.explanation : "";
+                  let exp = (a.hLog && a.hLog.explanation) ? a.hLog.explanation : (a.explanation || a.exp || "");
                   if (exp.includes("私事其他")) stats.aPersonalOther++;
                   else if (exp.includes("私事")) stats.aPersonal++;
                   else if (exp.includes("公事") || exp.includes("加班")) stats.aOfficial++;
@@ -3840,11 +3839,10 @@ function showMaintenanceShield(message) {
               return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${storeHrText}</span></div>${empsHtml}</div>`;
           }).join('');
 
-          // ★ 產生全區異常卡片 (微型網格戰情膠囊版)
+          // ★ 產生全區異常卡片 (微型網格戰情膠囊版 - 選項 A：細項展開)
           const buildStoreAbnDashboard = (statsMap) => {
               let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 依照各門市「待處理筆數」由高至低排序</div>`;
-              
-              // 將物件轉成陣列並排序 (pTotal 由大到小)
+             
               let sortedStores = Object.values(statsMap)
                   .filter(st => st.pTotal > 0 || st.hasAnswered)
                   .sort((a, b) => b.pTotal - a.pTotal);
@@ -3852,28 +3850,26 @@ function showMaintenanceShield(message) {
               if (sortedStores.length === 0) return "";
 
               let rankNum = 1;
-
               sortedStores.forEach(st => {
-                  // 只有筆數大於 0 才渲染膠囊 (0筆自動隱形)
                   let badgesPendingHtml = "";
-                  if (st.pNoPunch > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🚨 未打卡 ${st.pNoPunch}</span>`;
-                  if (st.pError > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#fef3c7; color:#92400e; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⚠️ 打卡異常 ${st.pError}</span>`;
-                  if (st.pLate > 0)       badgesPendingHtml += `<span style="display:inline-block; background-color:#fff7ed; color:#c2410c; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⏳ 遲到 ${st.pLate}</span>`;
-                  if (st.pEarly > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🕒 早退 ${st.pEarly}</span>`;
-                  if (st.pEarlyAbn > 0)   badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">提前打卡 ${st.pEarlyAbn}</span>`;
-                  if (st.pLateAbn > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">延後打卡 ${st.pLateAbn}</span>`;
-                  if (st.pNonWorkDay > 0) badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">非工作日 ${st.pNonWorkDay}</span>`;
-                  if (st.pExp > 0)        badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">其他異常 ${st.pExp}</span>`;
+                  if (st.pNoPunch > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🚨 未打卡 ${st.pNoPunch} 筆</span>`;
+                  if (st.pError > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#fef3c7; color:#92400e; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⚠️ 打卡異常 ${st.pError} 筆</span>`;
+                  if (st.pLate > 0)       badgesPendingHtml += `<span style="display:inline-block; background-color:#fff7ed; color:#c2410c; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⏳ 遲到 ${st.pLate} 筆</span>`;
+                  if (st.pEarly > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🕒 早退 ${st.pEarly} 筆</span>`;
+                  if (st.pEarlyAbn > 0)   badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">提前打卡異常 ${st.pEarlyAbn} 筆</span>`;
+                  if (st.pLateAbn > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">延後打卡異常 ${st.pLateAbn} 筆</span>`;
+                  if (st.pNonWorkDay > 0) badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">非工作日打卡 ${st.pNonWorkDay} 筆</span>`;
+                  if (st.pExp > 0)        badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">其他異常 ${st.pExp} 筆</span>`;
 
                   let badgesAnsweredHtml = "";
-                  if (st.aPersonal > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#ecfdf5; color:#065f46; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">✅ 私事 ${st.aPersonal}</span>`;
-                  if (st.aPersonalOther > 0) badgesAnsweredHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">‼️ 私事其他 ${st.aPersonalOther}</span>`;
-                  if (st.aOfficial > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">💼 公事已申請加班 ${st.aOfficial}</span>`;
+                  if (st.aPersonal > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#ecfdf5; color:#065f46; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">✅ 私事 ${st.aPersonal} 筆</span>`;
+                  if (st.aPersonalOther > 0) badgesAnsweredHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">‼️ 私事其他 ${st.aPersonalOther} 筆</span>`;
+                  if (st.aOfficial > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">💼 公事已申請加班 ${st.aOfficial} 筆</span>`;
 
                   html += `
                   <div class="mb-2 p-2 bg-white rounded border shadow-sm" style="border-left: 4px solid #dc3545 !important;">
                       <div class="fw-bold text-dark border-bottom border-secondary border-opacity-10 pb-1 mb-1 d-flex justify-content-between" style="font-size:0.85rem;">
-                          <span>${rankNum}. 🔹 ${st.name}</span>
+                          <span>${rankNum}. 🔴 ${st.name}</span>
                           <span class="text-danger fw-bolder">待處理：${st.pTotal} 筆</span>
                       </div>
                       <div style="line-height: 1.4; word-break: break-all;">
