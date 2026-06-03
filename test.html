@@ -3921,8 +3921,8 @@ function showMaintenanceShield(message) {
                   html += `
                  <div class="mb-2 p-2 bg-white rounded border shadow-sm" style="border-left: 4px solid #dc3545 !important;">
                      <div class="fw-bold text-dark border-bottom border-secondary border-opacity-10 pb-1 mb-1 d-flex justify-content-between align-items-center" style="font-size:0.85rem;">
-                         <span onclick="handleFastJump('🏢 ${st.name}')" style="cursor: pointer; color: #0d6efd; text-decoration: underline; padding: 2px 0;" title="點擊跳轉至此門市">
-                             ${rankNum}. 🔹 ${st.name} ⤵️
+                         <span onclick="handleFastJump('🏢 ${st.name}')" style="cursor: pointer; color: #0d6efd; padding: 2px 0;" title="點擊跳轉至此門市">
+                             ${rankNum}. ${st.name}
                          </span>
                          <span class="text-danger fw-bolder">待處理：${st.pTotal} 筆</span>
                      </div>
@@ -4019,11 +4019,19 @@ function showMaintenanceShield(message) {
           });
           datalistHtml += `</datalist>`;
 
-          // ★ 觸發跳轉的專屬函數
+          // ★ 觸發跳轉的專屬函數 (新增平滑自動捲動引擎)
           window.handleFastJump = function(val) {
               let targetId = window.regionJumpMap[val];
               if (targetId) {
                   filterMonthlyReport(targetId);
+                  
+                  // 強制畫面平滑滑動至該門市卡片，給予督導明確的視覺回饋
+                  setTimeout(() => {
+                      let targetCard = document.getElementById(targetId);
+                      if (targetCard) {
+                          targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                  }, 150); // 稍微延遲 0.15 秒，等待前方 DOM 渲染完畢
               }
           };
 
