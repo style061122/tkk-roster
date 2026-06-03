@@ -990,33 +990,138 @@ function showMaintenanceShield(message) {
       window.personalUserKey = ""; 
       window.personalMonthMode = "current";
 
-      window.loadPersonalData = function() {
+      // ★ 階段三-1 優化：增設密碼變數與智慧儲存邏輯
+      window.personalPwd = "";
+      
+      function getDevicePwdStorageKey() {
+          // 判斷是否為手機 (簡易判斷寬度小於 768px)
+          const isMobile = window.innerWidth <= 768;
+          return {
+              storage: isMobile ? localStorage : sessionStorage,
+              keyName: `tkk_pwd_${window.personalUserKey}`
+          };
+      }
+
+      window.loadPersonalData = function(pwdToTry = "") {
+          // 嘗試拿密碼 (優先用參數傳入的，沒有就去倉庫找)
+          if (pwdToTry) window.personalPwd = pwdToTry;
+          else {
+              const deviceStorage = getDevicePwdStorageKey();
+              window.personalPwd = deviceStorage.storage.getItem(deviceStorage.keyName) || "";
+          }
+
+          // ==========================================
+          // 🚀 終極優化：0 秒攔截器！
+          // 如果完全沒有密碼，不要去吵後端浪費 8 秒與流量！直接彈窗！
+          // ==========================================
+          if (!window.personalPwd) {
+              document.getElementById('loadingOverlay').style.display = 'none'; // 確保遮罩隱藏
+              new bootstrap.Modal(document.getElementById('pwdVerifyModal')).show();
+              return; 
+          }
+
+          // 有密碼才准放行去問 GAS
           document.getElementById('loadingOverlay').style.display = 'flex';
-          document.getElementById('loadingText').innerText = "讀取個人班表中...";
+          document.getElementById('loadingText').innerText = "驗證身分與讀取班表中...";
           
-          // ★ 呼叫 API 時帶入 monthMode
-          callApi('getPersonalData', { u: window.personalUserKey, monthMode: window.personalMonthMode })
-            .then(res => {
-               showLoading(false);
-               if (res.success) {
-                   // 更新按鈕 UI
-                   const btn = document.getElementById('btnPersonalToggle');
-                   if (window.personalMonthMode === 'next') {
-                       btn.className = 'btn btn-sm btn-primary fw-bold shadow-sm rounded-pill px-3';
-                       btn.innerText = '🔄 切換回 當月班表';
-                   } else {
-                       btn.className = 'btn btn-sm btn-warning text-dark fw-bold shadow-sm rounded-pill px-3';
-                       btn.innerText = '🔄 切換至 次月預排';
-                   }
-                   renderPersonalPage(res);
-               }
-               else document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
-            })
-            .catch(err => {
-               if (err && err.message === "MAINTENANCE_LOCKED") return; // ★ 靜音防護：維護中不報錯
-               showLoading(false);
-               alert("錯誤：" + err.message); 
-            });
+          callApi('getPersonalData', { 
+              u: window.personalUserKey, 
+              pwd: window.personalPwd,
+              monthMode: window.personalMonthMode 
+          })
+             .then(res => {
+                showLoading(false);
+                
+                // ★ 處理密碼驗證退件
+                if (res.requirePwd || res.isPwdError) {
+                    const errorBox = document.getElementById('verifyPwdError');
+                    const pwdInput = document.getElementById('verifyPwdInput');
+                    pwdInput.value = ""; // 清空錯誤密碼
+                    
+                    if (res.isPwdError) {
+                        errorBox.innerText = res.message; // 顯示後端傳來的錯誤訊息
+                        errorBox.style.display = 'block';
+                        // 密碼錯了，把被污染的倉庫清乾淨
+                        const deviceStorage = getDevicePwdStorageKey();
+                        deviceStorage.storage.removeItem(deviceStorage.keyName);
+                        window.personalPwd = ""; // 記憶體也清空
+                    } else {
+                        errorBox.style.display = 'none';
+                    }
+                    
+                    // 彈出驗證視窗 (如果是第一次被退件)
+                    new bootstrap.Modal(document.getElementById('pwdVerifyModal')).show();
+                    return; 
+                }
+
+                if (res.success) {
+                    // ★ 密碼驗證成功！將正確的密碼妥善保存
+                    if (window.personalPwd) {
+                        const deviceStorage = getDevicePwdStorageKey();
+                        deviceStorage.storage.setItem(deviceStorage.keyName, window.personalPwd);
+                    }
+
+                    // 接收設定檔中的異常原因清單
+                    if (res.anomaly_reasons && res.anomaly_reasons.length > 0) {
+                        window.anomalyReasonList = res.anomaly_reasons;
+                        window.anomalyOtherLabel = res.anomaly_other || "其他";
+                    } else if (res.meta && res.meta.anomaly_reasons) {
+                        window.anomalyReasonList = res.meta.anomaly_reasons;
+                        window.anomalyOtherLabel = res.meta.anomaly_other || "其他";
+                    }
+
+                    // 接收歷史異常足跡
+                    window.historicalAnomalies = res.anomalyData || [];
+
+                    // 更新按鈕 UI
+                    const btn = document.getElementById('btnPersonalToggle');
+                    if (window.personalMonthMode === 'next') {
+                        btn.className = 'btn btn-sm btn-primary fw-bold shadow-sm rounded-pill px-3';
+                        btn.innerText = '🔄 切換回 當月班表';
+                    } else {
+                        btn.className = 'btn btn-sm btn-warning text-dark fw-bold shadow-sm rounded-pill px-3';
+                        btn.innerText = '🔄 切換至 次月預排';
+                    }
+                    renderPersonalPage(res);
+                }
+                else {
+                    document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
+                }
+             })
+             .catch(err => {
+                if (err && err.message === "MAINTENANCE_LOCKED") return; 
+                showLoading(false);
+                alert("錯誤：" + err.message); 
+             });
+      };
+
+      // ★ 處理密碼彈窗送出 (防連點機制)
+      window.submitPwdVerification = function() {
+          const pwdInput = document.getElementById('verifyPwdInput').value.trim();
+          const errorBox = document.getElementById('verifyPwdError');
+          
+          if (pwdInput.length !== 4) {
+              errorBox.innerText = "請輸入完整的四碼數字！";
+              errorBox.style.display = 'block';
+              return;
+          }
+          
+          // ★ 防連點與降低配額消耗：按鈕鎖定
+          const btn = document.querySelector('#pwdVerifyModal .btn-primary');
+          btn.disabled = true;
+          btn.innerHTML = '驗證中...';
+          errorBox.style.display = 'none';
+
+          // 關閉 Modal 並重新呼叫載入 (帶上剛打的密碼)
+          bootstrap.Modal.getInstance(document.getElementById('pwdVerifyModal')).hide();
+          
+          // 恢復按鈕狀態，以防密碼錯誤時再次彈出
+          setTimeout(() => {
+              btn.disabled = false;
+              btn.innerHTML = '確認登入';
+          }, 1000);
+
+          window.loadPersonalData(pwdInput);
       };
 
       window.togglePersonalMonth = function() {
@@ -1857,6 +1962,8 @@ function showMaintenanceShield(message) {
              if (res && res.success) {
                  currentData = res.data || [];
                  window.currentOtData = res.otData || []; // 📥 接收加班包裹！
+                 // ★★★★ 必須要有這行！店長端才抓得到歷史紀錄！ ★★★★
+                 window.historicalAnomalies = res.anomalyData || [];
                  // ★★★ 終極無損快照：在拿到最新資料的瞬間，立刻備份一份最乾淨的狀態！★★★
                  window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                  window.currentSyncVersion = res.syncVersion || ""; // ★ 記下現在的系統版本號
@@ -3055,10 +3162,19 @@ function showMaintenanceShield(message) {
 
           let outboundStores = {}; let inboundStores = {};  
           
+          // ★ 先在迴圈外將資料一次全部計算好，產生一個「以姓名為 Key」的異常清單
+          let results = getAnomalyObjects(currentData);
+          window.pendingCatList = results.pending;
+          window.answeredCatList = results.answered;
+
           myStaffNames.forEach((name, idx) => {
               let pData = currentData.filter(r => r.name === name && r.store === currentStore);
               if (pData.length === 0) return;
               
+              // ★ 這裡：從總清單中「精準篩選」該員工的資料 (修復 pDataAll 錯誤，並啟用金鑰過濾)
+              let empPkey = pData[0].pkey || pData[0].pKey || ""; // 抓取該員工的金鑰
+              let sPending = (window.pendingCatList || []).filter(i => empPkey ? i.pkey === empPkey : i.name === name);
+              let sAnswered = (window.answeredCatList || []).filter(i => empPkey ? i.pkey === empPkey : i.name === name);
               let salaryType = pData[0].salaryType || "";
               let isMonthly = salaryType.includes("月薪");
 
@@ -3192,9 +3308,66 @@ function showMaintenanceShield(message) {
                   }
 
                   if (sysAbnormal !== "") {
-                      abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                      // ★ 智慧異常消除：比對這名員工專屬的 sAnswered 清單
+                      let myAns = sAnswered.filter(a => a.date === r.date);
+                      if (myAns.length > 0) {
+                          let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                          abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
+                          sysAbnormal = abnParts.join(' / ');
+                      }
+                      
+                      if (sysAbnormal !== "") {
+                          // ★ 取得打卡時間與翻譯蒟蒻
+                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+                          
+                          let sysStatusTrim = sysStatus.trim();
+                          let transStatus = "上班";
+                          if (sysStatusTrim === "月休-國定假日" || sysStatusTrim === "國定假日" || sysStatusTrim === "國") transStatus = "國";
+                          else if (sysStatusTrim === "月休-例假日" || sysStatusTrim === "例假日" || sysStatusTrim === "例") transStatus = "例";
+                          else if (sysStatusTrim === "月休-休息日" || sysStatusTrim === "休息日" || sysStatusTrim === "月休" || sysStatusTrim === "休") transStatus = "休";
+                          else if (sysStatusTrim === "空班" || sysStatusTrim === "") transStatus = "空班";
+
+                          let timeDisplay = "";
+                          if (!sysInLocal && !sysOutLocal) timeDisplay = "上下班皆未打卡";
+                          else if (!sysInLocal) timeDisplay = `未打卡~${sysOutLocal}`;
+                          else if (!sysOutLocal) timeDisplay = `${sysInLocal}~未打卡`;
+                          else timeDisplay = `${sysInLocal}~${sysOutLocal}`;
+
+                          // ★ 系統異常套用黃金排版
+                          abnormalDetails.push(
+                              `<div class="mb-2">` +
+                              `<div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${shortDate} <span class="text-muted" style="font-size:0.75rem;">(${transStatus})</span> <span class="text-primary ms-1">🕒 ${timeDisplay}</span></div>` +
+                              `<div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${sysAbnormal}</div>` +
+                              `</div>`
+                          );
+                      }
                   }
               });
+              // 1. 取得該員工專屬的異常分類 (替換掉原本只顯示文字的 abnormalDetails)
+              let { pending, answered } = getAnomalyObjects(pData);
+
+              // 2. 準備渲染用的異常 HTML (我們把它獨立成變數)
+              let anomalyUI = '';
+              if (pending.length > 0 || answered.length > 0) {
+                  anomalyUI = `<div class="mt-2 border-top pt-2">`;
+                  // 待填寫區塊
+                  if (pending.length > 0) {
+                      anomalyUI += `<div class="alert alert-danger p-2 small">
+                          <div class="d-flex justify-content-between"><strong>⚠️ 異常說明 (${pending.length})</strong>
+                          <button class="btn btn-danger btn-sm" onclick="openAnomalyModal()">⚡ 一鍵填寫</button></div>
+                          ${pending.map(i => `<div>${i.shortDate} ${i.reason} <button class="btn btn-link btn-sm" onclick="openAnomalyModal('${i.date}','${i.reason}','${i.name}')">填寫</button></div>`).join('')}
+                      </div>`;
+                  }
+                  // 已填寫區塊
+                  if (answered.length > 0) {
+                      anomalyUI += `<div class="alert alert-success p-2 small">
+                          <strong>✅ 已填寫 (${answered.length})</strong>
+                          ${answered.map(i => `<div>${i.shortDate} ${i.reason} (由${i.hLog.reporter}填寫) <button class="btn btn-link btn-sm" onclick="openAnomalyModal('${i.date}','${i.reason}','${i.name}')">修改</button></div>`).join('')}
+                      </div>`;
+                  }
+                  anomalyUI += `</div>`;
+              }
 
               // ★ Z 顯示格式防呆
               let zDisplay = !isMonthly ? `${sumZ_norm.toFixed(1)}` : (sumZ_nat > 0 ? `${sumZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${sumZ_nat.toFixed(1)}</small>` : `${sumZ_norm.toFixed(1)}`);
@@ -3278,7 +3451,16 @@ function showMaintenanceShield(message) {
                           <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${sumAA>0?'#f8d7da':'#f8f9fa'}; border-color: ${sumAA>0?'#f5c2c7':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-aa"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${sumAA>0?'#842029':'#6c757d'};">超時 ▾</div><div class="fw-bold ${sumAA>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${sumAA>0?sumAA.toFixed(1):'0.0'}</div></div></div>
                           <div class="col"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center border" style="cursor: pointer; background-color: ${sumSupOut>0?'#e0cffc':'#f8f9fa'}; border-color: ${sumSupOut>0?'#d3bbfb':'#dee2e6'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-support"><div class="fw-bold mb-1" style="font-size: 0.75rem; color: ${sumSupOut>0?'#3d1a87':'#6c757d'};">跨店支援 ▾</div><div class="fw-bold ${sumSupOut>0?'text-dark':'text-muted'}" style="font-size: 1rem;">${sumSupOut>0 ? `${sumSup_norm.toFixed(1)}${sumSup_aa>0 ? `<small class="text-danger fw-bolder ms-1" style="font-size:0.6em;">+${sumSup_aa.toFixed(1)}超時</small>` : ''}` : '0.0'}</div></div></div>
                           <div class="col-12"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: #fff3cd; border-color: #ffecb5 !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-overtime"><div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div><div class="d-flex flex-row justify-content-center align-items-center gap-3 mt-1"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:#997404; font-size: 0.75rem;">預計加班</span><span class="fw-bold text-dark" style="font-size: 1rem;">${zDisplay}</span></div><div style="width: 1px; height: 24px; background-color: #ffe69c;"></div><div class="d-flex flex-column align-items-center"><span class="fw-bold text-success" style="font-size: 0.75rem;">已申請</span><span class="fw-bold text-dark" style="font-size: 1rem;">${oDisplay}</span></div></div></div></div>
-                          <div class="col-12"><div class="p-1 rounded h-100 d-flex flex-column justify-content-center position-relative border" style="cursor: pointer; background-color: ${abnormalDetails.length>0?'#ffffff':'#f8f9fa'}; border-color: ${abnormalDetails.length>0?'#dc3545':'#dee2e6'} !important; border-width: ${abnormalDetails.length>0?'2px':'1px'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-abnormal"><div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div><div class="d-flex flex-row justify-content-center align-items-center mt-1"><div class="d-flex flex-column align-items-center"><span class="fw-bold" style="color:${abnormalDetails.length>0?'#dc3545':'#6c757d'}; font-size: 0.75rem;">異常狀況</span><span class="fw-bold ${abnormalDetails.length>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${abnormalDetails.length>0?abnormalDetails.length+' 筆':'無'}</span></div></div></div></div>
+                          <div class="col-12 col-md">
+                              <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${sPending.length > 0 ? '#fff0f0' : (abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa')}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-abnormal">
+                                  <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
+                                  <div class="d-flex flex-column justify-content-center align-items-center h-100 gap-1 mt-1">
+                                      <span class="fw-bold" style="color:${abnormalDetails.length > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
+                                      <span class="fw-bold ${abnormalDetails.length > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalDetails.length > 0 ? abnormalDetails.length + ' 筆' : '無'}</span>
+                                      ${sPending.length > 0 ? `<span class="text-danger fw-bold" style="font-size:0.72rem;">⚠️ 請點我填寫異常說明</span>` : ''}
+                                  </div>
+                              </div>
+                          </div>
                       </div>
                       <div class="collapse" id="${cardId}-status"><div class="p-2 bg-white rounded text-muted small border-start border-3 border-secondary mb-1 shadow-sm" style="line-height:1.5; font-size: 0.8rem;">${detailWork.length>0?`<strong style="color:#084298;">上班:</strong><br>${detailWork.join('<br>')}<br>`:''}${detailRest.length>0?`<strong style="color:#997404;">排休:</strong><br>${detailRest.join('<br>')}<br>`:''}${detailReg.length>0?`<strong style="color:#198754;">例假:</strong><br>${detailReg.join('<br>')}<br>`:''}${detailNat.length>0?`<strong style="color:#dc3545;">國定:</strong><br>${detailNat.join('<br>')}<br>`:''}${detailEmpty.length>0?`<strong style="color:#6c757d;">空班:</strong><br>${detailEmpty.join('<br>')}<br>`:''}${(detailWork.length===0&&detailRest.length===0&&detailReg.length===0&&detailNat.length===0&&detailEmpty.length===0)?'無排班紀錄':''}</div></div>
                       <div class="collapse" id="${cardId}-leave"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #17a2b8 !important; line-height:1.5; font-size: 0.8rem;">${Object.keys(leaveDetails).length>0?leaveHtml:'<span class="text-black-50 opacity-75">無請假紀錄</span>'}</div></div>
@@ -3289,7 +3471,47 @@ function showMaintenanceShield(message) {
                       </div>
                   </div>
                       <div class="collapse" id="${cardId}-support"><div class="p-2 rounded small border-start border-3 mb-1 shadow-sm" style="background-color: #f4f0fd; border-color: #6f42c1 !important; line-height:1.5; font-size: 0.8rem;">${sumSupOut>0?supportOutHtml:'<span class="text-black-50 opacity-75">無跨店支援紀錄</span>'}</div></div>
-                      <div class="collapse" id="${cardId}-abnormal"><div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">${abnormalDetails.length>0?`<strong class="text-danger">異常:</strong><br>${abnormalDetails.join('<br>')}`:'<span class="text-black-50 opacity-75">無異常紀錄</span>'}</div></div>
+                      <div class="collapse" id="${cardId}-abnormal">
+                      ${abnormalDetails.length > 0 ? `
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">
+                          <div class="fw-bold text-danger border-bottom border-danger pb-1 mb-2" style="font-size:0.9rem;">🚨 系統異常紀錄</div>
+                          ${abnormalDetails.join('<hr class="my-2 border-danger opacity-25">')}
+                      </div>` : ''}
+
+                      ${sPending.length > 0 ? `
+                      <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
+                          <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
+                              <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${sPending.length} 筆待填</span></strong>
+                              <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${empPkey}', 'PENDING')">⚡ 一鍵代填</button>
+                          </div>
+                          ${sPending.map(item => `
+                          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                              <div>
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              </div>
+                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
+                                  onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                          </div>`).join('')}
+                      </div>` : `<div class="p-2 text-center text-success fw-bold small mb-2 rounded border border-success shadow-sm" style="background:#f0fbfd;">✅ 所有異常說明均已處理完畢</div>`}
+
+                      ${sAnswered.length > 0 ? `
+                      <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
+                          <div class="d-flex justify-content-between align-items-center border-bottom border-success pb-1 mb-2">
+                              <div class="fw-bold text-success" style="font-size:0.9rem;">✅ 已填寫 (${sAnswered.length})</div>
+                              <button class="btn btn-success btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${empPkey}', 'ANSWERED')">✏️ 一鍵修改</button>
+                          </div>
+                          ${sAnswered.map(item => `
+                          <div class="mb-2 p-2 bg-white rounded border shadow-sm">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                              </div>
+                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
+                          </div>`).join('')}
+                      </div>` : ''}
+                  </div>
                   </div>
               </div>`;
               
@@ -3452,7 +3674,16 @@ function showMaintenanceShield(message) {
          let rSupIn=0, rSupIn_norm=0, rSupIn_aa=0;    // ★ 擴充全區借入抽屜
          
          let lvD={}, aaD={}, zD={}, outD={}, inD={};
-         let abnGroups = { '未打卡': {}, '打卡異常': {}, '遲到': {}, '早退': {}, '其他': {} };
+         // ★ 督導端異常戰情大腦：改以「門市」為單位收集
+         let storeAbnStats = {};
+         allStores.forEach(st => {
+             storeAbnStats[st] = {
+                 name: st, pTotal: 0, 
+                 pNoPunch: 0, pError: 0, pLate: 0, pEarly: 0, 
+                 pEarlyAbn: 0, pLateAbn: 0, pNonWorkDay: 0, pExp: 0,
+                 aPersonal: 0, aPersonalOther: 0, aOfficial: 0, hasAnswered: false
+             };
+         });
 
          // ★ 補上遺失的大腦連線：全區 O 欄計算與 HTML 產生
          let regOHtml = "";
@@ -3486,16 +3717,8 @@ function showMaintenanceShield(message) {
               if(z>0) { let natZ=0, normZ=z; if(!isHourly&&s==='國'){natZ=Math.min(z,8);normZ=Math.max(0,z-8);} rZ_nat+=natZ; rZ_norm+=normZ; zD[st].total+=z; zD[st].norm+=normZ; zD[st].nat+=natZ; zD[st].groups[sName]+=z; }
               // (★ 舊版 O 的計算邏輯已徹底移除，改由上方大腦負責)
               
-              // ★ 異常分流判定 (方案一：多重影分身法)
-              if (sysAbn !== "") { 
-                  rAbn++; // 總筆數 (以列為單位) 不變，維持外面卡片數字準確
-                  let matched = false;
-                  if (sysAbn.includes('未打卡')) { abnGroups['未打卡'][st] = (abnGroups['未打卡'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('打卡異常')) { abnGroups['打卡異常'][st] = (abnGroups['打卡異常'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('遲到')) { abnGroups['遲到'][st] = (abnGroups['遲到'][st] || 0) + 1; matched = true; }
-                  if (sysAbn.includes('早退')) { abnGroups['早退'][st] = (abnGroups['早退'][st] || 0) + 1; matched = true; } // ★ 新增早退
-                  if (!matched) { abnGroups['其他'][st] = (abnGroups['其他'][st] || 0) + 1; }
-              }
+              // ★ 舊有異常分類判定已移除，改由後方 getAnomalyObjects 統一精準處理
+              // 這裡不計算 rAbn，統一到後方累加，確保與顯示數字完全一致
 
               // ★ 升級跨店(出)資料收集：除了總時數，也要記錄是哪個員工去的
               if(r.supports && r.supports.length>0) { 
@@ -3582,6 +3805,78 @@ function showMaintenanceShield(message) {
                   });
               }
           });
+          
+          // ==========================================
+          // ★ 雙引擎精準分流大腦：完美破解同天多筆異常與吃字問題
+          // ==========================================
+          rAbn = 0; // 重設總數，改由真實切割後的待處理筆數累加
+          allStores.forEach(st => {
+              let stData = currentData.filter(r => r.store === st);
+              if(stData.length === 0) return;
+             
+              let stats = storeAbnStats[st];
+
+              // ------------------------------------------------
+              // 🚀 引擎 A：專職處理【需填寫項目】(提前/延後/非工作日)
+              // ------------------------------------------------
+              // 直接請前端超級大腦吐出乾淨的 pending(待處理) 與 answered(已填寫)
+              let { pending, answered } = getAnomalyObjects(stData);
+
+              // A-1. 處理已填寫
+              answered.forEach(a => {
+                  stats.hasAnswered = true;
+                  let exp = (a.hLog && a.hLog.explanation) ? a.hLog.explanation : (a.explanation || a.exp || "");
+                  if (exp.includes("私事其他")) stats.aPersonalOther++;
+                  else if (exp.includes("私事")) stats.aPersonal++;
+                  else if (exp.includes("公事") || exp.includes("加班")) stats.aOfficial++;
+              });
+
+              // A-2. 處理待處理的需填寫項目
+              pending.forEach(p => {
+                  stats.pTotal++;
+                  rAbn++; 
+                  let txt = p.reason || p.text || p.event || ""; 
+                  if (txt.includes("提前")) stats.pEarlyAbn++;
+                  else if (txt.includes("延後")) stats.pLateAbn++;
+                  else if (txt.includes("非工作日")) stats.pNonWorkDay++;
+                  else stats.pExp++; // 其他需填寫防呆
+              });
+
+              // ------------------------------------------------
+              // 🚀 引擎 B：專職處理【系統異常項目】(遲到/早退/未打卡/純打卡異常)
+              // ------------------------------------------------
+              stData.forEach(r => {
+                  let sysAbn = String(r.sys_abnormal || "").trim();
+                  if (sysAbn === "") return;
+
+                  // 將 P欄(sys_abnormal) 的文字用斜線切開，逐筆檢查
+                  let abnParts = sysAbn.split('/').map(s => s.trim()).filter(s => s !== "");
+                 
+                  abnParts.forEach(part => {
+                      // ★ 核心防護罩：只要這段文字包含「提前、延後、非工作日」，代表已經被引擎 A 算過了，直接跳過！
+                      if (part.includes("提前") || part.includes("延後") || part.includes("非工作日")) {
+                          return; 
+                      }
+
+                      // 剩下的保證都是純系統異常，且不需要填寫，絕對是待處理！
+                      stats.pTotal++;
+                      rAbn++; 
+
+                      // 嚴格比對，絕對不會再發生吃字問題
+                      if (part.includes("未打卡")) {
+                          stats.pNoPunch++;
+                      } else if (part.includes("打卡異常")) {
+                          stats.pError++;
+                      } else if (part.includes("遲到")) {
+                          stats.pLate++;
+                      } else if (part.includes("早退")) {
+                          stats.pEarly++;
+                      } else {
+                          stats.pExp++; // 無法歸類的系統異常
+                      }
+                  });
+              });
+          });
 
           // 全區彈窗 HTML 組裝器
           const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
@@ -3596,26 +3891,50 @@ function showMaintenanceShield(message) {
               return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${storeHrText}</span></div>${empsHtml}</div>`;
           }).join('');
 
-          // ★ 產生全區異常多重分組 HTML (加入溫馨提示)
-          const buildAbnGroupHtml = (groups) => {
-              let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 同一排班若有多項異常，將於各分類中獨立計算</div>`;
-              let hasData = false;
-              // ★ 把早退加入迴圈
-              ['未打卡', '打卡異常', '遲到', '早退', '其他'].forEach(k => {
-                  let stores = groups[k];
-                  if(Object.keys(stores).length > 0) {
-                      hasData = true;
-                      html += `<div class="mb-2"><div class="fw-bold text-danger border-bottom border-danger border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">🚨 ${k}</div>`;
-                      
-                      // ★ 異常排行榜魔法：依照筆數 (count, 也就是陣列的第 1 個元素) 由大到小排序
-                      Object.entries(stores).sort((a, b) => b[1] - a[1]).forEach(([store, count]) => {
-                          html += `<div class="d-flex justify-content-between text-dark ms-2 mb-1" style="font-size:0.8rem;"><span>📍 ${store}</span><span class="fw-bolder text-danger">${count} 筆</span></div>`;
-                      });
-                      
-                      html += `</div>`;
-                  }
+          // ★ 產生全區異常卡片 (微型網格戰情膠囊版 - 選項 A：細項展開)
+          const buildStoreAbnDashboard = (statsMap) => {
+              let html = `<div class="text-muted mb-2 pb-1 border-bottom" style="font-size:0.75rem; line-height:1.2;">💡 依照各門市「待處理筆數」由高至低排序</div>`;
+             
+              let sortedStores = Object.values(statsMap)
+                  .filter(st => st.pTotal > 0 || st.hasAnswered)
+                  .sort((a, b) => b.pTotal - a.pTotal);
+
+              if (sortedStores.length === 0) return "";
+
+              let rankNum = 1;
+              sortedStores.forEach(st => {
+                  let badgesPendingHtml = "";
+                  if (st.pNoPunch > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🚨 未打卡 ${st.pNoPunch} 筆</span>`;
+                  if (st.pError > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#fef3c7; color:#92400e; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⚠️ 打卡異常 ${st.pError} 筆</span>`;
+                  if (st.pLate > 0)       badgesPendingHtml += `<span style="display:inline-block; background-color:#fff7ed; color:#c2410c; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">⏳ 遲到 ${st.pLate} 筆</span>`;
+                  if (st.pEarly > 0)      badgesPendingHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">🕒 早退 ${st.pEarly} 筆</span>`;
+                  if (st.pEarlyAbn > 0)   badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">提前打卡異常 ${st.pEarlyAbn} 筆</span>`;
+                  if (st.pLateAbn > 0)    badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">延後打卡異常 ${st.pLateAbn} 筆</span>`;
+                  if (st.pNonWorkDay > 0) badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">非工作日打卡 ${st.pNonWorkDay} 筆</span>`;
+                  if (st.pExp > 0)        badgesPendingHtml += `<span style="display:inline-block; background-color:#f3f4f6; color:#374151; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">其他異常 ${st.pExp} 筆</span>`;
+
+                  let badgesAnsweredHtml = "";
+                  if (st.aPersonal > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#ecfdf5; color:#065f46; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">✅ 私事 ${st.aPersonal} 筆</span>`;
+                  if (st.aPersonalOther > 0) badgesAnsweredHtml += `<span style="display:inline-block; background-color:#fce8e6; color:#c5221f; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0; font-weight:bold;">‼️ 私事其他 ${st.aPersonalOther} 筆</span>`;
+                  if (st.aOfficial > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">💼 公事已申請加班 ${st.aOfficial} 筆</span>`;
+
+                  html += `
+                 <div class="mb-2 p-2 bg-white rounded border shadow-sm" style="border-left: 4px solid #dc3545 !important;">
+                     <div class="fw-bold text-dark border-bottom border-secondary border-opacity-10 pb-1 mb-1 d-flex justify-content-between align-items-center" style="font-size:0.85rem;">
+                         <span onclick="handleFastJump('🏢 ${st.name}')" style="cursor: pointer; color: #0d6efd; padding: 2px 0;" title="點擊跳轉至此門市">
+                             ${rankNum}. ${st.name}
+                         </span>
+                         <span class="text-danger fw-bolder">待處理：${st.pTotal} 筆</span>
+                     </div>
+                     <div style="line-height: 1.4; word-break: break-all;">
+                         <div style="margin-bottom: 2px;">${badgesPendingHtml}</div>
+                         ${badgesAnsweredHtml ? `<div style="border-top: 1px dashed #edf2f7; margin-top: 4px; padding-top: 4px;"><strong style="font-size:0.75rem; color:#198754;">✅ 已填寫異常說明</strong><br>${badgesAnsweredHtml}</div>` : ''}
+                     </div>
+                 </div>`;
+                  rankNum++;
               });
-              return hasData ? html : "";
+
+              return html;
           };
 
           const bAA = (d) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
@@ -3681,7 +4000,7 @@ function showMaintenanceShield(message) {
                   <div class="collapse" id="reg-o"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f8fdf9; border-color: #198754 !important;">${regOHtml||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-out"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #f4f0fd; border-color: #6f42c1 !important;">${bDetailList(outD,'#3d1a87')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
                   <div class="collapse" id="reg-in"><div class="p-2 rounded small border-start border-3 mb-1 text-start" style="background: #e0fbfc; border-color: #0dcaf0 !important;">${bDetailList(inD,'#055160')||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
-                  <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #fffcfc; border-color: #dc3545 !important;">${buildAbnGroupHtml(abnGroups)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
+                  <div class="collapse" id="reg-abn"><div class="p-2 rounded small border-start border-4 mb-1 text-start" style="background: #f8f9fa; border-color: #dc3545 !important;">${buildStoreAbnDashboard(storeAbnStats)||'<div class="text-muted text-center py-2" style="font-size:0.85rem;">無資料</div>'}</div></div>
               </div>
           </div>`;
           
@@ -3700,11 +4019,19 @@ function showMaintenanceShield(message) {
           });
           datalistHtml += `</datalist>`;
 
-          // ★ 觸發跳轉的專屬函數
+          // ★ 觸發跳轉的專屬函數 (新增平滑自動捲動引擎)
           window.handleFastJump = function(val) {
               let targetId = window.regionJumpMap[val];
               if (targetId) {
                   filterMonthlyReport(targetId);
+                  
+                  // 強制畫面平滑滑動至該門市卡片，給予督導明確的視覺回饋
+                  setTimeout(() => {
+                      let targetCard = document.getElementById(targetId);
+                      if (targetCard) {
+                          targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                  }, 150); // 稍微延遲 0.15 秒，等待前方 DOM 渲染完畢
               }
           };
 
@@ -3729,7 +4056,10 @@ function showMaintenanceShield(message) {
           let pDataAll = currentData.filter(r => r.store === targetStore);
           if (pDataAll.length === 0) return "";
 
-          let storeOHtml = ""; // ✅ 加在這裡！每次產生新卡片就重置為空白
+          let storeOHtml = ""; 
+          
+          // ★ 新增這行：先在最上方算出這家店所有的待填與已填異常
+          let { pending: storePending, answered: storeAnswered } = getAnomalyObjects(pDataAll);
 
           const getStartFloat = (t) => { if(!t) return 0; if(String(t).includes(':')) { let p=t.split(':'); return parseInt(p[0])+(parseInt(p[1])/60); } return parseFloat(t) || 0; };
           const ft = (t) => { if (isNaN(t) || t === "") return "0"; let val = parseFloat(t); while (val >= 24) val -= 24; return String(val); };
@@ -3786,9 +4116,43 @@ function showMaintenanceShield(message) {
                       zGroups[stName].norm+=normZ; zGroups[stName].nat+=natZ; zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                   }
                   if(sysAbnormal!=="") {
-                      storeAbnCount++;
-                      if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
-                      storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                      // ★ 智慧異常消除：比對這家店的 storeAnswered 總表
+                      let myAns = storeAnswered.filter(a => a.date === r.date && a.name === r.name);
+                      if (myAns.length > 0) {
+                          let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                          abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
+                          sysAbnormal = abnParts.join(' / ');
+                      }
+
+                      if (sysAbnormal !== "") {
+                          storeAbnCount++; // 只統計那些真正還沒解決的異常
+                          if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
+
+                          // ★ 取得打卡時間與翻譯蒟蒻
+                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+                          
+                          let sysStatusTrim = sysStatus.trim();
+                          let transStatus = "上班";
+                          if (sysStatusTrim === "月休-國定假日" || sysStatusTrim === "國定假日" || sysStatusTrim === "國") transStatus = "國";
+                          else if (sysStatusTrim === "月休-例假日" || sysStatusTrim === "例假日" || sysStatusTrim === "例") transStatus = "例";
+                          else if (sysStatusTrim === "月休-休息日" || sysStatusTrim === "休息日" || sysStatusTrim === "月休" || sysStatusTrim === "休") transStatus = "休";
+                          else if (sysStatusTrim === "空班" || sysStatusTrim === "") transStatus = "空班";
+
+                          let timeDisplay = "";
+                          if (!sysInLocal && !sysOutLocal) timeDisplay = "上下班皆未打卡";
+                          else if (!sysInLocal) timeDisplay = `未打卡~${sysOutLocal}`;
+                          else if (!sysOutLocal) timeDisplay = `${sysInLocal}~未打卡`;
+                          else timeDisplay = `${sysInLocal}~${sysOutLocal}`;
+
+                          // ★ 套用黃金排版
+                          storeAbnDetails[name].push(
+                              `<div class="mb-1 ps-2">` +
+                              `<div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${shortDate} <span class="text-muted" style="font-size:0.75rem;">(${transStatus})</span> <span class="text-primary ms-1">🕒 ${timeDisplay}</span></div>` +
+                              `<div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${sysAbnormal}</div>` +
+                              `</div>`
+                          );
+                      }
                   }
                   if(r.supports && r.supports.length>0) {
                       let aaStart = sF;
@@ -3918,7 +4282,8 @@ function showMaintenanceShield(message) {
               return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${colorCode};">${storeHrText}</span></div>${empsHtml}</div>`;
           }).join('');
           const buildStoreSimpleList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
-          const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
+          // ★ 更新：讓人員名稱下方直接印出黃金排版的陣列內容，並加上分隔線
+          const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-3"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-2" style="font-size:0.85rem;">👤 ${n}</div>${arr.join('<hr class="my-1 border-danger opacity-25">')}</div>`).join('');
 
           let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
           let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時時數紀錄</div>';
@@ -3928,7 +4293,73 @@ function showMaintenanceShield(message) {
           // ★ 替換為新版：呼叫 buildStoreDetailList 帶入對應顏色
           let storeOutHtml = buildStoreDetailList(storeOutStoreTotals, '#3d1a87') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無跨店支援</div>';
           let storeInHtml = buildStoreDetailList(storeInStoreTotals, '#055160') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無友店來援</div>';
-          let fullAbnHtml = buildStoreAbnList(storeAbnDetails) || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
+          
+          // ==========================================
+          // ★ 完美移植：為「全店卡片」打造專屬的待填與已填 UI
+          // ==========================================
+          let totalInteractiveAbn = storePending.length + storeAnswered.length;
+          let displayAbnCount = storeAbnCount;
+
+          let fullAbnHtml = "";
+          
+          // ★ 修復：第一部分先疊加「系統原始異常紀錄」
+          let rawAbnHtml = buildStoreAbnList(storeAbnDetails);
+          if (rawAbnHtml) {
+              fullAbnHtml += `
+              <div class="mb-3">
+                  <div class="text-danger fw-bold mb-2" style="font-size:0.9rem;">🚨 系統異常紀錄：</div>
+                  <div class="p-2 rounded bg-light border">${rawAbnHtml}</div>
+              </div>`;
+          }
+
+          // ★ 第二部分再疊加「待填寫」與「已填寫」互動區塊
+          if (totalInteractiveAbn > 0) {
+              // 待填寫區塊 (全店)
+              if (storePending.length > 0) {
+                  fullAbnHtml += `
+                  <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
+                      <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
+                          <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${storePending.length} 筆待填</span></strong>
+                          <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'PENDING', '${targetStore}')">⚡ 全店一鍵代填</button>
+                      </div>
+                      ${storePending.map(item => `
+                      <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                          <div>
+                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span> ─ 👤 ${item.name}</div>
+                              <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          </div>
+                          <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
+                              onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'PENDING', '${targetStore}')">📝 代填</button>
+                      </div>`).join('')}
+                  </div>`;
+              }
+              // 已填寫區塊 (全店)
+              if (storeAnswered.length > 0) {
+                  fullAbnHtml += `
+                  <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
+                      <div class="d-flex justify-content-between align-items-center border-bottom border-success pb-1 mb-2">
+                          <div class="fw-bold text-success" style="font-size:0.9rem;">✅ 已填寫 (${storeAnswered.length})</div>
+                          <button class="btn btn-success btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'ANSWERED', '${targetStore}')">✏️ 全店一鍵修改</button>
+                      </div>
+                      ${storeAnswered.map(item => `
+                      <div class="mb-2 p-2 bg-white rounded border shadow-sm">
+                          <div class="d-flex justify-content-between align-items-center mb-1">
+                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span> ─ 👤 ${item.name}</div>
+                              <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                          </div>
+                          <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
+                          <div class="text-end mt-1">
+                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'ANSWERED', '${targetStore}')">✏️ 修改</button>
+                          </div>
+                      </div>`).join('')}
+                  </div>`;
+              }
+          }
+          
+          if (!fullAbnHtml) {
+              fullAbnHtml = '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無異常紀錄</div>';
+          }
 
           let storeZDisplay = storeTotZ_nat > 0 ? `${storeTotZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotZ_nat.toFixed(1)}</small>` : `${storeTotZ_norm.toFixed(1)}`;
           let storeODisplay = storeTotO_nat > 0 ? `${storeTotO_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${storeTotO_nat.toFixed(1)}</small>` : `${storeTotO_norm.toFixed(1)}`;
@@ -3991,9 +4422,13 @@ function showMaintenanceShield(message) {
                           </div>
                       </div>
                       <div class="col-12">
-                          <div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${storeAbnCount>0?'#ffffff':'#f8f9fa'}; border-color: ${storeAbnCount>0?'#dc3545':'#dee2e6'} !important; border-width: ${storeAbnCount>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#${prefixId}-abn">
-                              <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${storeAbnCount>0?'#dc3545':'#6c757d'};">⚠️ 全店異常一覽</div>
-                              <div class="fw-bolder ${storeAbnCount>0?'text-danger':'text-muted'}" style="font-size: 1rem;">${storeAbnCount>0?storeAbnCount+' 筆':'無'} <span class="text-muted" style="font-size: 0.75rem;">▾</span></div>
+                          <div class="p-1 rounded border shadow-sm position-relative d-flex justify-content-between align-items-center" style="cursor: pointer; background: ${displayAbnCount>0?'#fff0f0':'#f8f9fa'}; border-color: ${displayAbnCount>0?'#dc3545':'#dee2e6'} !important; border-width: ${displayAbnCount>0?'2px':'1px'} !important; min-height: 48px;" data-bs-toggle="collapse" data-bs-target="#${prefixId}-abn">
+                              <div class="fw-bold ms-1" style="font-size: 0.85rem; color:${displayAbnCount>0?'#dc3545':'#6c757d'};">⚠️ 全店異常一覽</div>
+                              <div class="d-flex flex-column align-items-end me-3 my-1">
+                                  <div class="fw-bolder ${displayAbnCount>0?'text-danger':'text-muted'}" style="font-size: 1rem; line-height: 1;">${displayAbnCount>0?displayAbnCount+' 筆':'無'}</div>
+                                  ${storePending.length > 0 ? `<span class="text-danger fw-bold mt-1" style="font-size:0.72rem; line-height: 1;">⚠️ 請點我填寫異常說明</span>` : ''}
+                              </div>
+                              <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
                           </div>
                       </div>
                   </div>
@@ -4076,6 +4511,8 @@ function showMaintenanceShield(message) {
              if (res.success) {
                  currentData = res.data || []; 
                  window.currentOtData = res.otData || []; // 📥 接收加班包裹！
+                 // ★★★★ 必須要有這行！店長端才抓得到歷史紀錄！ ★★★★
+                 window.historicalAnomalies = res.anomalyData || [];
                  monthlyTargets = res.targets || {}; 
                  currentParams = res.params || {};
                  document.getElementById('adminDataArea').style.display = 'block';
@@ -4120,6 +4557,73 @@ function showMaintenanceShield(message) {
               });
           }
       };
+      // 獨立引擎：將原始異常字串解析成互動物件 (終極防呆比對版 + 翻譯蒟蒻 + 黃金排版打卡時間)
+      function getAnomalyObjects(pData) {
+          let pending = [], answered = [];
+          const TARGET_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
+          const cleanStr = (s) => String(s || "").replace(/\s+/g, "");
+
+          pData.forEach(r => {
+              if (!r.sys_abnormal) return;
+
+              let currentPkey = String(r.pkey || r.pKey || r.key || "").trim(); 
+              let reasonStr = r.sys_anomaly_reason || r.input_should_end || "";
+              let timeStr = r.sys_anomaly_time || r.input_should_rest || "";
+
+              let reasons = reasonStr.split(',');
+              let times = timeStr.split(',');
+              let safeRName = cleanStr(r.name);
+              
+              // ★ 取得上下班打卡時間
+              let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+              let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+
+              // ★ 智慧打卡時間顯示 (黃金組合)
+              let timeDisplay = "";
+              if (!sysIn && !sysOut) timeDisplay = "上下班皆未打卡";
+              else if (!sysIn) timeDisplay = `未打卡~${sysOut}`;
+              else if (!sysOut) timeDisplay = `${sysIn}~未打卡`;
+              else timeDisplay = `${sysIn}~${sysOut}`;
+
+              // ★ 翻譯蒟蒻 (系統狀態)
+              let sysStatus = String(r.sys_status || "").trim();
+              let transStatus = "上班";
+              if (sysStatus === "月休-國定假日" || sysStatus === "國定假日" || sysStatus === "國") transStatus = "國";
+              else if (sysStatus === "月休-例假日" || sysStatus === "例假日" || sysStatus === "例") transStatus = "例";
+              else if (sysStatus === "月休-休息日" || sysStatus === "休息日" || sysStatus === "月休" || sysStatus === "休") transStatus = "休";
+              else if (sysStatus === "") transStatus = "空班";
+
+              let hLogs = (window.historicalAnomalies || []).filter(h => {
+                  if (h.date !== r.date) return false;
+                  let hPkey = String(h.pkey || h.pKey || h.key || "").trim();
+                  let safeHName = cleanStr(h.name);
+                  return (currentPkey && hPkey === currentPkey) || (safeHName === safeRName);
+              });
+      
+              reasons.forEach((rsn, idx) => {
+                  rsn = rsn.trim();
+                  if (!rsn || !TARGET_KWS.some(kw => rsn.includes(kw))) return;
+                  
+                  let answeredLog = hLogs.find(h => cleanStr(h.reason) === cleanStr(rsn));
+                  
+                  let item = { 
+                      date: r.date, 
+                      shortDate: r.date.split('/').slice(1).join('/'), 
+                      reason: rsn, 
+                      time: times[idx] || '', 
+                      name: r.name,
+                      pkey: currentPkey,
+                      clockText: timeDisplay, // ★ 直接使用黃金組合時間
+                      sysStatus: transStatus, // ★ 帶上翻譯好的狀態
+                      store: r.store 
+                  };
+      
+                  if (answeredLog) answered.push({ ...item, hLog: answeredLog });
+                  else pending.push(item);
+              });
+          });
+          return { pending, answered };
+      }
       function getDiffClass(val, target) { if (val > target) return 'text-danger'; if (val < target) return 'text-primary'; return 'text-success'; }
       function updateRowState(tr) {
         const status = tr.querySelector('.status-select').value; const inputs = tr.querySelectorAll('.time-select, .rest-select'); const hInput = tr.querySelector('.hours-input');
@@ -4147,7 +4651,7 @@ function showMaintenanceShield(message) {
          new bootstrap.Modal(document.getElementById('indivModal')).show();
       }
       // ==========================================
-      // ★ 終極個人班表渲染函式 (100% 原汁原味復刻店長介面)
+      // ★ 終極個人班表渲染函式 (100% 原汁原味復刻店長介面 + 異常回報升級)
       // ==========================================
       function renderPersonalPage(data) {
           try {
@@ -4158,6 +4662,17 @@ function showMaintenanceShield(message) {
               
               const meta = data.meta || {};
               window.currentOtData = data.otData || []; // 📥 接收加班包裹！
+              window.pendingAnomalies = []; // ★ 階段三：每次渲染時清空異常暫存陣列
+              // ★ 補充設定：確保 anomalyReasonList 在渲染時一定存在
+              if (data.anomaly_reasons && data.anomaly_reasons.length > 0) {
+                  window.anomalyReasonList = data.anomaly_reasons;
+                  window.anomalyOtherLabel = data.anomaly_other || "其他";
+              }
+              // ★ 儲存關帳日資訊供 Modal 動態顯示
+              window.personalClosingInfo = { 
+                  nextMonth: (parseInt(meta.month || 1) % 12) + 1, 
+                  closeDay: parseInt(meta.closingDay) || 4 
+              };
               
               let nextMonth = (parseInt(meta.month) % 12) + 1;
               let closeDay = meta.closingDay || 1; 
@@ -4170,7 +4685,7 @@ function showMaintenanceShield(message) {
 
               // ★ 判斷是否為時薪人員 (從員工 API 傳回的資料判斷)
               let isHourly = data.isHourly === true;
-              let isMonthly = !isHourly; // ★ 補回遺失的變數，解救崩潰！
+              let isMonthly = !isHourly; 
               
               // ★ 終極修復：直接讀取後端的 isStoreStaff 標記！若不是門市人員，就是總部人員
               let isHQEmployee = (data.isStoreStaff === false);
@@ -4184,17 +4699,15 @@ function showMaintenanceShield(message) {
               }
 
               // ==========================================
-              // ★ 產生標題與「應有(H)」徽章 (完美移植店長版)
+              // ★ 產生標題與「應有(H)」徽章
               // ==========================================
               let targetH = parseFloat(meta.hrs) || 0;
-              let salaryStr = isHourly ? "時薪制" : "月薪制"; // ★ 直接用全域開關判斷，絕對不會空
+              let salaryStr = isHourly ? "時薪制" : "月薪制"; 
     
               let hBadge = '';
-              // ★ 關鍵微創：加上 isHQEmployee 判斷，即使是透過個人連結進入，總部人員也只會看到「累計應有」
               if (currentUserRole === 'HQ' || isHourly || isHQEmployee) {
                   hBadge = `<span class="badge bg-success shadow-sm align-middle ms-1" style="font-size: 0.85rem;">累計應有: ${hrs.toFixed(1)}</span>`;
               } else {
-                  // 只有店長/督導身分且為月薪制時，才顯示差額提醒
                   if (targetH > 0) {
                       let diff = hrs - targetH;
                       let diffText = Math.abs(diff) < 0.1 ? '剛好' : (diff > 0 ? `+${diff.toFixed(1)}H` : `${diff.toFixed(1)}H`);
@@ -4206,13 +4719,14 @@ function showMaintenanceShield(message) {
 
               let salaryBadge = `<span class="badge bg-dark rounded-pill align-middle ms-2" style="font-size: 0.75rem;">${salaryStr}</span>`;
 
-              // ★ 將文字與徽章組合後，寫入標題
               document.getElementById('personalNameDisplay').innerHTML = `${meta.year}年 ${meta.month}月 - ${data.name} ${salaryBadge} ${hBadge}`;
+              window.personalName = data.name; // ★ 新增：直接在全域鎖定乾淨的姓名，避免後續 DOM 解析出錯導致「無效提交資料」
 
-              // 1. 數據統計引擎與明細收集 (完美移植月統計邏輯)
               let detailWork=[], detailRest=[], detailReg=[], detailNat=[], detailEmpty=[];
               let aaDetails = [], leaveDetails = {}, abnormalDetails = [];
-              // ★ 新增：Z 與 O 的分類抽屜 (個人版)
+              let pendingCatList = [], answeredCatList = []; // ★ 分類：待填 / 已填
+              window.pendingCatList = pendingCatList;   // ★ 共享引用，Modal 可存取
+              window.answeredCatList = answeredCatList; // ★ 共享引用，Modal 可存取
               let zGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let oGroups = { '平日': { norm: 0, nat: 0, items: [] }, '休息日': { norm: 0, nat: 0, items: [] }, '國定假日': { norm: 0, nat: 0, items: [] }, '其他': { norm: 0, nat: 0, items: [] } };
               let supportOutGroups = {};
@@ -4229,7 +4743,6 @@ function showMaintenanceShield(message) {
 
               if (data.data) {
                   data.data.forEach(r => { 
-                      // 日期解析
                       let shortDate = r.date;
                       if (r.date && r.date.includes('/')) {
                           let parts = r.date.split('/');
@@ -4252,10 +4765,8 @@ function showMaintenanceShield(message) {
                       let leaveHrs = parseFloat(r.sys_leaveHrs) || 0;
 
                       totalAA += aa; 
-
                       if (s === '空班') empty++;
 
-                      // ★ 精細計算時段
                       let sF = getStartFloat(sVal);
                       let eF = getStartFloat(eVal);
                       if (eF < sF) eF += 24;
@@ -4281,11 +4792,10 @@ function showMaintenanceShield(message) {
                               let aaRest = (h === 0 && z === 0) ? restVal : 0; 
                               let endT = currTime + aa + aaRest; 
                               let rTag = aaRest > 0 ? ` 休${aaRest}` : "";
-                              strAA = ""; // ★ 拔除時段字串
+                              strAA = ""; 
                           }
                       }
 
-                      // 狀態明細
                       if (s === '上班') {
                           if (h > 0) detailWork.push(`🗓️ ${shortDate} ${strH} 共${h.toFixed(1)}H`);
                           else detailWork.push(`🗓️ ${shortDate}`); 
@@ -4305,7 +4815,6 @@ function showMaintenanceShield(message) {
 
                       if (aa > 0) aaDetails.push(`🗓️ ${shortDate} ${strAA} 共${aa.toFixed(1)}H`); 
 
-                      // ★ 改版：Z 預計加班分類投遞 (個人版)
                       if (z > 0) {
                           let natZ = 0, normZ = z;
                           if (!isHourly && s === '國') { natZ = Math.min(z, 8); normZ = Math.max(0, z - 8); }
@@ -4316,7 +4825,6 @@ function showMaintenanceShield(message) {
                           zGroups[stName].items.push(`🗓️ ${shortDate} ${strZ} 共${z.toFixed(1)}H`);
                       }
 
-                      // 請假明細
                       if (sysLeave !== "" && sysLeaveType !== "") {
                           if (!leaveDetails[sysLeaveType]) leaveDetails[sysLeaveType] = [];
                           let lHrsStr = leaveHrs > 0 ? `共${leaveHrs.toFixed(1)}H` : "";
@@ -4324,7 +4832,6 @@ function showMaintenanceShield(message) {
                           totalLeaveHrs += leaveHrs;
                       }
 
-                      // 跨店支援明細 (解析字串)
                       if (r.support_str) {
                           let groups = String(r.support_str).split('|');
                           groups.forEach(g => {
@@ -4348,20 +4855,74 @@ function showMaintenanceShield(message) {
                           });
                       }
 
-                      // 異常明細
                       if (sysAbnormal !== "") {
-                          abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                          // ★ 建立三種需填說明的分類清單
+                          const TARGET_ANOMALY_KWS = ['提前打卡異常', '延後打卡異常', '非工作日打卡'];
+                          let rReasons = (r.sys_anomaly_reason || "").split(',');
+                          let rTimes = (r.sys_anomaly_time || "").split(',');
+                          
+                          let currentPkey = r.pkey || r.pKey || window.personalUserKey || ""; 
+                          let rHLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && (!h.pkey || h.pkey === currentPkey));
+                      
+                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+
+                          // ★ 翻譯蒟蒻 (系統狀態)
+                          let transStatus = "上班";
+                          if (sysStatus === "月休-國定假日" || sysStatus === "國定假日" || sysStatus === "國") transStatus = "國";
+                          else if (sysStatus === "月休-例假日" || sysStatus === "例假日" || sysStatus === "例") transStatus = "例";
+                          else if (sysStatus === "月休-休息日" || sysStatus === "休息日" || sysStatus === "月休" || sysStatus === "休") transStatus = "休";
+                          else if (sysStatus === "") transStatus = "空班";
+
+                          // ★ 智慧打卡時間顯示
+                          let timeDisplay = "";
+                          if (!sysInLocal && !sysOutLocal) timeDisplay = "上下班皆未打卡";
+                          else if (!sysInLocal) timeDisplay = `未打卡~${sysOutLocal}`;
+                          else if (!sysOutLocal) timeDisplay = `${sysInLocal}~未打卡`;
+                          else timeDisplay = `${sysInLocal}~${sysOutLocal}`;
+
+                          rReasons.forEach((rsn, ridx) => {
+                              rsn = rsn.trim();
+                              if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
+                              let tPeriod = (rTimes[ridx] || "").trim();
+                              let answered = rHLogs.find(h => h.reason === rsn);
+                          
+                              // ★ 將翻譯狀態與時間存入物件中
+                              let itemObj = { 
+                                  date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, 
+                                  name: data.name, pkey: currentPkey, clockText: timeDisplay, sysStatus: transStatus 
+                              };
+
+                              if (answered) {
+                              answeredCatList.push({ ...itemObj, hLog: answered });
+                              } else {
+                                  pendingCatList.push(itemObj);
+                              }
+                          });
+
+                          // ==========================================
+                          // ★ 智慧異常消除：如果歷史紀錄 (rHLogs) 有這筆事由，就從畫面上消除它！
+                          // ==========================================
+                          if (rHLogs.length > 0) {
+                              let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                              abnParts = abnParts.filter(part => !rHLogs.some(ans => part.includes(ans.reason)));
+                              sysAbnormal = abnParts.join(' / ');
+                          }
+
+                          if (sysAbnormal !== "") {
+                              // ★ 系統異常套用黃金排版
+                              abnormalDetails.push(
+                                  `<div class="mb-2">` +
+                                  `<div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${shortDate} <span class="text-muted" style="font-size:0.75rem;">(${transStatus})</span> <span class="text-primary ms-1">🕒 ${timeDisplay}</span></div>` +
+                                  `<div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${sysAbnormal}</div>` +
+                                  `</div>`
+                              );
+                          }
                       }
                   });
               }
 
-              // ==========================================
-              // ★ 2. 上方微型網格 (移植自最新版月統計)
-              // ==========================================
-              
-              // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
               let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
-              // ★ 呼叫大腦！傳入個人專屬的 meta 年月
               let tYear = String(meta.year);
               let tMonth = String(meta.month);
               let otResult = analyzeOtData(data.name, isHourly, tYear, tMonth);
@@ -4381,16 +4942,14 @@ function showMaintenanceShield(message) {
                   }
               }
 
-              let cardId = `pCard`; // 個人版專用 ID
+              let cardId = `pCard`; 
 
-              // ★ 產生個人版的 Z 與 O 分類明細 HTML (上下合併)
               const buildGroupHtml = (groups, color) => {
                   let html = "";
                   const order = ['平日', '休息日', '國定假日', '其他'];
                   order.forEach(k => {
                       if(groups[k] && groups[k].items.length > 0) {
                           let g = groups[k];
-                          // 智慧判斷當前環境的薪資變數
                           let isHrly = typeof isHourly !== 'undefined' ? isHourly : !isMonthly;
                           let dTotal = isHrly ? (g.norm + g.nat).toFixed(1) + "H" : (k === '國定假日' ? `${g.norm.toFixed(1)}+${g.nat.toFixed(1)}` : (g.norm + g.nat).toFixed(1) + "H");
                           html += `<div class="mt-1 fw-bold" style="color:${color}; font-size: 0.85rem;">🔹 ${k} ${dTotal}</div>`;
@@ -4403,7 +4962,6 @@ function showMaintenanceShield(message) {
               
               let overtimeCardHtml = '';
               if (zHtml || otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') {
-                  // ★ 統一將預計加班的主標題放大為 0.95rem，並加入包覆的 div
                   if (zHtml) overtimeCardHtml += `<div class="mb-2"><strong style="color:#997404; font-size: 0.95rem;">⏳ 預計加班</strong><br>${zHtml}</div>`;
                   if (zHtml && otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `<hr style="margin: 6px 0; border-color: #dee2e6;">`;
                   if (otResult.cardHtml !== '<span class="text-black-50 opacity-75">無加班紀錄</span>') overtimeCardHtml += `${otResult.cardHtml}`;
@@ -4465,15 +5023,18 @@ function showMaintenanceShield(message) {
                       </div>
 
                       <div class="col-12 col-md">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-abnormal">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${pendingCatList.length > 0 ? '#fff0f0' : (abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa')}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#${cardId}-abnormal">
                               <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
-                              <div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2">
+                              <div class="d-flex flex-column justify-content-center align-items-center h-100 gap-1">
                                   <span class="fw-bold" style="color:${abnormalDetails.length > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
                                   <span class="fw-bold ${abnormalDetails.length > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalDetails.length > 0 ? abnormalDetails.length + ' 筆' : '無'}</span>
+                                  ${pendingCatList.length > 0 ? `<span class="text-danger fw-bold" style="font-size:0.72rem;">⚠️ 請點我填寫異常說明</span>` : ''}
                               </div>
                           </div>
                       </div>
                   </div>
+
+                  
 
                   <div class="collapse" id="${cardId}-status">
                       <div class="p-2 bg-white rounded text-muted small border-start border-3 border-secondary mb-1 shadow-sm" style="line-height:1.5; font-size: 0.8rem;">
@@ -4511,9 +5072,42 @@ function showMaintenanceShield(message) {
                   </div>
 
                   <div class="collapse" id="${cardId}-abnormal">
-                      <div class="p-2 rounded small border-start border-4 mb-1 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
-                          ${abnormalDetails.length > 0 ? `<strong class="text-danger">異常:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
-                      </div>
+                      ${abnormalDetails.length > 0 ? `
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">
+                          <div class="fw-bold text-danger border-bottom border-danger pb-1 mb-2" style="font-size:0.9rem;">🚨 系統異常紀錄</div>
+                          ${abnormalDetails.join('<hr class="my-2 border-danger opacity-25">')}
+                      </div>` : ''}
+
+                      ${pendingCatList.length > 0 ? `
+                      <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
+                          <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
+                              <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${pendingCatList.length} 筆待填</span></strong>
+                              <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal()">⚡ 一鍵填寫</button>
+                          </div>
+                          ${pendingCatList.map(item => `
+                          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                              <div>
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason}${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              </div>
+                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
+                                  onclick="openAnomalyModal('${item.date}','${item.reason}')">📝 填寫</button>
+                          </div>`).join('')}
+                      </div>` : `<div class="p-2 text-center text-success fw-bold small mb-2 rounded border border-success" style="background:#f0fbfd;">✅ 所有異常說明均已處理完畢</div>`}
+
+                      ${answeredCatList.length > 0 ? `
+                      <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
+                          <div class="fw-bold text-success border-bottom border-success pb-1 mb-2" style="font-size:0.9rem;">✅ 已填寫說明 (${answeredCatList.length} 筆)</div>
+                          ${answeredCatList.map(item => `
+                          <div class="mb-2 p-2 bg-white rounded border shadow-sm">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                              </div>
+                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
+                          </div>`).join('')}
+                      </div>` : ''}
                   </div>
               </div>`;
               
@@ -4523,7 +5117,7 @@ function showMaintenanceShield(message) {
               if(pTable) pTable.classList.remove('mobile-card-mode');
               
               // ==========================================
-              // ★ 3. 雙向凍結表頭 (移除最右側註記欄位)
+              // ★ 3. 雙向凍結表頭
               // ==========================================
               const thStyleLeftCorner = "position: sticky; top: 0; left: 0; z-index: 30; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2, 2px 0 4px rgba(0,0,0,0.1); border: none;";
               const thStyleLeft = "position: sticky; top: 0; z-index: 20; background-color: #0d6efd; color: white; font-size: 0.8rem; white-space: nowrap; padding: 8px 4px; box-shadow: inset -1px -1px 0 #5a9cf2; border: none;";
@@ -4585,7 +5179,7 @@ function showMaintenanceShield(message) {
                           strH = `${ft(currTime)}-${ft(endT)}${restTag}`; 
                           currTime = endT; 
                       }
-                      // 2. 加班時段分配 (若非上班且有Z，休息加在這)
+                      // 2. 加班時段分配 
                       if (zVal > 0) { 
                           let zRest = (hVal === 0) ? restVal : 0; 
                           let endT = currTime + zVal + zRest; 
@@ -4593,7 +5187,7 @@ function showMaintenanceShield(message) {
                           strZ = `${ft(currTime)}-${ft(endT)}${restTag}`; 
                           currTime = endT; 
                       }
-                      // 3. 超時時段分配 (若非上班沒Z但有AA，休息加在這)
+                      // 3. 超時時段分配 
                       if (aaVal > 0) { 
                           let aaRest = (hVal === 0 && zVal === 0) ? restVal : 0; 
                           let endT = currTime + aaVal + aaRest; 
@@ -4602,7 +5196,6 @@ function showMaintenanceShield(message) {
                       }
                   }
 
-                  // 解析 AE 欄並轉成店長格式 (確保不同店會換行，同店不換行)
                   let supStrs = [];
                   if (r.support_str) {
                       let groups = String(r.support_str).split('|');
@@ -4621,18 +5214,15 @@ function showMaintenanceShield(message) {
                                   let hr = en - st - restTime;
                                   if (hr > 0) hrsVal = hr.toFixed(1) + "H";
                               }
-                              // 組裝成「忠孝旗艦店 8-22(13.0H)」格式，並包裝防止截斷
                               supStrs.push(`<span style="display:inline-block; white-space:nowrap;">${store} ${timeRange.replace('~','-')}(${hrsVal})</span>`);
                           }
                       });
                   }
-                  // 有兩間店以上時，中間會插入 <br> 換行
                   let supStr = supStrs.length > 0 ? supStrs.join('<br>') : "-";
 
                   let sysIn = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : ""; 
                   let sysOut = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
                   
-                  // ★ 戰區每日明細：極速無損字串比對法
                   let rDateParts = String(r.date).split('/');
                   let rShortDate = rDateParts.length >= 3 ? `${parseInt(rDateParts[1])}/${parseInt(rDateParts[2])}` : r.date;
                   
@@ -4640,7 +5230,6 @@ function showMaintenanceShield(message) {
                       let oDateParts = String(o.date).split('/');
                       let oShortDate = oDateParts.length >= 3 ? `${parseInt(oDateParts[1])}/${parseInt(oDateParts[2])}` : 
                                        (oDateParts.length === 2 ? `${parseInt(oDateParts[0])}/${parseInt(oDateParts[1])}` : o.date);
-                      // ★ 致命錯誤修復：個人班表的迴圈變數 r 沒有 name 屬性！必須使用外層的 data.name 來比對！
                       return String(o.name).replace(/\s+/g, '') === String(data.name).replace(/\s+/g, '') && 
                              oShortDate === rShortDate && 
                              o.status === '已核准';
@@ -4657,7 +5246,6 @@ function showMaintenanceShield(message) {
                   const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
                   const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
 
-                  // 右側的「異常」已移除右邊線，代表它是最後一個欄位
                   tbody.innerHTML += `
                       <tr>
                           <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
@@ -4675,7 +5263,10 @@ function showMaintenanceShield(message) {
                           <td style="${tdRight}">${r.sys_leaveType||""}</td>
                           <td style="${tdRight}">${sysOtRange}</td>
                           <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
-                          <td class="text-danger fw-bold" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.sys_abnormal || ""}</td>
+                          
+                          <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 140px; padding: 6px;">
+                              <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
+                          </td>
                       </tr>
                   `;
               });
@@ -4742,12 +5333,318 @@ function showMaintenanceShield(message) {
                   if (dummy && table) {
                       dummy.style.width = table.scrollWidth + 'px'; 
                   }
+                  
+                  // ★★★ 在所有表格與網格繪製完畢後，執行最後的同步更新 ★★★
+                  // 這一步會將 pendingAnomalies 中收集到的異常數量，更新到上方微型網格的「異常」標籤中！
+                  const anomalyBadge = document.querySelector(`#${cardId}-abnormal`).previousElementSibling.querySelector('.text-danger.fw-bold');
+                  if (anomalyBadge && window.pendingAnomalies && window.pendingAnomalies.length > 0) {
+                       anomalyBadge.innerText = `${window.pendingAnomalies.length} 筆`;
+                  }
+                  
               }, 150); 
 
           } catch(e) {
               alert("渲染錯誤: " + e.message);
           }
       }
+
+      // ==========================================
+      // ★ 階段三-2：Modal 引擎與關鍵字攔截網 (支援模式切換終極版)
+      // ==========================================
+      // 加入第 6 個參數 targetStore
+      window.openAnomalyModal = function(targetDate = null, targetReason = null, targetName = null, targetPkey = null, mode = 'PENDING', targetStore = null) {
+          
+          // ★ 終極修復：只要是管理端 (記憶體有 currentData)，開啟視窗瞬間即時重算「全區」異常！
+          // 這樣就完全不依賴畫面切換時的函數，確保「全區總覽」也能精準抓到所有門市的資料。
+          if (typeof currentData !== 'undefined' && currentData.length > 0) {
+              let globalAnomalies = getAnomalyObjects(currentData);
+              window.pendingCatList = globalAnomalies.pending;
+              window.answeredCatList = globalAnomalies.answered;
+          }
+
+          let catList = [];
+          let isSingle = (targetDate !== null && targetDate !== undefined && targetDate !== '');
+
+          // 核心分流邏輯
+          if (isSingle) {
+              catList = [...(window.pendingCatList || []), ...(window.answeredCatList || [])];
+          } else {
+              if (mode === 'PENDING') {
+                  catList = window.pendingCatList || [];
+              } else if (mode === 'ANSWERED') {
+                  catList = window.answeredCatList || [];
+              }
+          }
+
+          // ★ 升級防呆：如果是點擊「全店一鍵代填」，過濾出該門市的所有人
+          if (targetStore) {
+              catList = catList.filter(i => i.store === targetStore);
+          }
+
+          // 如果有傳入單一員工，再進一步過濾
+          if (targetPkey) {
+              catList = catList.filter(i => i.pkey === targetPkey);
+          } else if (targetName) {
+              catList = catList.filter(i => i.name === targetName);
+          }
+
+          if (catList.length === 0) {
+              Swal.fire('提示', '目前沒有需要處理的異常項目', 'info');
+              return;
+          }
+
+          // ★ 動態帶入關帳日 (相容店長端與員工端)
+          let nextM, closeD;
+          if (typeof currentParams !== 'undefined' && currentParams['target_month']) {
+              // 店長端：從全域 currentParams 抓取
+              nextM = (parseInt(currentParams['target_month']) % 12) + 1;
+              closeD = currentParams['closing_day'] || 4;
+          } else {
+              // 員工端：從 personalClosingInfo 抓取
+              let ci = window.personalClosingInfo || {};
+              nextM = ci.nextMonth || ((new Date().getMonth() + 1) % 12) + 1;
+              closeD = ci.closeDay || 4;
+          }
+          let deadlineStr = `${nextM}月${closeD}日`;
+
+          // ★ 動態變更 Modal 標題 (讓店長清楚現在是在填寫還是修改)
+          let modalTitleEl = document.querySelector('#anomalyReportModal .modal-title');
+          if (modalTitleEl) {
+              if (isSingle) {
+                  modalTitleEl.innerHTML = '⚠️ 填寫 / 修改異常說明';
+              } else {
+                  modalTitleEl.innerHTML = mode === 'ANSWERED' ? '⚠️ 一鍵修改已填寫說明' : '⚠️ 一鍵填寫異常說明';
+              }
+          }
+
+          document.getElementById('anomalyModalDeadlineTitle').innerHTML = `📌 請於 <span class="text-danger fw-bold">${deadlineStr}前</span>確認完畢`;
+          document.getElementById('anomalyModalOtMsg').innerHTML = `⚡ 若因公務加班,請於 <span class="text-danger fw-bold">${deadlineStr}前</span>申請加班單並簽核完畢`;
+          document.getElementById('anomalyModalWarnBox').innerHTML = `⚠️ 逾期未處理系統即視為「<span class="text-danger fw-bold">私人因素停留公司</span>」`;
+
+          let infoEl = document.getElementById('anomalyCurrentItemInfo');
+          let listEl = document.getElementById('anomalyChecklistArea');
+          
+          // 處理資訊顯示區
+          if (isSingle) {
+              let item = catList.find(i => i.date === targetDate && i.reason === targetReason);
+              infoEl.style.display = 'block';
+              listEl.style.display = 'none';
+              if (item) {
+                  let displayName = item.name || window.personalName;
+                  infoEl.innerHTML = `
+                    <div class="p-2 mb-3 border rounded text-center bg-white shadow-sm" style="border: 1px solid #0d6efd;">
+                        <div class="fw-bold" style="color: #0d6efd; font-size: 0.95rem;">正在設定：${displayName} (${item.date})</div>
+                        <div class="text-danger fw-bold mt-1" style="font-size: 0.9rem;">${item.reason} ${item.time ? `(${item.time})` : ''}</div>
+                    </div>`;
+              }
+          } else {
+              infoEl.style.display = 'none';
+              listEl.style.display = 'block';
+          }
+
+          // 產生勾選清單
+          listEl.innerHTML = '';
+          catList.forEach(item => {
+              let isChecked = isSingle ? (item.date === targetDate && item.reason === targetReason) : true;
+              let displayName = item.name || window.personalName;
+              
+              listEl.innerHTML += `
+                  <label class="d-flex align-items-start p-2 mb-2 border rounded bg-white shadow-sm" style="cursor:pointer; border-color:${isChecked ? '#dc3545' : '#dee2e6'} !important; ${isSingle ? 'display:none;' : ''}">
+                      <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1 border-danger" style="transform:scale(1.3); cursor:pointer;"
+                             value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" data-name="${displayName}" data-pkey="${item.pkey || ''}" ${isChecked ? 'checked' : ''}>
+                      <div>
+                          <div class="fw-bold text-danger" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${displayName}</div>
+                          <div class="fw-bold text-dark mt-1" style="font-size:0.85rem;">${item.reason}</div>
+                          ${item.time ? `<div class="text-muted fw-bold" style="font-size:0.78rem;">⏰ ${item.time}</div>` : ''}
+                          ${item.hLog ? `<div class="text-success mt-1" style="font-size:0.75rem;">(原答覆: ${item.hLog.explanation})</div>` : ''}
+                      </div>
+                  </label>`;
+          });
+
+          // 發生原因預設選項
+          let select = document.getElementById('anomalyReasonSelect');
+          select.innerHTML = '';
+          let hasDefault = false;
+          
+          // ★ 修正 1：相容店長端 (currentParams) 與 員工端 (window.anomalyReasonList)
+          let reasonList = window.anomalyReasonList || (currentParams && currentParams['anomaly_reasons']) || [];
+          let otherLabel = window.anomalyOtherLabel || (currentParams && currentParams['anomaly_other']) || "其他";
+
+          if (reasonList && reasonList.length > 0) {
+              reasonList.forEach(opt => {
+                  let isDef = (opt.includes('私事逗留') || opt.includes('私事停留')) ? 'selected' : '';
+                  if (isDef) hasDefault = true;
+                  select.innerHTML += `<option value="${opt}" ${isDef}>${opt}</option>`;
+              });
+          }
+          if (!hasDefault) { 
+              select.innerHTML = `<option value="私事逗留" selected>私事逗留</option>` + select.innerHTML; 
+          }
+          if (otherLabel) { 
+              select.innerHTML += `<option value="OTHER">${otherLabel}</option>`; 
+          }
+
+          document.getElementById('anomalyOtherInput').value = '';
+          document.getElementById('anomalyOtherGroup').style.display = 'none';
+          new bootstrap.Modal(document.getElementById('anomalyReportModal')).show();
+      };
+
+      // 切換「其他」文字框
+      window.toggleAnomalyOtherInput = function() {
+          const val = document.getElementById('anomalyReasonSelect').value;
+          document.getElementById('anomalyOtherGroup').style.display = (val === 'OTHER') ? 'block' : 'none';
+      };
+
+      // 執行存檔與防呆攔截
+      window.saveAnomalyData = function() {
+          const reasonVal = document.getElementById('anomalyReasonSelect').value;
+          let explanation = "";
+    
+          const checkedBoxes = document.querySelectorAll('.anomaly-cat-cb:checked');
+          if (checkedBoxes.length === 0) { Swal.fire('提示', '請至少勾選一筆要回報的異常日期', 'warning'); return; }
+          if (!reasonVal) { Swal.fire('提示', '請選擇發生原因', 'warning'); return; }
+    
+          if (reasonVal === 'OTHER') {
+              let rawExplanation = document.getElementById('anomalyOtherInput').value.trim();
+              if (!rawExplanation) { Swal.fire('提示', '請確實填寫原因說明', 'warning'); return; }
+              const blockKws = ['加班', '客人', '打掃', '公事'];
+              if (blockKws.some(kw => rawExplanation.includes(kw))) {
+                  Swal.fire({ icon:'warning', title:'⚠️ 說明內容包含關鍵字',
+                      html:'您的說明中包含「加班/公事/客人/打掃」等字眼。<br>若是公務，請改選【公事-已申請加班】並記得補送加班單！',
+                      confirmButtonText:'我知道了', confirmButtonColor:'#dc3545' });
+                  return;
+              }
+              // ★ 核心優化：防呆過關後，自動在字首補上「私事其他-」
+              explanation = "私事其他-" + rawExplanation;
+          }
+          
+          // ★ 智慧判斷操作者身分 (解決需求3與需求4)
+          let isPersonalMode = document.getElementById('personalSection') && document.getElementById('personalSection').style.display === 'block';
+          let reporterIdentity = '員工本人';
+          
+          if (!isPersonalMode) {
+              if (typeof currentUserRole !== 'undefined' && (currentUserRole === 'HQ' || currentUserRole === 'ADMIN')) {
+                  let adminName = sessionStorage.getItem('tkk_store') || currentStore || '督導';
+                  reporterIdentity = adminName + '代填'; // 變成 "北區督導代填"
+              } else {
+                  reporterIdentity = '店長代填';
+              }
+          }
+
+          let records = []; 
+          let realName = window.personalName || ""; 
+
+          checkedBoxes.forEach(cb => {
+              let cbPkey = cb.getAttribute('data-pkey') || "";
+              
+              records.push({
+                  date: cb.value,
+                  name: cb.getAttribute('data-name') || realName,
+                  pkey: cbPkey, // ★ 傳送小寫，相容新版後端
+                  pKey: cbPkey, // ★ 傳送大寫，相容舊版後端！(雙重保險，確保後端絕對抓得到)
+                  reason: cb.getAttribute('data-reason'), 
+                  timePeriod: cb.getAttribute('data-time') || '',
+                  explanation: reasonVal === 'OTHER' ? explanation : reasonVal, 
+                  reporter: reporterIdentity // ★ 動態寫入身分
+              });
+          });
+          
+          const btn = document.getElementById('submitAnomalyBtn');
+          btn.disabled = true; btn.innerHTML = '傳送中...';
+          
+          let userKey = window.personalUserKey || (typeof currentStore !== 'undefined' ? currentStore : 'ADMIN');
+
+          callApi('saveAnomaly', { u: userKey, records: records }).then(res => {
+              btn.disabled = false; btn.innerHTML = '📤 確定送出';
+              if (res.success) {
+                  Swal.fire({ icon:'success', title:'回報成功', text:'異常說明已成功更新！', timer:1500, showConfirmButton:false })
+                  .then(() => {
+                      // 1. 安全關閉 Modal 防崩潰
+                      let modalEl = document.getElementById('anomalyReportModal');
+                      let mInst = bootstrap.Modal.getInstance(modalEl);
+                      if (mInst) { mInst.hide(); } else { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); }
+                      
+                      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                      document.body.classList.remove('modal-open');
+                      document.body.style = '';
+
+                      // 2. 依據身分執行無感重整
+                      if (isPersonalMode && typeof window.loadPersonalData === 'function') {
+                          window.loadPersonalData(window.personalPwd);
+                      } else {
+                          // ★ 核心修復：動態偵測畫面上到底載入了哪些門市，組合後發給 API，絕對不會抓空！
+                          let loadedStores = [];
+                          if (typeof currentData !== 'undefined' && currentData.length > 0) {
+                              loadedStores = [...new Set(currentData.map(r => r.store))].filter(s => s);
+                          }
+                          let apiStoreParam = loadedStores.length > 0 ? loadedStores.join(',') : (typeof currentStore !== 'undefined' ? currentStore : 'ALL');
+
+                          showLoading(true, "資料同步中...");
+                          callApi('getStoreData', { 
+                              store: apiStoreParam, 
+                              monthMode: typeof currentMonthMode !== 'undefined' ? currentMonthMode : 'current' 
+                          }).then(res => {
+                              showLoading(false);
+                              if (res.success) {
+                                  // 更新全域記憶體
+                                  currentData = res.data || [];
+                                  window.currentOtData = res.otData || [];
+                                  window.historicalAnomalies = res.anomalyData || []; 
+                                  
+                                  // ★ 即時更新全域異常清單
+                                  if (typeof getAnomalyObjects === 'function') {
+                                      let globalAnomalies = getAnomalyObjects(currentData);
+                                      window.pendingCatList = globalAnomalies.pending;
+                                      window.answeredCatList = globalAnomalies.answered;
+                                  }
+
+                                  // 重繪底層主班表
+                                  if (typeof renderTable === 'function') renderTable();
+                                  
+                                  // ==========================================
+                                  // ★ 魔法重繪：掃描畫面上所有的「單店卡片」，原地無縫替換！
+                                  // ==========================================
+                                  if (typeof generateSingleStoreDashboard === 'function') {
+                                      document.querySelectorAll('h6').forEach(h6 => {
+                                          if (h6.innerText.includes('🏢')) {
+                                              let stName = h6.innerText.replace('🏢', '').trim();
+                                              let cardEl = h6.closest('.card');
+                                              if (cardEl && cardEl.id) {
+                                                  // 瞬間產生最新卡片 HTML 並覆蓋舊卡片 (畫面不閃爍)
+                                                  cardEl.outerHTML = generateSingleStoreDashboard(stName, cardEl.id);
+                                              }
+                                          }
+                                      });
+                                  }
+
+                                  // 針對「單店月統計(含個人卡片)」內部的重繪
+                                  if (typeof generateMonthlyReportHTML === 'function') {
+                                      let selectEl = document.querySelector('select[onchange="filterMonthlyReport(this.value)"]');
+                                      if (selectEl) {
+                                          let targetContainer = selectEl.closest('.modal-body') || selectEl.parentElement.parentElement;
+                                          if (targetContainer) {
+                                              targetContainer.innerHTML = generateMonthlyReportHTML();
+                                          }
+                                      }
+                                  }
+
+                                  // ==========================================
+                                  // ★ 魔法重繪：系統狀態 (單人明細頁面)
+                                  // ==========================================
+                                  if (typeof renderIndividualTable === 'function') {
+                                      let indivSelect = document.getElementById('indivSelect');
+                                      // 如果該下拉選單存在，且目前有選中員工，就觸發瞬間重繪
+                                      if (indivSelect && indivSelect.value !== "") {
+                                          renderIndividualTable();
+                                      }
+                                  }
+                              }
+                          }).catch(() => showLoading(false));
+                      }
+                  });
+              } else { Swal.fire('錯誤', res.message, 'error'); }
+          }).catch(err => { btn.disabled = false; btn.innerHTML = '📤 確定送出'; errorHandler(err); });
+      };
       // ==========================================
       // ★ 終極系統狀態表 (修復：絕對釘選 + 解決破圖蓋字 + 雙捲軸)
       // ==========================================
@@ -4770,6 +5667,13 @@ function showMaintenanceShield(message) {
           
           // ★ 判斷是否為時薪人員
           let isHourly = pData.length > 0 && pData[0].salaryType && String(pData[0].salaryType).includes("時薪");
+          
+          // ==========================================
+          // ★ 完美移植：取得該員工專屬的異常分類清單
+          // ==========================================
+          let { pending: sPending, answered: sAnswered } = getAnomalyObjects(pData);
+          window.pendingCatList = sPending;   // 餵給 Modal 的待填資料
+          window.answeredCatList = sAnswered; // 餵給 Modal 的已填資料
 
           pData.forEach(r => {
               let s = r.input_status || "";
@@ -4842,10 +5746,43 @@ function showMaintenanceShield(message) {
                       let parts = r.date.split('/');
                       if (parts.length >= 3) shortDate = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
                   }
-                  abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                  
+                  // ★ 智慧異常消除：比對最上方已經算好的 sAnswered
+                  let myAns = sAnswered.filter(a => a.date === r.date);
+                  if (myAns.length > 0) {
+                      let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                      abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
+                      sysAbnormal = abnParts.join(' / ');
+                  }
+                  
+                  if (sysAbnormal !== "") {
+                      // ★ 取得打卡時間與翻譯蒟蒻
+                      let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                      let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+                      
+                      let sysStatusTrim = String(r.sys_status || "").trim();
+                      let transStatus = "上班";
+                      if (sysStatusTrim === "月休-國定假日" || sysStatusTrim === "國定假日" || sysStatusTrim === "國") transStatus = "國";
+                      else if (sysStatusTrim === "月休-例假日" || sysStatusTrim === "例假日" || sysStatusTrim === "例") transStatus = "例";
+                      else if (sysStatusTrim === "月休-休息日" || sysStatusTrim === "休息日" || sysStatusTrim === "月休" || sysStatusTrim === "休") transStatus = "休";
+                      else if (sysStatusTrim === "空班" || sysStatusTrim === "") transStatus = "空班";
+
+                      let timeDisplay = "";
+                      if (!sysInLocal && !sysOutLocal) timeDisplay = "上下班皆未打卡";
+                      else if (!sysInLocal) timeDisplay = `未打卡~${sysOutLocal}`;
+                      else if (!sysOutLocal) timeDisplay = `${sysInLocal}~未打卡`;
+                      else timeDisplay = `${sysInLocal}~${sysOutLocal}`;
+
+                      // ★ 套用黃金排版
+                      abnormalDetails.push(
+                          `<div class="mb-1 ps-2">` +
+                          `<div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${shortDate} <span class="text-muted" style="font-size:0.75rem;">(${transStatus})</span> <span class="text-primary ms-1">🕒 ${timeDisplay}</span></div>` +
+                          `<div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${sysAbnormal}</div>` +
+                          `</div>`
+                      );
+                  }
               }
           });
-
           // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
           let zDisplay = isHourly ? `${totalZ_norm.toFixed(1)}` : (totalZ_nat > 0 ? `${totalZ_norm.toFixed(1)}<small class="text-muted fw-normal">+${totalZ_nat.toFixed(1)}</small>` : `${totalZ_norm.toFixed(1)}`);
           
@@ -4964,20 +5901,62 @@ function showMaintenanceShield(message) {
                       </div>
 
                       <div class="col-12 col-md">
-                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa'}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#indiv-abnormal">
+                          <div class="p-1 rounded h-100 d-flex flex-column justify-content-center border shadow-sm position-relative" style="cursor: pointer; background-color: ${sPending.length > 0 ? '#fff0f0' : (abnormalDetails.length > 0 ? '#ffffff' : '#f8f9fa')}; border-color: ${abnormalDetails.length > 0 ? '#dc3545' : '#dee2e6'} !important; border-width: ${abnormalDetails.length > 0 ? '2px' : '1px'} !important;" data-bs-toggle="collapse" data-bs-target="#indiv-abnormal">
                               <div class="position-absolute top-0 end-0 pe-2 pt-1 text-muted" style="font-size: 0.75rem;">▾</div>
-                              <div class="d-flex flex-row justify-content-center align-items-center h-100 gap-2">
+                              <div class="d-flex flex-column justify-content-center align-items-center h-100 gap-1 mt-1">
                                   <span class="fw-bold" style="color:${abnormalDetails.length > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
                                   <span class="fw-bold ${abnormalDetails.length > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${abnormalDetails.length > 0 ? abnormalDetails.length + ' 筆' : '無'}</span>
+                                  ${sPending.length > 0 ? `<span class="text-danger fw-bold" style="font-size:0.72rem;">⚠️ 請點我填寫異常說明</span>` : ''}
                               </div>
                           </div>
                       </div>
                   </div>
                   
                   <div class="collapse" id="indiv-abnormal">
-                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.85rem;">
-                          ${abnormalDetails.length > 0 ? `<strong class="text-danger">異常明細:</strong><br>${abnormalDetails.join('<br>')}` : '<span class="text-black-50 opacity-75">無異常紀錄</span>'}
-                      </div>
+                      ${abnormalDetails.length > 0 ? `
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">
+                          <div class="fw-bold text-danger border-bottom border-danger pb-1 mb-2" style="font-size:0.9rem;">🚨 系統異常紀錄</div>
+                          ${abnormalDetails.join('<hr class="my-2 border-danger opacity-25">')}
+                      </div>` : ''}
+
+                      ${sPending.length > 0 ? `
+                      <div class="p-2 rounded border-start border-4 mb-2 shadow-sm text-start" style="background-color: #fff5f5; border-color: #dc3545 !important;">
+                          <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
+                              <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${sPending.length} 筆待填</span></strong>
+                              <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${userKey}', 'PENDING')">⚡ 一鍵代填</button>
+                          </div>
+                          ${sPending.map(item => `
+                          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                              <div>
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              </div>
+                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
+                                  onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                          </div>`).join('')}
+                      </div>` : ''}
+
+                      ${sAnswered.length > 0 ? `
+                      <div class="p-2 rounded border-start border-4 mb-1 shadow-sm text-start" style="background-color: #f0fbfd; border-color: #198754 !important;">
+                          <div class="d-flex justify-content-between align-items-center border-bottom border-success pb-1 mb-2">
+                              <div class="fw-bold text-success" style="font-size:0.9rem;">✅ 已填寫 (${sAnswered.length})</div>
+                              <button class="btn btn-success btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${userKey}', 'ANSWERED')">✏️ 一鍵修改</button>
+                          </div>
+                          ${sAnswered.map(item => `
+                          <div class="mb-2 p-2 bg-white rounded border shadow-sm">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                              </div>
+                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
+                              <div class="text-end mt-1">
+                                  <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">✏️ 修改</button>
+                              </div>
+                          </div>`).join('')}
+                      </div>` : ''}
+                      
+                      ${(abnormalDetails.length === 0 && sPending.length === 0 && sAnswered.length === 0) ? `<div class="p-2 text-center text-black-50 opacity-75 small mb-2 rounded border" style="background:#f8f9fa;">無異常紀錄</div>` : ''}
                   </div>
 
                   ${btnHtml}
@@ -5081,8 +6060,12 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${r.sys_leaveType||""}</td>
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
-                      <td class="text-danger fw-bold" style="${tdRight}">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.log}</td>
+                      
+                      <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 130px; padding: 6px;">
+                          <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
+                      </td>
+
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important; vertical-align: top;">${r.log || ""}</td>
                   </tr>
               `;
           });
@@ -5528,6 +6511,13 @@ function showMaintenanceShield(message) {
           let firstDayOfWeek = firstDayDate.getDay(); 
           let shift = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
+          // ★ 終極升級：先掃描出哪些異常「已經填寫說明」了！
+          let answeredAnomalies = [];
+          if (typeof getAnomalyObjects === 'function') {
+              let anomalyResult = getAnomalyObjects(currentData);
+              answeredAnomalies = anomalyResult.answered || [];
+          }
+
           // ==========================================
           // ★ 核心 1：資料分流引擎 (準備 1~31 天的陣列)
           // ==========================================
@@ -5591,7 +6581,29 @@ function showMaintenanceShield(message) {
                   punchStr = (startVal !== "" && endVal !== "") ? `排班：${startVal}~${endVal}` : "無打卡";
               }
               
+              // ==========================================
+              // ★ 智慧異常消除引擎：若已填寫說明，則隱藏該項異常！
+              // ==========================================
               let sysAbnormal = String(r.sys_abnormal || "").trim();
+              
+              // 尋找這名員工這一天，有哪些事由是「已填寫」的
+              let myAnswered = answeredAnomalies.filter(a => a.date === r.date && a.name === r.name);
+              
+              if (sysAbnormal !== "" && myAnswered.length > 0) {
+                  // 將原本的異常字串 (可能包含多個，用 '/' 分開) 拆解成陣列
+                  let abnParts = sysAbnormal.split('/').map(s => s.trim());
+                  
+                  // 過濾掉那些「已經填寫過」的項目
+                  abnParts = abnParts.filter(part => {
+                      // 檢查這個異常項目 (part) 是否出現在已填寫的清單 (myAnswered) 中
+                      let isResolved = myAnswered.some(ans => part.includes(ans.reason));
+                      return !isResolved; // 如果沒解決，就保留它
+                  });
+                  
+                  // 重新組裝過濾後的字串 (如果全空了，就會變成 "")
+                  sysAbnormal = abnParts.join(' / ');
+              }
+
               let abnormalHtml = sysAbnormal ? `<br><span class="text-danger fw-bold">${sysAbnormal}</span>` : "";
               let hasLeave = r.sys_leave && String(r.sys_leave).trim() !== "";
 
@@ -6306,6 +7318,8 @@ function showMaintenanceShield(message) {
              if (res.success) {
                  currentData = res.data || []; 
                  window.currentOtData = res.otData || []; // 📥 接收加班包裹！
+                 // ★★★★ 必須要有這行！店長端才抓得到歷史紀錄！ ★★★★
+                 window.historicalAnomalies = res.anomalyData || [];
                  monthlyTargets = res.targets || {}; 
                  
                  const select = document.getElementById('hqIndivSelect');
@@ -6463,8 +7477,33 @@ function showMaintenanceShield(message) {
                       <td style="${tdRight}">${r.sys_leaveType||""}</td>
                       <td style="${tdRight}">${sysOtRange}</td>
                       <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
-                      <td class="text-danger fw-bold" style="border: none; border-bottom: 1px solid #e9ecef !important;">${r.sys_abnormal || ""}</td>
-                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important;">${r.log || ""}</td>
+                      
+                      <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 130px; padding: 6px;">
+                          <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
+                          
+                          ${r.sys_anomaly_reason ? `
+                          <div class="mt-2 p-2 bg-light border border-danger rounded d-flex flex-column align-items-center justify-content-center shadow-sm">
+                              <div class="small fw-bold text-danger mb-1">${r.sys_anomaly_reason}</div>
+                              <div class="small text-secondary mb-2">${r.sys_anomaly_time}</div>
+                              <label class="d-flex align-items-center mb-0" style="cursor: pointer;">
+                                  <input type="checkbox" class="form-check-input anomaly-cb border-danger m-0 me-2" style="transform: scale(1.3); cursor: pointer;" 
+                                         value="${r.date}" data-reason="${r.sys_anomaly_reason}" data-time="${r.sys_anomaly_time}" onchange="updateAnomalyCart()">
+                                  <span class="text-danger fw-bold" style="font-size:0.9rem;">選取回報</span>
+                              </label>
+                          </div>` : ''}
+
+                          ${(window.historicalAnomalies || []).filter(h => h.date === r.date).map(h => `
+                          <div class="mt-2 p-2 rounded text-start shadow-sm position-relative" style="background-color: #fff3cd; border: 1px solid #ffe69c;">
+                              <div class="d-flex justify-content-between align-items-center mb-1 border-bottom border-warning pb-1">
+                                  <span class="badge ${h.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}">${h.reporter}</span>
+                                  <span class="text-muted fw-bold" style="font-size:0.65rem;">${h.timestamp.split(' ')[0].substring(5)}</span>
+                              </div>
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">${h.reason}</div>
+                              ${h.explanation ? `<div class="text-secondary mt-1" style="font-size:0.8rem; line-height:1.4;">${h.explanation}</div>` : ''}
+                          </div>`).join('')}
+                      </td>
+
+                      <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important; vertical-align: top;">${r.log || ""}</td>
                   </tr>
               `;
           });
@@ -6850,6 +7889,88 @@ function showMaintenanceShield(message) {
         </div>
       </div>
     </div>
+
+    <div class="modal fade" id="pwdVerifyModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+          <div class="modal-header bg-primary text-white" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+            <h5 class="modal-title fw-bold">🔒 身分驗證</h5>
+          </div>
+          <div class="modal-body p-4 text-center">
+            <h6 class="text-dark fw-bold mb-3">為保護您的隱私，請輸入身分證後四碼：</h6>
+            <input type="tel" id="verifyPwdInput" class="form-control form-control-lg text-center fw-bold text-primary mb-3 mx-auto" style="max-width: 250px; font-size: 1.5rem; letter-spacing: 4px;" maxlength="4" placeholder="XXXX">
+            <div id="verifyPwdError" class="text-danger fw-bold" style="display: none;"></div>
+          </div>
+          <div class="modal-footer justify-content-center border-0 pb-4">
+            <button type="button" class="btn btn-primary btn-lg fw-bold px-5 shadow-sm" style="border-radius: 8px;" onclick="submitPwdVerification()">確認登入</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="anomalyReportModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+          <div class="modal-header bg-danger text-white" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+            <h5 class="modal-title fw-bold">⚠️ 填寫異常說明</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-3 p-md-4">
+            
+            <div class="border rounded-3 mb-3 p-3 shadow-sm bg-white" style="border-color: #dee2e6 !important;">
+                <div class="fw-bolder mb-2 text-dark" style="font-size: 1rem;" id="anomalyModalDeadlineTitle">
+                    </div>
+                <div class="fw-bold mb-3 text-dark" style="font-size: 0.9rem; line-height: 1.6;" id="anomalyModalOtMsg">
+                    </div>
+                <div class="text-center p-2 rounded-3 bg-white" style="border: 2px dashed #dc3545;">
+                    <div id="anomalyModalWarnBox" style="color:#dc3545; font-size:1rem; font-weight:900; line-height:1.7;">
+                        </div>
+                </div>
+            </div>
+
+            <div class="mb-3 px-1">
+                <button class="btn btn-sm btn-outline-secondary w-100 fw-bold d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#anomalyDictionaryBox">
+                    <span>💡 何謂打卡異常？(點選查看說明)</span><span>▼</span>
+                </button>
+                <div class="collapse" id="anomalyDictionaryBox">
+                    <div class="p-2 rounded bg-light border mt-2 text-start text-secondary lh-base" style="font-size: 0.78rem;">
+                        <b class="text-dark">一、提前打卡：</b>班表排定前29分鐘打卡即為異常(排0900，0830為異常，0831算正常)。<br>
+                        <b class="text-dark">二、延後打卡：</b>班表排定後29分鐘下班即為異常(排1800，1830算異常，1829算正常)。<br>
+                        <b class="text-dark">三、非工作日打卡：</b>當天排定為休/例/國/空白，卻留有打卡紀錄且無加班單。<br>
+                        <b class="text-dark">💡 排除方法：</b>請於關帳日前補送加班單，或請店長修正錯誤班表。<br><span class="text-danger fw-bold">填寫此說明異常不會消除，僅供人資備查。</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="anomalyCurrentItemInfo" style="display:none;"></div>
+
+            <div id="anomalyChecklistArea" class="mb-3" style="max-height: 180px; overflow-y: auto;"></div>
+            
+            <div class="mb-3">
+                <label class="fw-bold text-secondary small mb-1">發生原因</label>
+                <select id="anomalyReasonSelect" class="form-select form-select-lg fw-bold border-danger shadow-sm" onchange="toggleAnomalyOtherInput()">
+                    <option value="">請選擇原因...</option>
+                </select>
+            </div>
+            
+            <div class="mb-3" id="anomalyOtherGroup" style="display: none;">
+                <label class="fw-bold text-secondary small mb-1">原因說明 (必填)</label>
+                <textarea id="anomalyOtherInput" class="form-control fw-bold border-danger shadow-sm" rows="2" placeholder="請簡述發生原因..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer d-flex justify-content-between bg-light" style="border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+            <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">取消</button>
+            <button type="button" id="submitAnomalyBtn" class="btn btn-danger fw-bold px-4 shadow-sm" onclick="saveAnomalyData()">📤 確定送出</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button id="anomalyCartBtn" class="btn btn-danger fw-bold shadow-lg position-fixed" 
+            style="bottom: 30px; right: 30px; z-index: 9999; display: none; border-radius: 50px; padding: 14px 25px; font-size: 1.1rem; transition: transform 0.2s;"
+            onclick="openAnomalyModal()">
+        📝 批次異常回報 (<span id="anomalyCartCount" class="badge bg-white text-danger ms-1 fs-6">0</span>)
+    </button>
 
   </body>
 </html>
