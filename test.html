@@ -4805,25 +4805,38 @@ function showMaintenanceShield(message) {
                           
                           let currentPkey = r.pkey || r.pKey || window.personalUserKey || ""; 
                           let rHLogs = (window.historicalAnomalies || []).filter(h => h.date === r.date && (!h.pkey || h.pkey === currentPkey));
-                          
+                      
                           let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
                           let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+
+                          // ★ 翻譯蒟蒻 (系統狀態)
+                          let transStatus = "上班";
+                          if (sysStatus === "月休-國定假日" || sysStatus === "國定假日" || sysStatus === "國") transStatus = "國";
+                          else if (sysStatus === "月休-例假日" || sysStatus === "例假日" || sysStatus === "例") transStatus = "例";
+                          else if (sysStatus === "月休-休息日" || sysStatus === "休息日" || sysStatus === "月休" || sysStatus === "休") transStatus = "休";
+                          else if (sysStatus === "") transStatus = "空班";
+
+                          // ★ 智慧打卡時間顯示
+                          let timeDisplay = "";
+                          if (!sysInLocal && !sysOutLocal) timeDisplay = "上下班皆未打卡";
+                          else if (!sysInLocal) timeDisplay = `未打卡~${sysOutLocal}`;
+                          else if (!sysOutLocal) timeDisplay = `${sysInLocal}~未打卡`;
+                          else timeDisplay = `${sysInLocal}~${sysOutLocal}`;
 
                           rReasons.forEach((rsn, ridx) => {
                               rsn = rsn.trim();
                               if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
                               let tPeriod = (rTimes[ridx] || "").trim();
                               let answered = rHLogs.find(h => h.reason === rsn);
-                              
-                              let clockText = "";
-                              if (rsn.includes('提前打卡異常')) clockText = sysInLocal ? `(${sysInLocal})` : "";
-                              else if (rsn.includes('延後打卡異常')) clockText = sysOutLocal ? `(${sysOutLocal})` : "";
-                              else if (rsn.includes('非工作日打卡')) clockText = (sysInLocal || sysOutLocal) ? `(${sysInLocal}~${sysOutLocal})` : "";
-
-                              let itemObj = { date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, name: data.name, pkey: currentPkey, clockText: clockText };
+                          
+                              // ★ 將翻譯狀態與時間存入物件中
+                              let itemObj = { 
+                                  date: r.date, shortDate: shortDate, reason: rsn, time: tPeriod, 
+                                  name: data.name, pkey: currentPkey, clockText: timeDisplay, sysStatus: transStatus 
+                              };
 
                               if (answered) {
-                                  answeredCatList.push({ ...itemObj, hLog: answered });
+                              answeredCatList.push({ ...itemObj, hLog: answered });
                               } else {
                                   pendingCatList.push(itemObj);
                               }
@@ -4839,7 +4852,13 @@ function showMaintenanceShield(message) {
                           }
 
                           if (sysAbnormal !== "") {
-                              abnormalDetails.push(`🗓️ ${shortDate} ${sysAbnormal}`);
+                              // ★ 系統異常套用黃金排版
+                              abnormalDetails.push(
+                                  `<div class="mb-2">` +
+                                  `<div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${shortDate} <span class="text-muted" style="font-size:0.75rem;">(${transStatus})</span> <span class="text-primary ms-1">🕒 ${timeDisplay}</span></div>` +
+                                  `<div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${sysAbnormal}</div>` +
+                                  `</div>`
+                              );
                           }
                       }
                   });
@@ -4996,8 +5015,9 @@ function showMaintenanceShield(message) {
 
                   <div class="collapse" id="${cardId}-abnormal">
                       ${abnormalDetails.length > 0 ? `
-                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5; font-size: 0.8rem;">
-                          <strong class="text-danger">🚨 系統異常紀錄：</strong><br>${abnormalDetails.join('<br>')}
+                      <div class="p-2 rounded small border-start border-4 mb-2 shadow-sm" style="background-color: #fffcfc; border-color: #dc3545 !important; line-height:1.5;">
+                          <div class="fw-bold text-danger border-bottom border-danger pb-1 mb-2" style="font-size:0.9rem;">🚨 系統異常紀錄</div>
+                          ${abnormalDetails.join('<hr class="my-2 border-danger opacity-25">')}
                       </div>` : ''}
 
                       ${pendingCatList.length > 0 ? `
@@ -5009,8 +5029,8 @@ function showMaintenanceShield(message) {
                           ${pendingCatList.map(item => `
                           <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
                               <div>
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span></div>
-                                  <div class="text-danger fw-bold" style="font-size:0.78rem;">${item.reason}${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason}${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
                               </div>
                               <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
                                   onclick="openAnomalyModal('${item.date}','${item.reason}')">📝 填寫</button>
@@ -5023,11 +5043,11 @@ function showMaintenanceShield(message) {
                           ${answeredCatList.map(item => `
                           <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                      <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ ${item.reason}</span>
-                                      <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
-                                  </div>
-                                  ${item.time ? `<div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">⏰ 時段：${item.time}</div>` : ''}
-                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted" style="font-size:0.7rem;">（無文字說明）</div>'}
+                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
+                              </div>
+                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
                           </div>`).join('')}
                       </div>` : ''}
                   </div>
