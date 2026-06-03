@@ -4117,7 +4117,31 @@ function showMaintenanceShield(message) {
                       if (sysAbnormal !== "") {
                           storeAbnCount++; // 只統計那些真正還沒解決的異常
                           if(!storeAbnDetails[name]) storeAbnDetails[name] = [];
-                          storeAbnDetails[name].push(`🗓️ ${shortDate} ${sysAbnormal}`);
+
+                          // ★ 取得打卡時間與翻譯蒟蒻
+                          let sysInLocal = r.sys_clockIn ? (typeof formatTime === 'function' ? formatTime(r.sys_clockIn) : r.sys_clockIn) : "";
+                          let sysOutLocal = r.sys_clockOut ? (typeof formatTime === 'function' ? formatTime(r.sys_clockOut) : r.sys_clockOut) : "";
+                          
+                          let sysStatusTrim = sysStatus.trim();
+                          let transStatus = "上班";
+                          if (sysStatusTrim === "月休-國定假日" || sysStatusTrim === "國定假日" || sysStatusTrim === "國") transStatus = "國";
+                          else if (sysStatusTrim === "月休-例假日" || sysStatusTrim === "例假日" || sysStatusTrim === "例") transStatus = "例";
+                          else if (sysStatusTrim === "月休-休息日" || sysStatusTrim === "休息日" || sysStatusTrim === "月休" || sysStatusTrim === "休") transStatus = "休";
+                          else if (sysStatusTrim === "空班" || sysStatusTrim === "") transStatus = "空班";
+
+                          let timeDisplay = "";
+                          if (!sysInLocal && !sysOutLocal) timeDisplay = "上下班皆未打卡";
+                          else if (!sysInLocal) timeDisplay = `未打卡~${sysOutLocal}`;
+                          else if (!sysOutLocal) timeDisplay = `${sysInLocal}~未打卡`;
+                          else timeDisplay = `${sysInLocal}~${sysOutLocal}`;
+
+                          // ★ 套用黃金排版
+                          storeAbnDetails[name].push(
+                              `<div class="mb-1 ps-2">` +
+                              `<div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${shortDate} <span class="text-muted" style="font-size:0.75rem;">(${transStatus})</span> <span class="text-primary ms-1">🕒 ${timeDisplay}</span></div>` +
+                              `<div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${sysAbnormal}</div>` +
+                              `</div>`
+                          );
                       }
                   }
                   if(r.supports && r.supports.length>0) {
@@ -4248,7 +4272,8 @@ function showMaintenanceShield(message) {
               return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${colorCode};">${storeHrText}</span></div>${empsHtml}</div>`;
           }).join('');
           const buildStoreSimpleList = (dict) => Object.entries(dict).map(([st, hrs]) => `<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${st}：共 <span class="text-primary">${hrs.toFixed(1)}</span> H</div>`).join('');
-          const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">👤 ${n}</div><div class="text-muted mt-1" style="font-size:0.8rem; padding-left:10px;">${arr.join('<br>')}</div></div>`).join('');
+          // ★ 更新：讓人員名稱下方直接印出黃金排版的陣列內容，並加上分隔線
+          const buildStoreAbnList = (dict) => Object.entries(dict).map(([n, arr]) => `<div class="mb-3"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-2" style="font-size:0.85rem;">👤 ${n}</div>${arr.join('<hr class="my-1 border-danger opacity-25">')}</div>`).join('');
 
           let storeLvHtml = buildStorePersonList(storeLvDetails, '#0b8273') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無請假紀錄</div>';
           let storeAaHtml = buildStorePersonList(storeAaDetails, '#dc3545') || '<div class="text-muted text-center py-2" style="font-size:0.85rem;">無超時時數紀錄</div>';
@@ -4290,8 +4315,8 @@ function showMaintenanceShield(message) {
                       ${storePending.map(item => `
                       <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
                           <div>
-                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${item.name}</div>
-                              <div class="text-danger fw-bold" style="font-size:0.78rem;">${item.reason} ${item.time ? `<span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span> ─ 👤 ${item.name}</div>
+                              <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
                           </div>
                           <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
                               onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'PENDING', '${targetStore}')">📝 代填</button>
@@ -4309,11 +4334,11 @@ function showMaintenanceShield(message) {
                       ${storeAnswered.map(item => `
                       <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                           <div class="d-flex justify-content-between align-items-center mb-1">
-                              <span class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${item.name}</span>
+                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span> ─ 👤 ${item.name}</div>
                               <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                           </div>
-                          <div class="text-danger fw-bold mb-1" style="font-size: 0.75rem;">🚨 ${item.reason} ${item.time ? `(${item.time})` : ''}</div>
-                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted" style="font-size:0.7rem;">（無文字說明）</div>'}
+                          <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
                           <div class="text-end mt-1">
                               <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'ANSWERED', '${targetStore}')">✏️ 修改</button>
                           </div>
