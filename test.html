@@ -3919,16 +3919,18 @@ function showMaintenanceShield(message) {
                   if (st.aOfficial > 0)      badgesAnsweredHtml += `<span style="display:inline-block; background-color:#eff6ff; color:#1d4ed8; padding:3px 7px; border-radius:4px; font-size:12px; margin:2px 4px 2px 0;">💼 公事已申請加班 ${st.aOfficial} 筆</span>`;
 
                   html += `
-                  <div class="mb-2 p-2 bg-white rounded border shadow-sm" style="border-left: 4px solid #dc3545 !important;">
-                      <div class="fw-bold text-dark border-bottom border-secondary border-opacity-10 pb-1 mb-1 d-flex justify-content-between" style="font-size:0.85rem;">
-                          <span>${rankNum}. 🔹 ${st.name}</span>
-                          <span class="text-danger fw-bolder">待處理：${st.pTotal} 筆</span>
-                      </div>
-                      <div style="line-height: 1.4; word-break: break-all;">
-                          <div style="margin-bottom: 2px;">${badgesPendingHtml}</div>
-                          ${badgesAnsweredHtml ? `<div style="border-top: 1px dashed #edf2f7; margin-top: 4px; padding-top: 4px;"><strong style="font-size:0.75rem; color:#198754;">✅ 已填寫異常說明</strong><br>${badgesAnsweredHtml}</div>` : ''}
-                      </div>
-                  </div>`;
+                 <div class="mb-2 p-2 bg-white rounded border shadow-sm" style="border-left: 4px solid #dc3545 !important;">
+                     <div class="fw-bold text-dark border-bottom border-secondary border-opacity-10 pb-1 mb-1 d-flex justify-content-between align-items-center" style="font-size:0.85rem;">
+                         <span onclick="handleFastJump('🏢 ${st.name}')" style="cursor: pointer; color: #0d6efd; text-decoration: underline; padding: 2px 0;" title="點擊跳轉至此門市">
+                             ${rankNum}. 🔹 ${st.name} ⤵️
+                         </span>
+                         <span class="text-danger fw-bolder">待處理：${st.pTotal} 筆</span>
+                     </div>
+                     <div style="line-height: 1.4; word-break: break-all;">
+                         <div style="margin-bottom: 2px;">${badgesPendingHtml}</div>
+                         ${badgesAnsweredHtml ? `<div style="border-top: 1px dashed #edf2f7; margin-top: 4px; padding-top: 4px;"><strong style="font-size:0.75rem; color:#198754;">✅ 已填寫異常說明</strong><br>${badgesAnsweredHtml}</div>` : ''}
+                     </div>
+                 </div>`;
                   rankNum++;
               });
 
