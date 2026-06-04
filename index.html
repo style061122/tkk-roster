@@ -611,11 +611,25 @@
               return false;
           });
 
+          // ★ 勞基法引擎：單日國定假日額度累加器
+          let dailyNatAccumulator = {}; 
+
           empOt.forEach(o => {
               let hrs = parseFloat(o.hours) || 0;
               let isNat = o.type && (o.type === '國定假日' || o.type.includes('國定'));
               let norm = hrs, nat = 0;
-              if (!isHourly && isNat) { nat = Math.min(hrs, 8); norm = Math.max(0, hrs - 8); }
+              
+              // ★ 智慧溢出判定：每天最高 8 小時國定，超過自動轉平日
+              if (!isHourly && isNat) { 
+                  let dateKey = o.date; // 以日期為鑰匙
+                  if (dailyNatAccumulator[dateKey] === undefined) dailyNatAccumulator[dateKey] = 0; // 初始化
+                  
+                  let availableNat = Math.max(0, 8 - dailyNatAccumulator[dateKey]); // 剩下多少國定額度？
+                  nat = Math.min(hrs, availableNat); // 只能吃掉剩下的額度
+                  norm = hrs - nat; // 溢出的時數全部轉入平日(一般)加班
+                  
+                  dailyNatAccumulator[dateKey] += nat; // 記下這天已經用掉的國定時數
+              }
               
               let shortDate = o.date;
               if(o.date && o.date.includes('/')) { let pts = o.date.split('/'); shortDate = `${parseInt(pts[1])}/${parseInt(pts[2])}`; }
@@ -684,12 +698,26 @@
               return false;
           });
 
+          // ★ 勞基法引擎：單人單日國定假日額度累加器
+          let dailyNatAccumulator = {}; 
+
           storeOt.forEach(o => {
               let isHourly = currentData.some(r => r.name === o.name && r.salaryType && r.salaryType.includes("時薪"));
               let hrs = parseFloat(o.hours) || 0;
               let isNat = o.type && (o.type === '國定假日' || o.type.includes('國定'));
               let norm = hrs, nat = 0;
-              if (!isHourly && isNat) { nat = Math.min(hrs, 8); norm = Math.max(0, hrs - 8); }
+              
+              // ★ 智慧溢出判定：每天最高 8 小時國定，超過自動轉平日
+              if (!isHourly && isNat) { 
+                  let accKey = `${o.name}_${o.date}`; // 全店大腦需綁定人名與日期
+                  if (dailyNatAccumulator[accKey] === undefined) dailyNatAccumulator[accKey] = 0;
+                  
+                  let availableNat = Math.max(0, 8 - dailyNatAccumulator[accKey]); 
+                  nat = Math.min(hrs, availableNat); 
+                  norm = hrs - nat; 
+                  
+                  dailyNatAccumulator[accKey] += nat; 
+              }
               
               if (!types[o.type]) types[o.type] = { app_norm:0, app_nat:0, pend_norm:0, pend_nat:0, wait_norm:0, wait_nat:0 };
               
