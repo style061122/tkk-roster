@@ -4632,20 +4632,32 @@ function showMaintenanceShield(message) {
                   rsn = rsn.trim();
                   if (!rsn || !TARGET_KWS.some(kw => rsn.includes(kw))) return;
                   
-                  let answeredLog = hLogs.find(h => cleanStr(h.reason) === cleanStr(rsn));
+                  let tPeriod = (times[idx] || "").trim();
+                  
+                  // ★ 嚴格時段比對大腦：事由必須包含，且「時段必須完全吻合」
+                  let answeredLog = hLogs.find(h => {
+                      let hReason = cleanStr(h.reason);
+                      let hTime = cleanStr(h.timePeriod || h.time || "");
+                      let isReasonMatch = (hReason === cleanStr(rsn));
+                      let isTimeMatch = true;
+                      if (tPeriod !== "" && hTime !== "") {
+                          isTimeMatch = (cleanStr(tPeriod) === hTime);
+                      }
+                      return isReasonMatch && isTimeMatch;
+                  });
                   
                   let item = { 
                       date: r.date, 
                       shortDate: r.date.split('/').slice(1).join('/'), 
                       reason: rsn, 
-                      time: times[idx] || '', 
-                      name: r.name,
-                      pkey: currentPkey,
-                      clockText: timeDisplay, // ★ 直接使用黃金組合時間
-                      sysStatus: transStatus, // ★ 帶上翻譯好的狀態
-                      store: r.store 
+                      time: tPeriod, 
+                      name: r.name, 
+                      pkey: currentPkey, 
+                      clockText: timeDisplay,
+                      sysStatus: transStatus,
+                      store: r.store
                   };
-      
+
                   if (answeredLog) answered.push({ ...item, hLog: answeredLog });
                   else pending.push(item);
               });
@@ -4913,7 +4925,18 @@ function showMaintenanceShield(message) {
                               rsn = rsn.trim();
                               if (!rsn || !TARGET_ANOMALY_KWS.some(kw => rsn.includes(kw))) return;
                               let tPeriod = (rTimes[ridx] || "").trim();
-                              let answered = rHLogs.find(h => h.reason === rsn);
+                              
+                              // ★ 嚴格時段比對大腦：事由必須吻合，且時段必須完全一樣
+                              let answered = rHLogs.find(h => {
+                                  let hTime = (h.timePeriod || h.time || "").trim();
+                                  let isReasonMatch = (h.reason === rsn);
+                                  let isTimeMatch = true; // 預設 true 防呆
+                                  // 如果這筆異常有時段，且歷史紀錄也有時段，強制核對！
+                                  if (tPeriod !== "" && hTime !== "") {
+                                      isTimeMatch = (tPeriod === hTime);
+                                  }
+                                  return isReasonMatch && isTimeMatch;
+                              });
                           
                               // ★ 將翻譯狀態與時間存入物件中
                               let itemObj = { 
@@ -4929,11 +4952,34 @@ function showMaintenanceShield(message) {
                           });
 
                           // ==========================================
-                          // ★ 智慧異常消除：如果歷史紀錄 (rHLogs) 有這筆事由，就從畫面上消除它！
+                          // ★ 智慧異常消除：如果歷史紀錄 (rHLogs) 有這筆事由且時段吻合，才從畫面上消除它！
                           // ==========================================
                           if (rHLogs.length > 0) {
                               let abnParts = sysAbnormal.split('/').map(s => s.trim());
-                              abnParts = abnParts.filter(part => !rHLogs.some(ans => part.includes(ans.reason)));
+                              
+                              abnParts = abnParts.filter(part => {
+                                  // 1. 找出畫面上這段文字對應的「最新時段」
+                                  let currentEventTime = "";
+                                  let matchedIdx = rReasons.findIndex(rsn => part.includes(rsn));
+                                  if (matchedIdx !== -1 && rTimes[matchedIdx]) {
+                                      currentEventTime = rTimes[matchedIdx].trim();
+                                  }
+
+                                  // 2. 嚴格比對歷史紀錄 (事由+時段)
+                                  let isAnswered = rHLogs.some(ans => {
+                                      let hTime = (ans.timePeriod || ans.time || "").trim();
+                                      let isReasonMatch = part.includes(ans.reason);
+                                      let isTimeMatch = true;
+                                      if (currentEventTime !== "" && hTime !== "") {
+                                          isTimeMatch = (currentEventTime === hTime);
+                                      }
+                                      return isReasonMatch && isTimeMatch;
+                                  });
+
+                                  // 如果「沒有」符合的完美舊答案，這筆紅字就必須保留在畫面上！
+                                  return !isAnswered; 
+                              });
+                              
                               sysAbnormal = abnParts.join(' / ');
                           }
 
