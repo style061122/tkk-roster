@@ -5091,7 +5091,7 @@ function showMaintenanceShield(message) {
                               <div class="d-flex flex-column justify-content-center align-items-center h-100 gap-1">
                                   <span class="fw-bold" style="color:${(pendingCatList.length + answeredCatList.length) > 0 ? '#dc3545' : '#6c757d'}; font-size: 0.85rem;">異常狀況</span>
                                   <span class="fw-bold ${(pendingCatList.length + answeredCatList.length) > 0 ? 'text-danger' : 'text-muted'}" style="font-size: 1.1rem;">${(pendingCatList.length + answeredCatList.length) > 0 ? (pendingCatList.length + answeredCatList.length) + ' 筆' : '無'}</span>
-                                  ${pendingCatList.length > 0 ? `<span class="text-danger fw-bold" style="font-size:0.72rem;">⚠️ 請點我填寫</span>` : ''}
+                                  ${pendingCatList.length > 0 ? `<span class="text-danger fw-bold" style="font-size:0.72rem;">⚠️ 請點我填寫異常說明</span>` : ''}
                               </div>
                           </div>
                       </div>
