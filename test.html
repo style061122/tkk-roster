@@ -3336,26 +3336,11 @@ function showMaintenanceShield(message) {
                   }
 
                   if (sysAbnormal !== "") {
-                          // ★ 智慧異常消除：比對這名員工專屬的 sAnswered 清單 (加入時段嚴格比對)
-                          let myAns = sAnswered.filter(a => a.date === r.date);
-                          
-                          // 重新計算有效的 sysAbnormal (只有真正沒有對應到已填寫紀錄的，才算異常)
+                      // ★ 智慧異常消除：比對這名員工專屬的 sAnswered 清單
+                      let myAns = sAnswered.filter(a => a.date === r.date);
+                      if (myAns.length > 0) {
                           let abnParts = sysAbnormal.split('/').map(s => s.trim());
-                          let acReasons = (r.sys_anomaly_reason || "").split(',').map(s => s.trim());
-                          let adTimes = (r.sys_anomaly_time || "").split(',').map(s => s.trim());
-
-                          abnParts = abnParts.filter(part => {
-                              // 找出這一段文字對應的時段
-                              let currentIdx = acReasons.findIndex(rsn => part.includes(rsn));
-                              let currentTime = (currentIdx !== -1) ? adTimes[currentIdx] : "";
-                              
-                              // 檢查歷史紀錄中，有沒有事由跟時段都吻合的「已處理」紀錄
-                              let isAnswered = myAns.some(ans => 
-                                  part.includes(ans.reason) && 
-                                  cleanStr(ans.time) === cleanStr(currentTime)
-                              );
-                              return !isAnswered; // 如果沒被處理過，才留下來顯示
-                          });
+                          abnParts = abnParts.filter(part => !myAns.some(ans => part.includes(ans.reason)));
                           sysAbnormal = abnParts.join(' / ');
                       }
                       
@@ -4647,16 +4632,10 @@ function showMaintenanceShield(message) {
                   rsn = rsn.trim();
                   if (!rsn || !TARGET_KWS.some(kw => rsn.includes(kw))) return;
                   
-                  // ★ 嚴格比對大腦：同時核對「事由」與「時段」
-                  let tPeriod = times[idx] || '';
-                  let answeredLog = hLogs.find(h => {
-                      let hReason = cleanStr(h.reason);
-                      let hTime = cleanStr(h.timePeriod || h.time || "");
-                      return hReason === cleanStr(rsn) && hTime === cleanStr(tPeriod);
-                  });
+                  let answeredLog = hLogs.find(h => cleanStr(h.reason) === cleanStr(rsn));
                   
                   let item = { 
-                      date: r.date,
+                      date: r.date, 
                       shortDate: r.date.split('/').slice(1).join('/'), 
                       reason: rsn, 
                       time: times[idx] || '', 
