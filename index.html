@@ -7820,36 +7820,81 @@ function showMaintenanceShield(message) {
           // 以下維持原本督導(ADMIN)的邏輯
           const targetStore = document.getElementById('adminStoreSelect').value;
           
+          // ★ 判斷目前是否在「全區總覽」模式 (下拉選單為空、'ALL' 或 '全區')
+          const isAllRegionMode = (!targetStore || targetStore === 'ALL' || targetStore === '全區');
+
           let htmlText = '請問您要下載哪一份資料的 EXCEL？<br><br>';
-          let confirmText = '';
-          
-          if (targetStore) {
-              htmlText += `✅ <b>單店報表</b>：僅下載目前查看的 [${targetStore}]<br>`;
+
+          if (!isAllRegionMode) {
+              // 【情境 A：單店檢視中】 (維持原有流暢體驗)
+              htmlText += `✅ <b>單店報表</b>：僅下載目前查看的 <b>[${targetStore}]</b><br>`;
               htmlText += `✅ <b>全區報表</b>：下載您管轄的所有門市資料`;
-              confirmText = '下載 單店';
+
+              const result = await Swal.fire({
+                  title: '📥 匯出 EXCEL',
+                  html: htmlText,
+                  icon: 'question',
+                  showDenyButton: true,
+                  showCancelButton: true,
+                  confirmButtonText: '下載 單店',
+                  denyButtonText: '下載 全區',
+                  cancelButtonText: '取消',
+                  confirmButtonColor: '#198754',
+                  denyButtonColor: '#0d6efd'
+              });
+
+              if (result.isConfirmed) executeExcelDownload(targetStore);
+              else if (result.isDenied) executeExcelDownload('ALL');
+
           } else {
-              htmlText += `✅ <b>全區報表</b>：下載您管轄的所有門市資料<br>(若要下載單店，請先於上方選擇門市)`;
-              confirmText = '下載 全區';
-          }
+              // 【情境 B：全區總覽中 (★ 方案一實裝：智慧攔截與引導)】
+              htmlText += `✅ <b>單店報表</b>：從您管轄的門市中，<b>指定一家</b>下載<br>`;
+              htmlText += `✅ <b>全區報表</b>：下載您管轄的所有門市資料`;
 
-          const result = await Swal.fire({
-              title: '📥 匯出 EXCEL',
-              html: htmlText,
-              icon: 'question',
-              showDenyButton: targetStore ? true : false,
-              showCancelButton: true,
-              confirmButtonText: targetStore ? '下載 單店' : '下載 全區',
-              denyButtonText: '下載 全區',
-              cancelButtonText: '取消',
-              confirmButtonColor: '#198754',
-              denyButtonColor: '#0d6efd'
-          });
+              const result = await Swal.fire({
+                  title: '📥 匯出 EXCEL',
+                  html: htmlText,
+                  icon: 'question',
+                  showDenyButton: true,
+                  showCancelButton: true,
+                  confirmButtonText: '下載 指定單店',
+                  denyButtonText: '下載 全區',
+                  cancelButtonText: '取消',
+                  confirmButtonColor: '#198754',
+                  denyButtonColor: '#0d6efd'
+              });
 
-          if (result.isConfirmed) {
-              let scope = targetStore ? targetStore : 'ALL';
-              executeExcelDownload(scope);
-          } else if (result.isDenied) {
-              executeExcelDownload('ALL');
+              if (result.isConfirmed) {
+                  // ★ 智慧引導：如果點了下載單店，自動彈出下拉選單讓督導點選！
+                  let storeOptions = {};
+                  if (typeof allowedStoresList !== 'undefined' && allowedStoresList.length > 0) {
+                      allowedStoresList.forEach(s => storeOptions[s] = s);
+                  } else {
+                      // 備用防呆：從畫面上方的下拉選單抓選項
+                      document.querySelectorAll('#adminStoreSelect option').forEach(opt => {
+                          if (opt.value && opt.value !== 'ALL' && opt.value !== '全區') storeOptions[opt.value] = opt.text;
+                      });
+                  }
+
+                  const { value: selectedStore } = await Swal.fire({
+                      title: '🏢 選擇下載門市',
+                      input: 'select',
+                      inputOptions: storeOptions,
+                      inputPlaceholder: '請選擇要下載的單店...',
+                      showCancelButton: true,
+                      confirmButtonText: '確定下載',
+                      cancelButtonText: '取消',
+                      inputValidator: (value) => {
+                          if (!value) return '您必須選擇一家門市才能下載喔！';
+                      }
+                  });
+
+                  if (selectedStore) {
+                      executeExcelDownload(selectedStore);
+                  }
+              } else if (result.isDenied) {
+                  executeExcelDownload('ALL');
+              }
           }
       }
 
