@@ -3720,7 +3720,8 @@ function showMaintenanceShield(message) {
              rO_norm += storeOt.app_norm;
              rO_nat += storeOt.app_nat;
              if (storeOt.summaryHtml) {
-                 regOHtml += `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${st} <span class="float-end fw-bolder" style="color:#0f5132;">${storeOt.oDisplay}</span></div>${storeOt.summaryHtml}</div>`;
+                 // ★ 微創手術：把 📍 店名 包裝成藍色可點擊跳轉的任意門
+                 regOHtml += `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;"><span onclick="handleFastJump('🏢 ${st}')" style="cursor: pointer; color: #0d6efd;" title="點擊跳轉至此門市">📍 ${st}</span> <span class="float-end fw-bolder" style="color:#0f5132;">${storeOt.oDisplay}</span></div>${storeOt.summaryHtml}</div>`;
              }
          });
 
@@ -3907,17 +3908,18 @@ function showMaintenanceShield(message) {
           });
 
           // 全區彈窗 HTML 組裝器
-          const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
+         // ★ 微創手術：全面裝載 onclick="handleFastJump('🏢 店名')"
+         const bSimple = (d,c) => Object.entries(d).filter(x=>x[1]>0).map(x=>`<div class="fw-bold text-dark mb-1" style="font-size:0.85rem;"><span onclick="handleFastJump('🏢 ${x[0]}')" style="cursor: pointer; color: #0d6efd;" title="點擊跳轉至此門市">📍 ${x[0]}</span> <span class="float-end fw-bolder" style="color:${c};">${x[1].toFixed(1)}H</span></div>`).join('');
           
           // ★ 新增：支援大標題(店名) + 內容明細(人名) 的 HTML 產生器 (加入超時拆分)
-          const bDetailList = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>{
-              let storeHrText = `${x[1].norm.toFixed(1)}${x[1].aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${x[1].aa.toFixed(1)}超時</span>` : 'H'}`;
-              let empsHtml = Object.entries(x[1].emps).map(e=>{
-                  let empHrText = `${e[1].norm.toFixed(1)}${e[1].aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${e[1].aa.toFixed(1)}超時</span>` : 'H'}`;
-                  return `<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${empHrText}</span></div>`;
-              }).join('');
-              return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${storeHrText}</span></div>${empsHtml}</div>`;
-          }).join('');
+         const bDetailList = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>{
+             let storeHrText = `${x[1].norm.toFixed(1)}${x[1].aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${x[1].aa.toFixed(1)}超時</span>` : 'H'}`;
+             let empsHtml = Object.entries(x[1].emps).map(e=>{
+                 let empHrText = `${e[1].norm.toFixed(1)}${e[1].aa > 0 ? `<span class="text-danger fw-bolder ms-1" style="font-size:0.85em;">+${e[1].aa.toFixed(1)}超時</span>` : 'H'}`;
+                 return `<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${empHrText}</span></div>`;
+             }).join('');
+             return `<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;"><span onclick="handleFastJump('🏢 ${x[0]}')" style="cursor: pointer; color: #0d6efd;" title="點擊跳轉至此門市">📍 ${x[0]}</span> <span class="float-end fw-bolder" style="color:${c};">${storeHrText}</span></div>${empsHtml}</div>`;
+         }).join('');
 
           // ★ 產生全區異常卡片 (微型網格戰情膠囊版 - 選項 A：細項展開)
           const buildStoreAbnDashboard = (statsMap) => {
@@ -3965,8 +3967,8 @@ function showMaintenanceShield(message) {
               return html;
           };
 
-          const bAA = (d) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder text-danger">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
-          const bZO = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;">📍 ${x[0]} <span class="float-end fw-bolder" style="color:${c};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].groups).filter(g=>g[1]>0).map(g=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>${g[0]}</span><span>${g[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
+          const bAA = (d) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;"><span onclick="handleFastJump('🏢 ${x[0]}')" style="cursor: pointer; color: #0d6efd;" title="點擊跳轉至此門市">📍 ${x[0]}</span> <span class="float-end fw-bolder text-danger">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].emps).map(e=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>👤 ${e[0]}</span><span>${e[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
+          const bZO = (d,c) => Object.entries(d).filter(x=>x[1].total>0).map(x=>`<div class="mb-2"><div class="fw-bold text-dark border-bottom border-secondary border-opacity-25 pb-1 mb-1" style="font-size:0.85rem;"><span onclick="handleFastJump('🏢 ${x[0]}')" style="cursor: pointer; color: #0d6efd;" title="點擊跳轉至此門市">📍 ${x[0]}</span> <span class="float-end fw-bolder" style="color:${c};">${x[1].total.toFixed(1)}H</span></div>${Object.entries(x[1].groups).filter(g=>g[1]>0).map(g=>`<div class="d-flex justify-content-between text-muted ms-3 mb-1" style="font-size:0.8rem;"><span>${g[0]}</span><span>${g[1].toFixed(1)}H</span></div>`).join('')}</div>`).join('');
 
           // ★ 修正為智慧防呆：如果國定(nat)是 0，就不要顯示 +0.0
           let zDisp = rZ_nat > 0 ? `${rZ_norm.toFixed(1)}<small class="text-muted fw-normal" style="font-size:0.75em;">+${rZ_nat.toFixed(1)}</small>` : `${rZ_norm.toFixed(1)}`;
