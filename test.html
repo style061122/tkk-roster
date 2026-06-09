@@ -7820,8 +7820,8 @@ function showMaintenanceShield(message) {
           // 以下維持原本督導(ADMIN)的邏輯
           const targetStore = document.getElementById('adminStoreSelect').value;
           
-          // ★ 判斷目前是否在「全區總覽」模式 (下拉選單為空、'ALL' 或 '全區')
-          const isAllRegionMode = (!targetStore || targetStore === 'ALL' || targetStore === '全區');
+          // ★ 判斷目前是否在「全區總覽」模式 (把 ALL_STORES 也納入攔截)
+          const isAllRegionMode = (!targetStore || targetStore === 'ALL' || targetStore === '全區' || targetStore === 'ALL_STORES');
 
           let htmlText = '請問您要下載哪一份資料的 EXCEL？<br><br>';
 
