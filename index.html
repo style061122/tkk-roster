@@ -1115,51 +1115,35 @@ function showMaintenanceShield(message) {
                     // ==========================================
                     // ★ 神級 UX 優化：背景默默畫圖，前景強制彈窗
                     // ==========================================
-                    // 1. 瞬間把背景的排班表、對話框文字全部填寫、繪製完畢！
+                    // 1. 瞬間把背景的排班表畫好
                     renderPersonalPage(res);
 
-                    // 2. 🔒 終極全自動日期抓取：
-                    // 直接去抓您 renderPersonalPage 剛剛幫我們填好的「請於 X/X 前確認完畢」文字
-                    let autoDeadline = "關帳日前";
-                    try {
-                        const rawText = document.getElementById('anomalyModalDeadlineTitle').innerText; // 抓到 "📌 請於 6/4前確認完畢"
-                        const match = rawText.match(/於\s*(\S+前)確認/);
-                        if (match && match[1]) {
-                            autoDeadline = match[1]; // 完美切出 "6/4前" 或 "7/4前"
-                        } else {
-                            // 防防呆：如果上面切失敗，退而求其次直接抓整個時間字串
-                            autoDeadline = rawText.replace('📌', '').trim();
-                        }
-                    } catch(e) {
-                        console.log("動態抓取日期失敗，啟用後援方案");
-                    }
+                    // ★ 動態抓取關帳日：從後端傳回的資料(res)中撈出 deadlineStr
+                    // (註：請依據您原本 renderPersonalPage 取用 deadlineStr 的路徑微調，通常為 res.deadlineStr 或 res.meta.deadlineStr)
+                    const deadlineStr = res.deadlineStr || (res.meta && res.meta.deadlineStr) || "關帳日 09:00";
 
-                    // 3. 如果是本次開啟網頁「第一次」登入成功，就強制跳出防呆彈窗
+                    // 2. 如果是本次開啟網頁「第一次」登入成功，就強制跳出防呆彈窗
                     if (!window.hasShownWarning) {
                         window.hasShownWarning = true; 
                         
                         Swal.fire({
-                            title: '⚠️ 出勤作業重要通知',
+                            title: '⚠️ 門市出勤作業重要通知',
                             html: `
-                                <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #333333; padding: 0px 5px;">
-                                    <p style="margin-bottom: 12px;">📆 <strong>本月出勤狀況已更新，請務必確認。</strong><br>
-                                    若有「提前/延後/非工作日」打卡異常且屬因私事逗留者，請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15px;">${autoDeadline}</span> 填寫完畢。</p>
+                                <div style="text-align: left; font-size: 14px; line-height: 1.8; color: #333333; padding: 10px;">
+                                    <p>📅 <strong>本月出勤狀況已更新，請務必確認。</strong><br>
+                                    若有「提前/延後/非工作日」打卡異常且屬因私事逗留者，請務必於 <span style="color: #e60000; font-weight: bold;">${deadlineStr}前</span> 填寫完畢。</p>
                                     
-                                    <p style="margin-bottom: 12px;">▪️ <strong>若因公務加班：</strong><br>
-                                    請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15px;">${autoDeadline}</span> 至 <strong>Apollo 系統</strong> 申請加班單並簽核完畢。</p>
+                                    <p>⚡ <strong>若因公務加班：</strong><br>
+                                    請務必於 <span style="color: #e60000; font-weight: bold;">${deadlineStr}前</span> 至 <strong>Apollo 系統</strong> 申請加班單並簽核完畢。</p>
                                     
-                                    <p style="margin-bottom: 15px; background-color: #fff3cd; color: #d9383a; padding: 6px 8px; font-weight: bold; border-radius: 4px; border-left: 4px solid #d9383a;">
-                                        ⚠️ 逾期未處理系統即視為「私人因素停留公司」。
-                                    </p>
+                                    <p>⚡ <span style="background-color: #fff3cd; color: #d9383a; padding: 2px 4px; font-weight: bold; border-radius: 4px;">逾期未處理系統即視為「私人因素停留公司」。</span></p>
                                     
-                                    <div style="border-top: 1px dashed #dddddd; margin: 12px 0; padding-top: 10px;">
-                                        <p style="margin-bottom: 5px; font-weight: bold; color: #000000;">📆 出勤班表關帳提醒：</p>
-                                        <ul style="margin: 0; padding-left: 18px; list-style-type: disc;">
-                                            <li style="margin-bottom: 4px;">若有出勤異常，請至 Apollo 系統完成單據申請。</li>
-                                            <li style="margin-bottom: 4px;"><strong>忘打卡或請假逾期未處理：</strong>系統將自動轉為 <span style="color: #e60000; font-weight: bold;">曠職不支薪</span>。</li>
-                                            <li style="margin-bottom: 4px;"><strong>加班單無法跨月申請：</strong>請務必於關帳前處理完畢。</li>
-                                        </ul>
-                                    </div>
+                                    <hr style="border: none; border-top: 1px dashed #cccccc; margin: 15px 0;">
+                                    
+                                    <p>📅 <strong>出勤班表關帳提醒：</strong><br>
+                                      若有出勤異常，請至 Apollo 系統完成單據申請。<br>
+                                    ❗ <strong>忘打卡或請假逾期未處理：</strong>系統將自動轉為 <span style="color: #e60000; font-weight: bold;">曠職不支薪</span>。<br>
+                                    ❗ <strong>加班單無法跨月申請：</strong>請務必於關帳前處理完畢。</p>
                                 </div>
                             `,
                             icon: 'warning',
@@ -1168,7 +1152,7 @@ function showMaintenanceShield(message) {
                             confirmButtonColor: '#0d6efd',
                             allowOutsideClick: false, 
                             allowEscapeKey: false,    
-                            width: window.innerWidth <= 768 ? '92%' : '500px' // ✨ 智慧手機自適應寬度，不再擠壓！
+                            width: '550px'
                         });
                     }
                 }
