@@ -1152,7 +1152,7 @@ function showMaintenanceShield(message) {
                             confirmButtonColor: '#0d6efd',
                             allowOutsideClick: false, 
                             allowEscapeKey: false,    
-                            width: '550px'
+                            width: window.innerWidth <= 768 ? '92%' : '500px' // ✨ 智慧手機自適應寬度，不再擠壓！
                         });
                     }
                 }
