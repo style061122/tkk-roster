@@ -5583,13 +5583,28 @@ function showMaintenanceShield(message) {
           if (reasonVal === 'OTHER') {
               let rawExplanation = document.getElementById('anomalyOtherInput').value.trim();
               if (!rawExplanation) { Swal.fire('提示', '請確實填寫原因說明', 'warning'); return; }
-              const blockKws = ['加班', '客人', '打掃', '公事'];
+              
+              // ★ 擴充版：勞檢防護罩關鍵字大全 (已剔除上課、考試)
+              const blockKws = [
+                  '加班', '客人', '打掃', '公事', 
+                  '結帳', '結班', '算錢', '算帳', '盤點', '關帳', '日結', '交接', 
+                  '備料', '進貨', '補貨', '理貨', '搬貨', '點貨', '叫貨', '調貨', 
+                  '清潔', '洗碗', '倒垃圾', '收店', '打烊', '丟垃圾', '洗機器', '清洗', '掃地','拖地','收垃圾',   
+                  '開會', '訓練', '教學', '帶新人', '練習', 
+                  '幫忙', '支援', '太忙', '人太多', '晚下班', '超時', '協助'
+              ];
+              
               if (blockKws.some(kw => rawExplanation.includes(kw))) {
-                  Swal.fire({ icon:'warning', title:'⚠️ 說明內容包含關鍵字',
-                      html:'您的說明中包含「加班/公事/客人/打掃」等字眼。<br>若是公務，請改選【公事-已申請加班】並記得補送加班單！',
-                      confirmButtonText:'我知道了', confirmButtonColor:'#dc3545' });
+                  Swal.fire({ 
+                      icon: 'warning', 
+                      title: '⚠️ 說明內容疑似公務',
+                      html: '您的說明中包含疑似<b>「營運、結班、清潔或支援」</b>等公務字眼。<br><br>若是處理店內公務，請改選<b>【公事-已申請加班】</b>並記得補送加班單！<br>若確實為私人事務，請調整說明用詞。',
+                      confirmButtonText: '我知道了', 
+                      confirmButtonColor: '#dc3545' 
+                  });
                   return;
               }
+              
               // ★ 核心優化：防呆過關後，自動在字首補上「私事其他-」
               explanation = "私事其他-" + rawExplanation;
           }
