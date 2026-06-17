@@ -7032,7 +7032,8 @@ function showMaintenanceShield(message) {
                   </div>
               `;
           }
-      } // <--- 這裡是 openMonthlyView 的結尾括號，請確保保留
+      }
+    } // ★ 救命關鍵：補上這第 3 個大括號！它才是真正用來關閉 window.openMonthlyView 的！
 
       // ==========================================
       // ★ 展開/收合所有明細引擎 (解決按鈕文字消失問題)
