@@ -6964,7 +6964,7 @@ function showMaintenanceShield(message) {
 
                           <div class="d-flex flex-wrap gap-2 align-items-center mt-2 mt-md-0">
                               <button type="button" class="btn btn-outline-primary btn-sm fw-bold bg-white" onclick="toggleAllDetails(this)">🔽 展開明細</button>
-                              <button type="button" class="btn btn-outline-success btn-sm fw-bold bg-white" onclick="downloadCalendarImage(this)">📸 下載排班圖</button>
+                              <button type="button" class="btn btn-outline-success btn-sm fw-bold bg-white" onclick="downloadCalendarImage(this, '${renderStore}')">📸 下載排班圖</button>
                               <button type="button" class="btn btn-secondary btn-sm d-none d-md-inline-block shadow-sm" data-bs-dismiss="modal">關閉</button>
                           </div>
                           
@@ -6972,8 +6972,9 @@ function showMaintenanceShield(message) {
                   </div>
               `;
           }
-      }
-        /// ==========================================
+      } // <--- 這裡是 openMonthlyView 的結尾括號，請確保保留
+
+      // ==========================================
       // ★ 展開/收合所有明細引擎 (解決按鈕文字消失問題)
       // ==========================================
       window.toggleAllDetails = function(btn) {
@@ -6985,16 +6986,15 @@ function showMaintenanceShield(message) {
       };
 
       // ==========================================
-      // ★ 下載排班圖核心引擎 (完美按鈕 UI ＋ 智慧保留表頭網格技術)
+      // ★ 下載排班圖核心引擎 (完美按鈕 UI ＋ 網格自動折疊吸附技術)
       // ==========================================
-      window.downloadCalendarImage = async function(btnElement) {
+      window.downloadCalendarImage = async function(btnElement, storeName) {
           let year = monthlyTargets.year || new Date().getFullYear();
           let month = monthlyTargets.month || (new Date().getMonth() + 1);
           let lastDate = new Date(year, month, 0).getDate();
           
-          // 取得該月第一天是星期幾 (用來精準計算月曆的「視覺週次」)
           let firstDay = new Date(year, month - 1, 1).getDay();
-          let startPadding = firstDay === 0 ? 6 : firstDay - 1; // 轉換為週一為起點
+          let startPadding = firstDay === 0 ? 6 : firstDay - 1; 
 
           // 1. 🎯 動態精算符合月曆版面的「視覺週次」區間
           let chunks = [];
@@ -7008,7 +7008,7 @@ function showMaintenanceShield(message) {
               weekIndex++;
           }
 
-          // 2. 🎨 打造高質感大按鈕選單 (解決原本 Radio 太醜的問題)
+          // 2. 🎨 打造高質感大按鈕選單 (解決 Radio 太醜的問題)
           let optionsHtml = `<div class="d-grid gap-2 mt-3">
               <button class="btn btn-primary fw-bold shadow-sm" style="background-color: #2b4c7e; border: none;" onclick="window.swalSelectOption('all')">📅 下載完整月份排班圖</button>`;
           chunks.forEach((chunk, index) => {
@@ -7016,7 +7016,6 @@ function showMaintenanceShield(message) {
           });
           optionsHtml += `</div>`;
 
-          // 定義全域點擊事件給 Swal 按鈕使用
           window.swalSelectedValue = undefined;
           window.swalSelectOption = function(val) { 
               window.swalSelectedValue = val; 
@@ -7026,7 +7025,7 @@ function showMaintenanceShield(message) {
           // 3. 🚀 彈出專屬下載面板
           await Swal.fire({
               title: '請選擇下載範圍',
-              html: '<div class="text-muted small fw-bold mb-1">✅ 系統將自動為您加上【店名標題】與【星期表頭】</div>' + optionsHtml,
+              html: '<div class="text-muted small fw-bold mb-1">✅ 系統將為您自動保留【店名標題】與【星期表頭】</div>' + optionsHtml,
               showConfirmButton: false,
               showCancelButton: true,
               cancelButtonText: '取消',
@@ -7034,7 +7033,7 @@ function showMaintenanceShield(message) {
           });
 
           let selectedOption = window.swalSelectedValue;
-          if (selectedOption === undefined) return; // 點擊取消或背景關閉則中斷
+          if (selectedOption === undefined) return; 
 
           // 4. 開始處理截圖
           let originalText = btnElement.innerHTML;
@@ -7044,21 +7043,21 @@ function showMaintenanceShield(message) {
           if (typeof html2canvas === 'undefined') {
               let script = document.createElement('script');
               script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-              script.onload = () => captureAndDownload(btnElement, originalText, selectedOption, chunks, year, month);
+              script.onload = () => captureAndDownload(btnElement, originalText, selectedOption, chunks, year, month, storeName);
               document.head.appendChild(script);
           } else {
-              captureAndDownload(btnElement, originalText, selectedOption, chunks, year, month);
+              captureAndDownload(btnElement, originalText, selectedOption, chunks, year, month, storeName);
           }
       };
 
-      function captureAndDownload(btn, originalText, selectedOption, chunks, year, month) {
+      function captureAndDownload(btn, originalText, selectedOption, chunks, year, month, storeName) {
           const targetArea = document.getElementById('monthlyCalendarArea');
           
           html2canvas(targetArea, {
-              scale: 2, // 提高解析度讓圖片清晰
+              scale: 2, 
               backgroundColor: '#ffffff',
               useCORS: true,
-              windowWidth: 1200, // ★ 強迫觸發電腦版寬度，解決手機跑版
+              windowWidth: 1200, // ★ 強迫觸發電腦版寬度
               onclone: function(clonedDoc) {
                   let clonedArea = clonedDoc.getElementById('monthlyCalendarArea');
                   clonedArea.style.width = '1200px';
@@ -7067,62 +7066,46 @@ function showMaintenanceShield(message) {
                   clonedArea.style.backgroundColor = '#ffffff';
 
                   // ==========================================
-                  // 👑 解決問題三：自動生成高質感「店名與月份」專屬頂部標題
+                  // 👑 解決問題一 & 三：自動生成帶有店名的高質感頂部標題
                   // ==========================================
-                  let modalTitle = document.querySelector('#monthlyModal .modal-title');
-                  let titleText = modalTitle ? modalTitle.innerText : `${year}年${month}月排班表`;
+                  let titleText = `${storeName} ${year}年${month}月排班表`;
+                  if (selectedOption !== 'all') {
+                      let range = chunks[parseInt(selectedOption)];
+                      titleText = `${storeName} ${year}年${month}月排班表 (${month}/${range.start} ~ ${month}/${range.end})`;
+                  }
+                  
                   let titleDiv = clonedDoc.createElement('div');
                   titleDiv.innerHTML = `<div style="text-align:center; padding:18px; font-weight:900; color:#1a365d; background:#f4f7fa; border:2px solid #e2e8f0; border-radius:10px; margin-bottom:20px; font-size:32px; letter-spacing: 2px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">${titleText}</div>`;
                   clonedArea.insertBefore(titleDiv, clonedArea.firstChild);
 
                   // ==========================================
-                  // 🕵️ 解決問題二：智慧隱身術 (保留網格與星期表頭)
+                  // 🕵️ 解決問題二：網格自動折疊吸附魔法
                   // ==========================================
                   if (selectedOption !== 'all') {
                       let range = chunks[parseInt(selectedOption)];
+                      // 抓出日曆中所有的格子 (包含空白補位與日期)
+                      let allDays = clonedArea.querySelectorAll('.cal-day-new');
                       
-                      // 尋找所有包含日期的文字節點，精準鎖定要隱藏的格子
-                      let walker = clonedDoc.createTreeWalker(clonedArea, NodeFilter.SHOW_TEXT, null, false);
-                      let node;
-                      let cellsToHide = [];
-                      
-                      while (node = walker.nextNode()) {
-                          let text = node.nodeValue.trim();
-                          // 匹配月曆上的數字 (例如 "1", "15", "1(一)")
-                          let match = text.match(/^(\d{1,2})(?:\s*\(.\)|\s*日)?$/);
-                          if (match) {
-                              let dayNum = parseInt(match[1]);
-                              if (dayNum >= 1 && dayNum <= 31) {
+                      allDays.forEach((cell) => {
+                          let dateDiv = cell.querySelector('.calendar-date-num');
+                          if (dateDiv) {
+                              // ★ 修正上一版抓不到日期的 BUG，精準匹配 "5/22" 格式
+                              let match = dateDiv.innerText.trim().match(/^\d{1,2}\/(\d{1,2})$/);
+                              if (match) {
+                                  let dayNum = parseInt(match[1]);
+                                  // 將不在該週範圍內的日期格子「徹底隱藏」
                                   if (dayNum < range.start || dayNum > range.end) {
-                                      // 往上尋找該日期的專屬格子容器 (包含 col 或 border 等特徵)
-                                      let cell = node.parentElement;
-                                      while (cell && cell !== clonedArea) {
-                                          if (cell.classList.contains('col') || cell.classList.contains('border') || cell.classList.contains('card')) {
-                                              cellsToHide.push(cell);
-                                              break;
-                                          }
-                                          cell = cell.parentElement;
-                                      }
+                                      cell.style.display = 'none'; 
                                   }
                               }
-                          }
-                      }
-
-                      // ★ 核心魔法：將非該週的格子設為「隱藏」而非刪除，完美保留月曆網格結構！
-                      cellsToHide.forEach(cell => {
-                          cell.style.visibility = 'hidden';
-                      });
-
-                      // 將完全沒有內容的「空白橫排」高度歸零，節省截圖空間
-                      let rows = Array.from(clonedArea.querySelectorAll('.row, .d-flex'));
-                      rows.forEach(row => {
-                          let hiddenCells = Array.from(row.querySelectorAll('[style*="visibility: hidden"]'));
-                          let totalCells = Array.from(row.querySelectorAll('.col, .border, .card'));
-                          // 如果這個橫排裡有格子，且「所有格子都被隱藏了」，就把整排收合
-                          if (totalCells.length > 0 && hiddenCells.length === totalCells.length) {
-                              row.style.display = 'none';
+                          } else {
+                              // 這是月初的空白補位格子，如果下載的不是第一週，就把它隱藏掉
+                              if (parseInt(selectedOption) !== 0) {
+                                  cell.style.display = 'none';
+                              }
                           }
                       });
+                      // 魔法效果：被保留下來的當週 7 個格子，會自動往上吸附，貼齊「星期一～星期日」的表頭！
                   }
               }
           }).then(canvas => {
@@ -7131,7 +7114,8 @@ function showMaintenanceShield(message) {
                   ? '完整月' 
                   : chunks[parseInt(selectedOption)].label.replace('/', '-').replace(' ~ ', '_').replace(/\s+/g, '');
                   
-              link.download = `${year}年${month}月_${fileNameSuffix}_排班圖.png`;
+              // ★ 檔名也自動加入店名
+              link.download = `${storeName}_${year}年${month}月_${fileNameSuffix}_排班圖.png`;
               link.href = canvas.toDataURL('image/png');
               link.click();
               
