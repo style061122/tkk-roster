@@ -6985,9 +6985,39 @@ function showMaintenanceShield(message) {
       };
 
       // ==========================================
-      // ★ 下載排班圖核心引擎 (強制電腦版寬度，解決手機跑版)
+      // ★ 下載排班圖核心引擎 (升級版：支援 SweetAlert 彈窗選週與精準日期範圍)
       // ==========================================
-      window.downloadCalendarImage = function(btnElement) {
+      window.downloadCalendarImage = async function(btnElement) {
+          let year = monthlyTargets.year || new Date().getFullYear();
+          let month = monthlyTargets.month || (new Date().getMonth() + 1);
+          let lastDay = new Date(year, month, 0).getDate();
+
+          // 1. 🎯 動態生成 7 天一區間的選單 (例如 6/1~6/7, 6/8~6/14)
+          let options = { 'all': '📅 下載整月完整排班圖' };
+          let chunks = []; // 儲存區間資料供截圖時比對
+          for (let i = 1; i <= lastDay; i += 7) {
+              let end = Math.min(i + 6, lastDay);
+              let label = `${month}/${i} ~ ${month}/${end}`;
+              options[chunks.length.toString()] = `🗓️ ${label}`;
+              chunks.push({ start: i, end: end, label: label });
+          }
+
+          // 2. 🚀 彈出高質感 SweetAlert2 選擇視窗
+          const { value: selectedOption } = await Swal.fire({
+              title: '請選擇下載範圍',
+              html: '<div class="text-muted small fw-bold">系統將自動為您保留上方的標題與星期表頭！</div>',
+              input: 'radio',
+              inputOptions: options,
+              inputValue: 'all', // 預設停留在整月下載
+              showCancelButton: true,
+              confirmButtonText: '📸 開始截圖',
+              cancelButtonText: '取消',
+              confirmButtonColor: '#0d6efd'
+          });
+
+          if (!selectedOption) return; // 點擊取消或背景關閉則中斷
+
+          // 3. 開始處理截圖
           let originalText = btnElement.innerHTML;
           btnElement.innerHTML = '⏳ 處理中...';
           btnElement.disabled = true;
@@ -6995,14 +7025,14 @@ function showMaintenanceShield(message) {
           if (typeof html2canvas === 'undefined') {
               let script = document.createElement('script');
               script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-              script.onload = () => captureAndDownload(btnElement, originalText);
+              script.onload = () => captureAndDownload(btnElement, originalText, selectedOption, chunks, year, month);
               document.head.appendChild(script);
           } else {
-              captureAndDownload(btnElement, originalText);
+              captureAndDownload(btnElement, originalText, selectedOption, chunks, year, month);
           }
       };
 
-      function captureAndDownload(btn, originalText) {
+      function captureAndDownload(btn, originalText, selectedOption, chunks, year, month) {
           const targetArea = document.getElementById('monthlyCalendarArea');
           
           html2canvas(targetArea, {
@@ -7011,19 +7041,46 @@ function showMaintenanceShield(message) {
               useCORS: true,
               windowWidth: 1200, // ★ 欺騙套件螢幕寬度是 1200px (強迫觸發電腦版樣式)
               onclone: function(clonedDoc) {
-                  // ★ 虛擬分身魔法：只在截圖分身上強制撐開寬度，完全不影響您的手機實體畫面
+                  // ★ 虛擬分身魔法：只在截圖分身上調整，完全不影響您的手機實體畫面
                   let clonedArea = clonedDoc.getElementById('monthlyCalendarArea');
                   clonedArea.style.width = '1200px';
                   clonedArea.style.minWidth = '1200px';
                   clonedArea.style.padding = '10px';
-                  
-                  // ★ 逮捕截圖凶手：已刪除強制不折行的迴圈，讓截圖維持完美流體排版！
+
+                  // 🎯 核心魔法：如果選擇了特定週，啟動「智慧文字掃描引擎」將非該範圍的日期隱藏！
+                  if (selectedOption !== 'all') {
+                      let range = chunks[parseInt(selectedOption)];
+                      
+                      // 尋找虛擬畫面上所有的格子 (包含列、帶邊框的區塊或自訂的 day 區塊)
+                      let dayBlocks = clonedArea.querySelectorAll('.col, .border, [class*="day"]');
+                      
+                      dayBlocks.forEach(block => {
+                          let text = block.innerText || "";
+                          // 掃描開頭是 1~31 數字的區塊 (利用正則表達式，排除掉"星期一"等表頭)
+                          let dayMatch = text.trim().match(/^(\d{1,2})(?:\D|$)/); 
+                          
+                          if (dayMatch) {
+                              let dayNum = parseInt(dayMatch[1]);
+                              // 再次確認是合法日期
+                              if (dayNum >= 1 && dayNum <= 31) {
+                                  // 若不在選擇的起訖範圍內，直接從截圖畫面中剔除！
+                                  if (dayNum < range.start || dayNum > range.end) {
+                                      block.style.display = 'none';
+                                  }
+                              }
+                          }
+                      });
+                  }
               }
           }).then(canvas => {
               let link = document.createElement('a');
-              let year = monthlyTargets.year || new Date().getFullYear();
-              let month = monthlyTargets.month || (new Date().getMonth() + 1);
-              link.download = `${year}年${month}月_門市人力動態日曆.png`;
+              
+              // 動態命名下載的檔案名稱
+              let fileNameSuffix = selectedOption === 'all' 
+                  ? '完整月' 
+                  : chunks[parseInt(selectedOption)].label.replace('/', '-').replace(' ~ ', '_');
+                  
+              link.download = `${year}年${month}月_${fileNameSuffix}_排班圖.png`;
               link.href = canvas.toDataURL('image/png');
               link.click();
               
