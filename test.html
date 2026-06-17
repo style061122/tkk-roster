@@ -8089,6 +8089,62 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
+      // ==========================================
+      // 🚀 LIFF 專屬：全自動快速通關點火引擎 (Auto-Boot)
+      // ==========================================
+      document.addEventListener("DOMContentLoaded", () => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const liffStore = urlParams.get('liffStore');
+          
+          // 如果偵測到網址帶有 liffStore，代表是從 LINE 點擊進來的！
+          if (liffStore) {
+              let storeName = decodeURIComponent(liffStore);
+              
+              // 1. 蓋上一層超高質感的 Loading 畫面，徹底遮住原本的登入框或督導首頁
+              let loadingDiv = document.createElement('div');
+              loadingDiv.id = 'liffLoadingScreen';
+              loadingDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#f4f7fa; z-index:99999; display:flex; flex-direction:column; justify-content:center; align-items:center;';
+              loadingDiv.innerHTML = `
+                  <div class="spinner-border text-primary" style="width: 4rem; height: 4rem;" role="status"></div>
+                  <h3 class="mt-4 fw-bold text-dark" style="letter-spacing: 2px;">📅 排班表讀取中</h3>
+                  <div class="text-muted fw-bold mt-2">📍 ${storeName}</div>
+              `;
+              document.body.appendChild(loadingDiv);
+              
+              // 2. 自動向後端請求該店的資料 (完美繞過手動登入與點擊)
+              if (typeof callApi === 'function') {
+                  callApi('getStoreData', { store: storeName, monthMode: 'current' }).then(res => {
+                      if (res.success) {
+                          // 將拿到的資料灌入全域變數，餵給大腦
+                          window.currentData = res.data || [];
+                          window.monthlyTargets = res.targets || {};
+                          window.currentStore = storeName;
+                          
+                          // 隱藏 Loading 畫面
+                          loadingDiv.style.display = 'none';
+                          
+                          // 3. 自動召喚並彈出排班日曆視窗！
+                          let modalEl = document.getElementById('monthlyModal');
+                          if (modalEl && typeof bootstrap !== 'undefined') {
+                              let bsModal = new bootstrap.Modal(modalEl);
+                              bsModal.show();
+                              
+                              // 呼叫我們剛剛改好的終極繪圖引擎
+                              if (typeof window.openMonthlyView === 'function') {
+                                  window.openMonthlyView(storeName);
+                              }
+                          } else {
+                              alert("系統錯誤：找不到日曆視窗元件！");
+                          }
+                      } else {
+                          loadingDiv.innerHTML = `<h3 class="text-danger mt-4">❌ 資料讀取失敗</h3><p class="fw-bold">${res.message || '無法取得排班資料，請確認店名是否正確'}</p>`;
+                      }
+                  }).catch(err => {
+                      loadingDiv.innerHTML = `<h3 class="text-danger mt-4">❌ 網路連線錯誤</h3><p class="fw-bold">${err}</p>`;
+                  });
+              }
+          }
+      });
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
