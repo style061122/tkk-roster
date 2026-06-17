@@ -8163,52 +8163,75 @@ function showMaintenanceShield(message) {
 
               let adminArea = document.getElementById('adminDataArea');
               if (adminArea) adminArea.style.display = 'none';
+
+              // 🛰️ 5. 🚀 啟動極速直連 API 引擎 (GViz)
+              // ★★★ 請將下方亂碼替換成您剛剛複製的 主試算表 SHEET_ID ★★★
+              const SHEET_ID = '在此填寫您的試算表ID'; 
               
-              // 🛰️ 5. 跨過登入牆，直接向後端 GAS 資料庫索取排班核心封包
-              callApi('getStoreData', { 
-                  store: storeName, 
-                  monthMode: 'current',
-                  token: 'LIFF_BYPASS' 
-              }).then(res => {
-                  showLoading(false);
-                  if (res.success) {
-                      // 💾 6. 成功把資料寫入前端大腦！(畫圖引擎終於能讀到了)
-                      currentData = res.data || [];
-                      monthlyTargets = res.targets || {};
+              const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('當月班表')}`;
+
+              fetch(gvizUrl)
+                  .then(response => response.text())
+                  .then(text => {
+                      // 拆解 Google API 的特殊封裝格式
+                      const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                      const gvizData = JSON.parse(jsonStr);
+                      const rawData = gvizData.table.rows.map(row => row.c.map(cell => cell ? (cell.f || cell.v || "") : ""));
+
+                      let mappedData = [];
                       
-                      // ★ 同步接收加班與異常明細包裹 (這兩個在您的設定中確實掛在 window 下)
-                      window.currentOtData = res.otData || [];
-                      window.historicalAnomalies = res.anomalyData || [];
+                      // 💾 6. 將秒抓回來的龐大資料，在手機端瞬間過濾成該門市的格式
+                      for (let i = 1; i < rawData.length; i++) {
+                          let rowStore = String(rawData[i][17] || "").trim(); // R欄: 門市
+                          let supStr = String(rawData[i][30] || "").trim();   // AE欄: 支援
+
+                          if (rowStore === storeName || supStr.includes(storeName)) {
+                              let supportArray = [];
+                              try { if (supStr) supportArray = JSON.parse(supStr); } catch(e) {}
+
+                              mappedData.push({
+                                  date: String(rawData[i][0] || "").trim(), // A欄
+                                  name: String(rawData[i][2] || "").trim(), // C欄
+                                  store: rowStore,
+                                  input_status: String(rawData[i][8] || "").trim(), // I欄
+                                  input_start: String(rawData[i][9] || "").trim(),  // J欄
+                                  input_end: String(rawData[i][10] || "").trim(),   // K欄
+                                  sys_abnormal: String(rawData[i][15] || "").trim(),// P欄
+                                  sys_leave: String(rawData[i][32] || "").trim(),   // AG欄
+                                  supports: supportArray
+                              });
+                          }
+                      }
+
+                      currentData = mappedData;
+                      monthlyTargets = {}; // 月曆引擎會自動從資料推算年月
+                      window.currentOtData = []; // 純顯示圖表不需要運算此項目
+                      window.historicalAnomalies = []; 
                       
-                      // 🔔 檢查：如果後端不幸真的完全沒資料，由通關引擎發出親切提示
+                      showLoading(false);
+
                       if (currentData.length === 0) {
-                          Swal.fire('系統提示', `[${storeName}] 本月份尚無任何排班資料喔！`, 'info');
+                          Swal.fire('系統提示', `[${storeName}] 查無排班資料！`, 'info');
                           return;
                       }
 
-                      // 🏛️ 7. 完美喚醒排班日曆視窗 (monthlyModal)
+                      // 🏛️ 7. 完美喚醒排班日曆視窗
                       let calModal = new bootstrap.Modal(document.getElementById('monthlyModal'));
                       calModal.show();
                       
-                      // 🗺️ 8. 修正瀏覽器網址，將校正後的店名寫回網址，提供繪製引擎比對
+                      // 🗺️ 8. 修正瀏覽器網址
                       let newSearch = `?liffStore=${encodeURIComponent(storeName)}`;
-                      if (liffStart && liffEnd) {
-                          newSearch += `&liffStart=${liffStart}&liffEnd=${liffEnd}`;
-                      }
+                      if (liffStart && liffEnd) newSearch += `&liffStart=${liffStart}&liffEnd=${liffEnd}`;
                       window.history.replaceState(null, null, newSearch);
                       
-                      // 🎨 9. 呼叫排班圖繪製核心！大功告成！
+                      // 🎨 9. 呼叫排班圖繪製核心
                       openMonthlyView(storeName);
-                      
-                  } else {
+
+                  }).catch(err => {
                       showLoading(false);
-                      Swal.fire('連線失敗', '後端伺服器拒絕連線，請重新確認 Token 設定', 'error');
-                  }
-              }).catch(err => {
-                  showLoading(false);
-                  console.error(err);
-                  Swal.fire('網路錯誤', '無法連線至雲端資料庫，請稍後再試', 'error');
-              });
+                      console.error("極速引擎連線失敗:", err);
+                      Swal.fire('網路錯誤', '無法直連資料庫，請確認試算表共用權限是否已開啟！', 'error');
+                  });
           }
       });
     </script>
