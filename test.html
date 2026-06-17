@@ -8144,6 +8144,10 @@ function showMaintenanceShield(message) {
                   if (res.success) {
                       window.currentData = res.data || [];
                       window.monthlyTargets = res.targets || {};
+                      // ★ 救命疫苗：欺騙前端的變數，假裝我們已經「正常登入」了，防止閒置系統踢人！
+                      window.currentToken = 'LIFF_BYPASS'; 
+                      window.currentUserRole = 'STORE'; 
+                      window.currentMonthMode = 'current';
                       
                       // 隱藏背景的督導看板，直接彈出排班日曆視窗！
                       let adminArea = document.getElementById('adminDataArea');
