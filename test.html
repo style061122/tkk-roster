@@ -8131,11 +8131,6 @@ function showMaintenanceShield(message) {
           if (liffStore) {
               let storeName = decodeURIComponent(liffStore);
               
-              // 💡 智慧校正：如果網址傳來只有 "三重"，自動幫他補上官方名稱 "三重店"
-              if (!storeName.includes('店') && !storeName.includes('部') && storeName !== '總公司') {
-                  storeName += '店';
-              }
-              
               // 🛡️ 3. 關閉並封鎖前端登入畫面，直接呈現極速載入動畫
               let loginBlock = document.getElementById('loginSection');
               if (loginBlock) loginBlock.style.display = 'none';
