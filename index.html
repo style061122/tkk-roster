@@ -6620,7 +6620,7 @@ function showMaintenanceShield(message) {
           }
       }
       // ==========================================
-      // ★ 終極整月檢視 (支援全區切換與智慧搜尋電梯)
+      // ★ 終極整月檢視 (完美融合 LIFF 沉浸模式，阻斷變數衝突)
       // ==========================================
       window.openMonthlyView = function(selectedStore) {
           const area = document.getElementById('monthlyCalendarArea');
@@ -6629,26 +6629,47 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          // ★ 核心升級：決定要畫哪家店的日曆，並產生智慧搜尋選單
-          let renderStore = currentStore;
-          let dropdownHtml = '';
+          // 📡 ★ 第一道防線：偵測是否為 LINE LIFF 內嵌模式
+          const urlParams = new URLSearchParams(window.location.search);
+          const liffStart = urlParams.get('liffStart');
+          const liffEnd = urlParams.get('liffEnd');
+          const liffStore = urlParams.get('liffStore');
 
-          if (window.isRegionOverview) {
-              // 如果沒傳入指定門市，預設抓管轄清單的第一家
-              renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
-              
-              // 建立可輸入搜尋的 Datalist (如同月統計的電梯)
-              let datalistId = "calStoreJumpList";
-              let listOpts = allowedStoresList.map(s => `<option value="${s}">${s}</option>`).join('');
-              
-              dropdownHtml = `
-              <div class="mb-3 d-flex align-items-center flex-nowrap gap-1 bg-light p-2 rounded border shadow-sm border-info">
-                  <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇門市：</label>
-                  <input type="text" class="form-control form-control-sm fw-bold border-primary flex-grow-1" list="${datalistId}" value="${renderStore}" placeholder="點擊下拉或輸入關鍵字..." onchange="openMonthlyView(this.value)" onclick="this.value=''">
-                  <datalist id="${datalistId}">${listOpts}</datalist>
-              </div>`;
+          function decodeStoreName(str) {
+              try { return decodeURIComponent(str); } catch(e) { return str; }
           }
 
+          // 🛡️ ★ 第二道防線：智慧決定要繪製哪家店的資料 (renderStore)
+          let renderStore = currentStore; 
+          let dropdownHtml = '';
+
+          if (liffStore) {
+              // 🔴 [LIFF 模式]：強制鎖定為 LINE 傳來的店名，無視一切全域變數！
+              renderStore = decodeStoreName(liffStore);
+              
+          } else {
+              // 🔵 [正常網頁模式]：走原有的督導/店長邏輯
+              if (window.isRegionOverview) {
+                  // 如果沒傳入指定門市，預設抓管轄清單的第一家
+                  renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
+                  
+                  // 建立可輸入搜尋的 Datalist (如同月統計的電梯)
+                  let datalistId = "calStoreJumpList";
+                  let listOpts = (allowedStoresList || []).map(s => `<option value="${s}">${s}</option>`).join('');
+                  
+                  dropdownHtml = `
+                  <div class="mb-3 d-flex align-items-center flex-nowrap gap-1 bg-light p-2 rounded border shadow-sm border-info">
+                      <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇門市：</label>
+                      <input type="text" class="form-control form-control-sm fw-bold border-primary flex-grow-1" list="${datalistId}" value="${renderStore}" placeholder="點擊下拉或輸入關鍵字..." onchange="openMonthlyView(this.value)" onclick="this.value=''">
+                      <datalist id="${datalistId}">${listOpts}</datalist>
+                  </div>`;
+              } else {
+                  // 單店督導 或 一般店長模式
+                  renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : currentStore;
+              }
+          }
+
+          // 📅 ★ 日期與標題處理
           let targetYear = monthlyTargets.year;
           let targetMonth = monthlyTargets.month;
           if (!targetYear || !targetMonth) {
@@ -6656,7 +6677,7 @@ function showMaintenanceShield(message) {
               targetYear = parseInt(dParts[0]);
               targetMonth = parseInt(dParts[1]);
           }
-          // ★ 縮小標題字數，避免手機版折行佔空間
+          // 縮小標題字數，避免手機版折行佔空間
           document.getElementById('monthlyModalTitle').innerText = `📅 ${targetYear}/${targetMonth} 門市排班`;
 
           const daysInMonth = new Date(targetYear, targetMonth, 0).getDate(); 
@@ -6664,7 +6685,7 @@ function showMaintenanceShield(message) {
           let firstDayOfWeek = firstDayDate.getDay(); 
           let shift = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
-          // ★ 終極升級：先掃描出哪些異常「已經填寫說明」了！
+          // ★ 先掃描出哪些異常「已經填寫說明」了！
           let answeredAnomalies = [];
           if (typeof getAnomalyObjects === 'function') {
               let anomalyResult = getAnomalyObjects(currentData);
@@ -6999,13 +7020,52 @@ function showMaintenanceShield(message) {
           // ★ 結合下拉選單與日曆本體
           area.innerHTML = dropdownHtml + html;
 
+          // 🕵️‍♂️ ★ 核心魔法：如果網址有帶週次參數，啟動 LIFF 專屬網格折疊吸附技術
+          if (liffStart && liffEnd) {
+              let startDay = parseInt(liffStart);
+              let endDay = parseInt(liffEnd);
+              
+              let allDays = area.querySelectorAll('.cal-day-new');
+              allDays.forEach((cell) => {
+                  let dateDiv = cell.querySelector('.calendar-date-num');
+                  if (dateDiv) {
+                      let match = dateDiv.innerText.trim().match(/^\d{1,2}\/(\d{1,2})$/);
+                      if (match) {
+                          let dayNum = parseInt(match[1]);
+                          // 將不屬於 LINE 點選的那一週的格子完全剔除！
+                          if (dayNum < startDay || dayNum > endDay) {
+                              cell.style.display = 'none'; 
+                          }
+                      }
+                  } else {
+                      // 這是月初的空白補位格子，如果不是第一週就隱藏
+                      if (startDay !== 1) {
+                          cell.style.display = 'none';
+                      }
+                  }
+              });
+
+              // 💥 LINE 專屬沉浸式優化：如果是從 LINE 打開的，把視窗標題也重寫！
+              let targetYear = monthlyTargets.year || new Date().getFullYear();
+              let targetMonth = monthlyTargets.month || (new Date().getMonth() + 1);
+              document.getElementById('monthlyModalTitle').innerText = `📅 ${renderStore} ${targetMonth}月週班表 (${targetMonth}/${startDay}~${targetMonth}/${endDay})`;
+          }
+
           // ==========================================
           // ★ 核心 6：底部精美圖例說明 (完全吻合您的色彩定義)
           // ==========================================
           const modalFooter = document.querySelector('#monthlyModal .modal-footer');
           if (modalFooter) {
-              modalFooter.innerHTML = `
-                  <div class="w-100">
+              // ★ 修正：如果是從 LINE 開啟的 (liffStore 有值)，直接隱藏整個底部工具列與關閉按鈕！
+              if (liffStore) {
+                  modalFooter.style.display = 'none';
+                  // 同步把網頁原本 Bootstrap 的 Modal 關閉按鈕 (右上角的X) 隱藏，完全交給 LINE 內建導覽列
+                  let closeBtn = document.querySelector('#monthlyModal .btn-close');
+                  if (closeBtn) closeBtn.style.display = 'none';
+              } else {
+                  modalFooter.style.display = 'block'; // 正常電腦版維持顯示
+                  modalFooter.innerHTML = `
+                      <div class="w-100">
                       <div class="d-flex justify-content-between align-items-center d-md-none mb-2">
                           <button class="btn btn-sm btn-outline-secondary fw-bold shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#calendarToolbar">
                               🛠️ 工具列 ▾
@@ -7034,7 +7094,8 @@ function showMaintenanceShield(message) {
                   </div>
               `;
           }
-      } // <--- 這裡是 openMonthlyView 的結尾括號，請確保保留
+      }
+    } // ★ 救命關鍵：補上這第 3 個大括號！它才是真正用來關閉 window.openMonthlyView 的！
 
       // ==========================================
       // ★ 展開/收合所有明細引擎 (解決按鈕文字消失問題)
