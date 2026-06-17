@@ -8124,11 +8124,29 @@ function showMaintenanceShield(message) {
           }
           
           const liffStore = urlParams.get('liffStore');
-          const liffStart = urlParams.get('liffStart'); // 有傳代表看單週，沒傳代表看整月
+          const liffStart = urlParams.get('liffStart'); 
           const liffEnd = urlParams.get('liffEnd');
+          const reqTime = urlParams.get('t'); // ★ 抓取網址中的時間印記
 
           // 🎯 2. 關鍵攔截：只要網址裡有帶店名，代表是從 LINE 通道進來的！全面接管流程！
           if (liffStore) {
+              
+              // 🛡️ 絕對防禦機制：檢查連結是否過期 (5分鐘 = 300,000 毫秒)
+              if (reqTime) {
+                  let timeDiff = Date.now() - parseInt(reqTime);
+                  if (timeDiff > 300000) {
+                      // 💥 暴力銷毀畫面：把整個網頁清空，替換成失效警告，不給任何破解機會！
+                      document.body.innerHTML = `
+                          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f8f9fa; padding: 20px; text-align: center;">
+                              <h1 style="font-size: 4rem; margin-bottom: 10px;">⏱️</h1>
+                              <h3 style="color: #dc3545; font-weight: bold;">⛔ 連結已失效</h3>
+                              <p style="color: #6c757d; font-weight: bold; margin-top: 10px;">為保護排班資料安全，此連結已超過 5 分鐘有效期限。<br><br>請回到 LINE 重新輸入「#班表」獲取最新連結！</p>
+                          </div>
+                      `;
+                      return; // 終止後續所有執行，神仙也無法撈資料
+                  }
+              }
+
               let storeName = decodeURIComponent(liffStore);
               
               // 🛡️ 3. 關閉並封鎖前端登入畫面，直接呈現極速載入動畫
