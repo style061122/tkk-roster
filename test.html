@@ -1882,7 +1882,11 @@ function showMaintenanceShield(message) {
         const coSelect = document.getElementById('loginCompany');
         coSelect.innerHTML = '<option value="">請選擇公司</option>';
         Object.keys(allStoreData).forEach(co => { coSelect.innerHTML += `<option value="${co}">${co}</option>`; });
-        document.getElementById('loginSection').style.display = 'block';
+        
+        // ★ 終極攔截：如果網址有 liff.state (從 LINE 開啟)，絕對不要把登入畫面顯示出來！
+        if (!window.location.search.includes('liff.state') && !window.location.search.includes('liffStore')) {
+            document.getElementById('loginSection').style.display = 'block';
+        }
       }
 
       function updateStoreOptions() {
@@ -8107,7 +8111,7 @@ function showMaintenanceShield(message) {
           }).catch(err => errorHandler(err));
       }
       // ==========================================
-      // 🚀 神級引擎：LIFF 專屬自動通關 (破解亂碼 + 繞過登入)
+      // 🚀 神級引擎：LIFF 專屬自動通關 (破解亂碼 + 繞過登入 + 智慧校正店名)
       // ==========================================
       window.addEventListener('DOMContentLoaded', function() {
           let urlParams = new URLSearchParams(window.location.search);
@@ -8125,6 +8129,11 @@ function showMaintenanceShield(message) {
           // 如果確實是從 LINE LIFF 帶參數進來的
           if (liffStore && liffStart && liffEnd) {
               let storeName = decodeURIComponent(liffStore);
+              
+              // ★ 智慧校正：如果網址傳來只有 "三重"，自動幫他補上 "店"
+              if (!storeName.includes('店') && !storeName.includes('部') && storeName !== '總公司') {
+                  storeName += '店';
+              }
               
               // 1. 隱藏原本的登入牆
               let loginBlock = document.getElementById('loginSection');
@@ -8144,11 +8153,12 @@ function showMaintenanceShield(message) {
                   if (res.success) {
                       window.currentData = res.data || [];
                       window.monthlyTargets = res.targets || {};
-                      // ★ 救命疫苗：欺騙前端的變數，假裝我們已經「正常登入」了，防止閒置系統踢人！
+                      
+                      // ★ 救命疫苗：欺騙閒置系統，假裝我們已經正常登入，防止被踢出！
                       window.currentToken = 'LIFF_BYPASS'; 
                       window.currentUserRole = 'STORE'; 
                       window.currentMonthMode = 'current';
-                      
+
                       // 隱藏背景的督導看板，直接彈出排班日曆視窗！
                       let adminArea = document.getElementById('adminDataArea');
                       if (adminArea) adminArea.style.display = 'none';
@@ -8157,6 +8167,8 @@ function showMaintenanceShield(message) {
                       calModal.show();
                       
                       // 呼叫剛剛升級好的月曆繪製引擎！
+                      // ★ 這裡為了確保月曆繪製引擎也拿到完整的店名，直接把網址參數加上去
+                      window.history.replaceState(null, null, `?liffStart=${liffStart}&liffEnd=${liffEnd}&liffStore=${encodeURIComponent(storeName)}`);
                       openMonthlyView(storeName);
                   } else {
                       Swal.fire('連線錯誤', '無法取得班表資料', 'error');
