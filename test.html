@@ -8142,13 +8142,12 @@ function showMaintenanceShield(message) {
               
               showLoading(true, `⏳ LINE 快速通道：極速載入 [${storeName}] 班表中...`);
               
-              // 🧪 4. 打假疫苗：注入免檢權限變數，欺騙前端「閒置登出系統」，防黃色警告框
-              window.currentStore = storeName;
-              window.currentToken = 'LIFF_BYPASS'; 
-              window.currentUserRole = 'STORE'; // 統一偽裝成店長視角，避開督導電梯的干擾
-              window.currentMonthMode = 'current';
+              // 🧪 4. 打假疫苗：直接寫入原始變數 (拔除 window 前綴，破除平行時空)
+              currentStore = storeName;
+              currentToken = 'LIFF_BYPASS'; 
+              currentUserRole = 'STORE'; 
+              currentMonthMode = 'current';
 
-              // 隱藏背景可能殘留的督導看板大區塊
               let adminArea = document.getElementById('adminDataArea');
               if (adminArea) adminArea.style.display = 'none';
               
@@ -8156,16 +8155,20 @@ function showMaintenanceShield(message) {
               callApi('getStoreData', { 
                   store: storeName, 
                   monthMode: 'current',
-                  token: 'LIFF_BYPASS' // 後端免檢通行證
+                  token: 'LIFF_BYPASS' 
               }).then(res => {
                   showLoading(false);
                   if (res.success) {
-                      // 💾 6. 成功把資料寫入前端大腦的 currentData！這是一切畫面的基礎！
-                      window.currentData = res.data || [];
-                      window.monthlyTargets = res.targets || {};
+                      // 💾 6. 成功把資料寫入前端大腦！(畫圖引擎終於能讀到了)
+                      currentData = res.data || [];
+                      monthlyTargets = res.targets || {};
+                      
+                      // ★ 同步接收加班與異常明細包裹 (這兩個在您的設定中確實掛在 window 下)
+                      window.currentOtData = res.otData || [];
+                      window.historicalAnomalies = res.anomalyData || [];
                       
                       // 🔔 檢查：如果後端不幸真的完全沒資料，由通關引擎發出親切提示
-                      if (window.currentData.length === 0) {
+                      if (currentData.length === 0) {
                           Swal.fire('系統提示', `[${storeName}] 本月份尚無任何排班資料喔！`, 'info');
                           return;
                       }
