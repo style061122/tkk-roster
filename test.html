@@ -6558,7 +6558,7 @@ function showMaintenanceShield(message) {
           }
       }
       // ==========================================
-      // ★ 終極整月檢視 (支援全區切換與智慧搜尋電梯 ─ 完美融入 LINE LIFF 內嵌版)
+      // ★ 終極整月檢視 (完美融合 LIFF 沉浸模式，阻斷變數衝突)
       // ==========================================
       window.openMonthlyView = function(selectedStore) {
           const area = document.getElementById('monthlyCalendarArea');
@@ -6567,37 +6567,47 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          // 📡 ★ 終極升級：LIFF 智慧網址參數雷達 ★
+          // 📡 ★ 第一道防線：偵測是否為 LINE LIFF 內嵌模式
           const urlParams = new URLSearchParams(window.location.search);
-          const liffStart = urlParams.get('liffStart'); // LINE 傳過來的週起點 (例如 8)
-          const liffEnd = urlParams.get('liffEnd');     // LINE 傳過來的週終點 (例如 14)
-          const liffStore = urlParams.get('liffStore'); // LINE 傳過來的鎖定店名 (例如 "三重店")
+          const liffStart = urlParams.get('liffStart');
+          const liffEnd = urlParams.get('liffEnd');
+          const liffStore = urlParams.get('liffStore');
 
-          // 輔助解碼函數，防止中文店名在網址中變成亂碼
           function decodeStoreName(str) {
               try { return decodeURIComponent(str); } catch(e) { return str; }
           }
 
-          // ★ 核心升級：決定要畫哪家店的日曆，並產生智慧搜尋選單
-          // 如果網址有帶 LIFF 店名，強制以 LINE 傳來的店名為主，達到免登入自動鎖定效果！
-          let renderStore = (liffStore) ? decodeStoreName(liffStore) : currentStore;
-          if (!liffStore && window.isRegionOverview) {
-              renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
-          }
-
+          // 🛡️ ★ 第二道防線：智慧決定要繪製哪家店的資料 (renderStore)
+          let renderStore = currentStore; 
           let dropdownHtml = '';
-          if (window.isRegionOverview && !liffStore) { // ★ 修正：如果是從 LINE 打開的，隱藏店名切換電梯，防同仁越權越獄！
-              let datalistId = "calStoreJumpList";
-              let listOpts = allowedStoresList.map(s => `<option value="${s}">${s}</option>`).join('');
+
+          if (liffStore) {
+              // 🔴 [LIFF 模式]：強制鎖定為 LINE 傳來的店名，無視一切全域變數！
+              renderStore = decodeStoreName(liffStore);
               
-              dropdownHtml = `
-              <div class="mb-3 d-flex align-items-center flex-nowrap gap-1 bg-light p-2 rounded border shadow-sm border-info">
-                  <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇門市：</label>
-                  <input type="text" class="form-control form-control-sm fw-bold border-primary flex-grow-1" list="${datalistId}" value="${renderStore}" placeholder="點擊下拉或輸入關鍵字..." onchange="openMonthlyView(this.value)" onclick="this.value=''">
-                  <datalist id="${datalistId}">${listOpts}</datalist>
-              </div>`;
+          } else {
+              // 🔵 [正常網頁模式]：走原有的督導/店長邏輯
+              if (window.isRegionOverview) {
+                  // 如果沒傳入指定門市，預設抓管轄清單的第一家
+                  renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
+                  
+                  // 建立可輸入搜尋的 Datalist (如同月統計的電梯)
+                  let datalistId = "calStoreJumpList";
+                  let listOpts = (allowedStoresList || []).map(s => `<option value="${s}">${s}</option>`).join('');
+                  
+                  dropdownHtml = `
+                  <div class="mb-3 d-flex align-items-center flex-nowrap gap-1 bg-light p-2 rounded border shadow-sm border-info">
+                      <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇門市：</label>
+                      <input type="text" class="form-control form-control-sm fw-bold border-primary flex-grow-1" list="${datalistId}" value="${renderStore}" placeholder="點擊下拉或輸入關鍵字..." onchange="openMonthlyView(this.value)" onclick="this.value=''">
+                      <datalist id="${datalistId}">${listOpts}</datalist>
+                  </div>`;
+              } else {
+                  // 單店督導 或 一般店長模式
+                  renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : currentStore;
+              }
           }
 
+          // 📅 ★ 日期與標題處理
           let targetYear = monthlyTargets.year;
           let targetMonth = monthlyTargets.month;
           if (!targetYear || !targetMonth) {
@@ -6605,7 +6615,7 @@ function showMaintenanceShield(message) {
               targetYear = parseInt(dParts[0]);
               targetMonth = parseInt(dParts[1]);
           }
-          // ★ 縮小標題字數，避免手機版折行佔空間
+          // 縮小標題字數，避免手機版折行佔空間
           document.getElementById('monthlyModalTitle').innerText = `📅 ${targetYear}/${targetMonth} 門市排班`;
 
           const daysInMonth = new Date(targetYear, targetMonth, 0).getDate(); 
@@ -6613,7 +6623,7 @@ function showMaintenanceShield(message) {
           let firstDayOfWeek = firstDayDate.getDay(); 
           let shift = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
-          // ★ 終極升級：先掃描出哪些異常「已經填寫說明」了！
+          // ★ 先掃描出哪些異常「已經填寫說明」了！
           let answeredAnomalies = [];
           if (typeof getAnomalyObjects === 'function') {
               let anomalyResult = getAnomalyObjects(currentData);
@@ -8089,62 +8099,6 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
-      // ==========================================
-      // 🚀 LIFF 專屬：全自動快速通關點火引擎 (Auto-Boot)
-      // ==========================================
-      document.addEventListener("DOMContentLoaded", () => {
-          const urlParams = new URLSearchParams(window.location.search);
-          const liffStore = urlParams.get('liffStore');
-          
-          // 如果偵測到網址帶有 liffStore，代表是從 LINE 點擊進來的！
-          if (liffStore) {
-              let storeName = decodeURIComponent(liffStore);
-              
-              // 1. 蓋上一層超高質感的 Loading 畫面，徹底遮住原本的登入框或督導首頁
-              let loadingDiv = document.createElement('div');
-              loadingDiv.id = 'liffLoadingScreen';
-              loadingDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#f4f7fa; z-index:99999; display:flex; flex-direction:column; justify-content:center; align-items:center;';
-              loadingDiv.innerHTML = `
-                  <div class="spinner-border text-primary" style="width: 4rem; height: 4rem;" role="status"></div>
-                  <h3 class="mt-4 fw-bold text-dark" style="letter-spacing: 2px;">📅 排班表讀取中</h3>
-                  <div class="text-muted fw-bold mt-2">📍 ${storeName}</div>
-              `;
-              document.body.appendChild(loadingDiv);
-              
-              // 2. 自動向後端請求該店的資料 (完美繞過手動登入與點擊)
-              if (typeof callApi === 'function') {
-                  callApi('getStoreData', { store: storeName, monthMode: 'current' }).then(res => {
-                      if (res.success) {
-                          // 將拿到的資料灌入全域變數，餵給大腦
-                          window.currentData = res.data || [];
-                          window.monthlyTargets = res.targets || {};
-                          window.currentStore = storeName;
-                          
-                          // 隱藏 Loading 畫面
-                          loadingDiv.style.display = 'none';
-                          
-                          // 3. 自動召喚並彈出排班日曆視窗！
-                          let modalEl = document.getElementById('monthlyModal');
-                          if (modalEl && typeof bootstrap !== 'undefined') {
-                              let bsModal = new bootstrap.Modal(modalEl);
-                              bsModal.show();
-                              
-                              // 呼叫我們剛剛改好的終極繪圖引擎
-                              if (typeof window.openMonthlyView === 'function') {
-                                  window.openMonthlyView(storeName);
-                              }
-                          } else {
-                              alert("系統錯誤：找不到日曆視窗元件！");
-                          }
-                      } else {
-                          loadingDiv.innerHTML = `<h3 class="text-danger mt-4">❌ 資料讀取失敗</h3><p class="fw-bold">${res.message || '無法取得排班資料，請確認店名是否正確'}</p>`;
-                      }
-                  }).catch(err => {
-                      loadingDiv.innerHTML = `<h3 class="text-danger mt-4">❌ 網路連線錯誤</h3><p class="fw-bold">${err}</p>`;
-                  });
-              }
-          }
-      });
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
