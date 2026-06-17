@@ -6573,42 +6573,20 @@ function showMaintenanceShield(message) {
           const liffEnd = urlParams.get('liffEnd');     // LINE 傳過來的週終點 (例如 14)
           const liffStore = urlParams.get('liffStore'); // LINE 傳過來的鎖定店名 (例如 "三重店")
 
-          // ★ 核心升級：決定要畫哪家店的日曆，並產生智慧搜尋選單
-          // 如果網址有帶 LIFF 店名，強制以 LINE 傳來的店名為主，達到免登入自動鎖定效果！
-          let renderStore = (liffStore) ? decodeStoreName(liffStore) : currentStore;
-          if (!liffStore) {
-              if (window.isRegionOverview) {
-                  renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
-              }
-          }
-
           // 輔助解碼函數，防止中文店名在網址中變成亂碼
           function decodeStoreName(str) {
               try { return decodeURIComponent(str); } catch(e) { return str; }
           }
 
-          let dropdownHtml = '';
-          if (window.isRegionOverview && !liffStore) { // ★ 修正：如果是從 LINE 打開的，隱藏店名切換電梯，防同仁越權越獄！
-              let datalistId = "calStoreJumpList";
-              let listOpts = allowedStoresList.map(s => `<option value="${s}">${s}</option>`).join('');
-              
-              dropdownHtml = `
-              <div class="mb-3 d-flex align-items-center flex-nowrap gap-1 bg-light p-2 rounded border shadow-sm border-info">
-                  <label class="fw-bold text-dark text-nowrap mb-0 ms-1" style="font-size: 0.9rem;">🔍 選擇門市：</label>
-                  <input type="text" class="form-control form-control-sm fw-bold border-primary flex-grow-1" list="${datalistId}" value="${renderStore}" placeholder="點擊下拉或輸入關鍵字..." onchange="openMonthlyView(this.value)" onclick="this.value=''">
-                  <datalist id="${datalistId}">${listOpts}</datalist>
-              </div>`;
+          // ★ 核心升級：決定要畫哪家店的日曆，並產生智慧搜尋選單
+          // 如果網址有帶 LIFF 店名，強制以 LINE 傳來的店名為主，達到免登入自動鎖定效果！
+          let renderStore = (liffStore) ? decodeStoreName(liffStore) : currentStore;
+          if (!liffStore && window.isRegionOverview) {
+              renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
           }
 
-          // ★ 核心升級：決定要畫哪家店的日曆，並產生智慧搜尋選單
-          let renderStore = currentStore;
           let dropdownHtml = '';
-
-          if (window.isRegionOverview) {
-              // 如果沒傳入指定門市，預設抓管轄清單的第一家
-              renderStore = (typeof selectedStore === 'string' && selectedStore) ? selectedStore : (allowedStoresList[0] || currentStore);
-              
-              // 建立可輸入搜尋的 Datalist (如同月統計的電梯)
+          if (window.isRegionOverview && !liffStore) { // ★ 修正：如果是從 LINE 打開的，隱藏店名切換電梯，防同仁越權越獄！
               let datalistId = "calStoreJumpList";
               let listOpts = allowedStoresList.map(s => `<option value="${s}">${s}</option>`).join('');
               
