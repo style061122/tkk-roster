@@ -6567,8 +6567,14 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          // 📡 ★ 第一道防線：偵測是否為 LINE LIFF 內嵌模式
-          const urlParams = new URLSearchParams(window.location.search);
+          // 📡 ★ 第一道防線：偵測是否為 LINE LIFF 內嵌模式 (並破解 liff.state 亂碼封裝)
+          let urlParams = new URLSearchParams(window.location.search);
+          let liffState = urlParams.get('liff.state');
+          if (liffState) {
+              // 把 LINE 封裝的亂碼還原成正常的參數字串
+              let decodedState = decodeURIComponent(liffState);
+              urlParams = new URLSearchParams(decodedState.startsWith('?') ? decodedState : '?' + decodedState);
+          }
           const liffStart = urlParams.get('liffStart');
           const liffEnd = urlParams.get('liffEnd');
           const liffStore = urlParams.get('liffStore');
@@ -8100,6 +8106,63 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
+      // ==========================================
+      // 🚀 神級引擎：LIFF 專屬自動通關 (破解亂碼 + 繞過登入)
+      // ==========================================
+      window.addEventListener('DOMContentLoaded', function() {
+          let urlParams = new URLSearchParams(window.location.search);
+          let liffState = urlParams.get('liff.state');
+          
+          if (liffState) {
+              let decodedState = decodeURIComponent(liffState);
+              urlParams = new URLSearchParams(decodedState.startsWith('?') ? decodedState : '?' + decodedState);
+          }
+          
+          const liffStore = urlParams.get('liffStore');
+          const liffStart = urlParams.get('liffStart');
+          const liffEnd = urlParams.get('liffEnd');
+
+          // 如果確實是從 LINE LIFF 帶參數進來的
+          if (liffStore && liffStart && liffEnd) {
+              let storeName = decodeURIComponent(liffStore);
+              
+              // 1. 隱藏原本的登入牆
+              let loginBlock = document.getElementById('loginContainer');
+              if (loginBlock) loginBlock.style.display = 'none';
+              
+              // 2. 顯示讀取動畫
+              showLoading(true, `極速載入 [${storeName}] 班表中...`);
+              
+              // 3. 偽裝成該店店長，直接去後台撈取班表資料
+              window.currentStore = storeName;
+              callApi('getStoreData', { 
+                  store: storeName, 
+                  monthMode: 'current',
+                  token: 'LIFF_BYPASS' // 特殊通行證
+              }).then(res => {
+                  showLoading(false);
+                  if (res.success) {
+                      window.currentData = res.data || [];
+                      window.monthlyTargets = res.targets || {};
+                      
+                      // 隱藏背景的督導看板，直接彈出排班日曆視窗！
+                      let adminArea = document.getElementById('adminDataArea');
+                      if (adminArea) adminArea.style.display = 'none';
+                      
+                      let calModal = new bootstrap.Modal(document.getElementById('monthlyModal'));
+                      calModal.show();
+                      
+                      // 呼叫剛剛升級好的月曆繪製引擎！
+                      openMonthlyView(storeName);
+                  } else {
+                      Swal.fire('連線錯誤', '無法取得班表資料', 'error');
+                  }
+              }).catch(err => {
+                  showLoading(false);
+                  Swal.fire('網路錯誤', '無法連線至伺服器', 'error');
+              });
+          }
+      });
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
