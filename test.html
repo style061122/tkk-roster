@@ -7125,7 +7125,7 @@ function showMaintenanceShield(message) {
           const targetArea = document.getElementById('monthlyCalendarArea');
           
           html2canvas(targetArea, {
-              scale: 2, 
+              scale: 3, 
               backgroundColor: '#ffffff',
               useCORS: true,
               windowWidth: 1200, // ★ 強迫觸發電腦版寬度
@@ -7180,8 +7180,8 @@ function showMaintenanceShield(message) {
                   }
               }
           }).then(canvas => {
-              // 🎨 1. 將畫好的畫布轉成手機與電腦通用的 Base64 圖片編碼
-              let imgUrl = canvas.toDataURL('image/png');
+              // 🎨 改為 JPEG 格式並強制最高畫質 (1.0)，能大幅抵抗 LINE 的破壞性壓縮！
+              let imgUrl = canvas.toDataURL('image/jpeg', 1.0);
               
               // 📱 2. 彈出高質感視窗，讓員工可以直接長按儲存/分享，電腦版也可以直接右鍵另存/複製
               Swal.fire({
@@ -8178,134 +8178,43 @@ function showMaintenanceShield(message) {
               let adminArea = document.getElementById('adminDataArea');
               if (adminArea) adminArea.style.display = 'none';
 
-              // 🛰️ 5. 🚀 啟動極速直連 API 引擎 (GViz 雙通道並行)
-              // ★★★ 請將下方亂碼替換成您剛剛複製的 主試算表 SHEET_ID ★★★
-              const SHEET_ID = '1ocPnSKrzOD9aOz5YeZ8s2TXG5bwd6e9onUF0nDSXFJQ'; 
-              
-              // 強制指定範圍 &range=A:AG，禁止 Google API 自作聰明截斷空白欄位！
-              const gvizShiftUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('當月班表')}&range=A:AG&_=${Date.now()}`;
-              
-              // ★ 破案關鍵：同步抓取異常說明資料庫，讓系統知道哪些異常已經被處理！
-              const gvizAnomalyUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('異常說明')}&range=A:J&_=${Date.now()}`;
-
-              // 🕒 日期格式標準化小工具 (確保兩張表的日期格式能完美對接)
-              const normalizeDate = (dStr) => {
-                  if (!dStr) return "";
-                  let p = dStr.split('/');
-                  if (p.length === 3) return `${p[0]}/${p[1].padStart(2, '0')}/${p[2].padStart(2, '0')}`;
-                  return dStr;
-              };
-
-              // ★ 雙管齊下：同時並行抓取班表與異常，速度一樣是光速 2 秒！
-              Promise.all([
-                  fetch(gvizShiftUrl).then(res => res.text()),
-                  fetch(gvizAnomalyUrl).then(res => res.text())
-              ]).then(([shiftText, anomalyText]) => {
-                  
-                  // ==========================================
-                  // 🛡️ 階段 A：解析異常說明 (建立消除字典)
-                  // ==========================================
-                  try {
-                      const anomalyJsonStr = anomalyText.substring(anomalyText.indexOf('{'), anomalyText.lastIndexOf('}') + 1);
-                      const anomalyData = JSON.parse(anomalyJsonStr);
-                      window.historicalAnomalies = anomalyData.table.rows.map(row => {
-                          let cArr = row.c || [];
-                          let getVal = (idx) => {
-                              let cell = cArr[idx];
-                              return cell ? String(cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : "")).trim() : "";
-                          };
-                          return {
-                              date: normalizeDate(getVal(1)), // B欄: 日期
-                              name: getVal(2),                // C欄: 姓名
-                              reason: getVal(6)               // G欄: 異常原因
-                          };
-                      }).filter(a => a.date !== "");
-                      
-                      // ★ 攔截月曆畫圖引擎：把抓下來的「已處理清單」強制餵給它！
-                      window.getAnomalyObjects = function() {
-                          return { answered: window.historicalAnomalies || [] };
-                      };
-                  } catch (e) { console.error("異常說明載入失敗", e); }
-
-                  // ==========================================
-                  // 🚀 階段 B：解析當月班表 (修復支援欄位截斷 Bug)
-                  // ==========================================
-                  const shiftJsonStr = shiftText.substring(shiftText.indexOf('{'), shiftText.lastIndexOf('}') + 1);
-                  const shiftData = JSON.parse(shiftJsonStr);
-                  
-                  // ★ 強制展開陣列：確保每一行都有完整的 33 格 (A~AG)，拯救消失的跨店支援 (AE欄)
-                  const rawData = shiftData.table.rows.map(row => {
-                      let cells = [];
-                      let cArr = row.c || [];
-                      for (let j = 0; j <= 32; j++) { 
-                          let cell = cArr[j];
-                          if (!cell) cells.push("");
-                          else if (cell.f !== undefined && cell.f !== null) cells.push(cell.f);
-                          else if (cell.v !== undefined && cell.v !== null) cells.push(cell.v);
-                          else cells.push("");
-                      }
-                      return cells;
-                  });
-
-                  let mappedData = [];
-                  for (let i = 1; i < rawData.length; i++) {
-                      if (!rawData[i] || rawData[i].length < 18) continue; 
-
-                      let rowStore = String(rawData[i][17] || "").trim(); // R欄 (Index 17): 門市
-                      let supStr = String(rawData[i][30] || "").trim();   // AE欄 (Index 30): 支援
-
-                      if (rowStore === storeName || supStr.includes(storeName)) {
-                          
-                          let supportArray = [];
-                          if (supStr && supStr.startsWith('[')) {
-                              try { 
-                                  // ★ 暴力破解 JSON 換行魔咒：移除字串中隱藏的換行符號
-                                  let cleanStr = supStr.replace(/\\n/g, "").replace(/\n/g, "").replace(/\r/g, "").replace(/'/g, '"');
-                                  supportArray = JSON.parse(cleanStr); 
-                              } catch(e) { console.error("支援陣列解析失敗", supStr); }
-                          }
-
-                          mappedData.push({
-                              date: normalizeDate(String(rawData[i][0] || "").trim()), // A欄: 日期
-                              name: String(rawData[i][2] || "").trim(),           // C欄: 姓名
-                              store: rowStore,
-                              input_status: String(rawData[i][3] || "").trim(),   // D欄: 排班狀態
-                              input_start: String(rawData[i][4] || "").trim(),    // E欄: 班表起
-                              input_end: String(rawData[i][5] || "").trim(),      // F欄: 班表迄
-                              sys_clockIn: String(rawData[i][9] || "").trim(),    // J欄: 實際打卡起
-                              sys_clockOut: String(rawData[i][10] || "").trim(),  // K欄: 實際打卡迄
-                              sys_leave: String(rawData[i][11] || "").trim(),     // L欄: 請假時數
-                              sys_leaveType: String(rawData[i][12] || "").trim(), // M欄: 請假假別
-                              sys_abnormal: String(rawData[i][15] || "").trim(),  // P欄: 異常
-                              supports: supportArray                              // AE欄: 跨店支援
-                          });
-                      }
-                  }
-
-                  currentData = mappedData;
-                  monthlyTargets = {}; 
-                  window.currentOtData = []; 
-                  
+              // 🛰️ 5. 跨過登入牆，呼叫您原本最完美的 GAS 大主廚！
+              callApi('getStoreData', { 
+                  store: storeName, 
+                  monthMode: 'current',
+                  token: 'LIFF_BYPASS' 
+              }).then(res => {
                   showLoading(false);
+                  if (res.success) {
+                      // 💾 6. 原汁原味、100% 完美的資料回來了！
+                      currentData = res.data || [];
+                      monthlyTargets = res.targets || {};
+                      window.currentOtData = res.otData || [];
+                      window.historicalAnomalies = res.anomalyData || [];
+                      
+                      if (currentData.length === 0) {
+                          Swal.fire('系統提示', `[${storeName}] 查無排班資料！`, 'info');
+                          return;
+                      }
 
-                  if (currentData.length === 0) {
-                      Swal.fire('系統提示', `[${storeName}] 查無排班資料！`, 'info');
-                      return;
+                      // 🏛️ 7. 完美喚醒排班日曆視窗
+                      let calModal = new bootstrap.Modal(document.getElementById('monthlyModal'));
+                      calModal.show();
+                      
+                      // 🗺️ 8. 修正瀏覽器網址
+                      let newSearch = `?liffStore=${encodeURIComponent(storeName)}`;
+                      if (liffStart && liffEnd) newSearch += `&liffStart=${liffStart}&liffEnd=${liffEnd}`;
+                      window.history.replaceState(null, null, newSearch);
+                      
+                      // 🎨 9. 呼叫排班圖繪製核心 (跨店、友店、異常全部恢復正常！)
+                      openMonthlyView(storeName);
+                  } else {
+                      Swal.fire('連線失敗', '後端伺服器拒絕連線', 'error');
                   }
-
-                  let calModal = new bootstrap.Modal(document.getElementById('monthlyModal'));
-                  calModal.show();
-                  
-                  let newSearch = `?liffStore=${encodeURIComponent(storeName)}`;
-                  if (liffStart && liffEnd) newSearch += `&liffStart=${liffStart}&liffEnd=${liffEnd}`;
-                  window.history.replaceState(null, null, newSearch);
-                  
-                  openMonthlyView(storeName);
-
               }).catch(err => {
                   showLoading(false);
-                  console.error("極速引擎連線失敗:", err);
-                  Swal.fire('網路錯誤', '無法直連資料庫，請確認兩份表單的權限是否皆已開啟！', 'error');
+                  console.error(err);
+                  Swal.fire('網路錯誤', '無法連線至雲端資料庫', 'error');
               });
           }
       });
