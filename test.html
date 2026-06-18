@@ -8188,10 +8188,9 @@ function showMaintenanceShield(message) {
 
                       let mappedData = [];
                       
-                      // 💾 6. 將秒抓回來的龐大資料，在手機端瞬間過濾成該門市的格式 (精準對齊 0 座標)
+                      // 💾 6. 將秒抓回來的龐大資料，在手機端瞬間過濾成該門市的格式 (完美對齊 TGT 座標)
                       for (let i = 1; i < rawData.length; i++) {
-                          // 確保防呆：如果這行資料根本是空的，直接跳過
-                          if (!rawData[i] || rawData[i].length < 18) continue;
+                          if (!rawData[i]) continue; // 防呆：略過空行
 
                           let rowStore = String(rawData[i][17] || "").trim(); // R欄 (Index 17): 門市
                           let supStr = String(rawData[i][30] || "").trim();   // AE欄 (Index 30): 支援
@@ -8201,15 +8200,18 @@ function showMaintenanceShield(message) {
                               try { if (supStr) supportArray = JSON.parse(supStr); } catch(e) {}
 
                               mappedData.push({
-                                  date: String(rawData[i][0] || "").trim(),         // A欄 (Index 0): 日期
-                                  name: String(rawData[i][2] || "").trim(),         // C欄 (Index 2): 姓名
+                                  date: String(rawData[i][0] || "").trim(),           // A欄 (Index 0): 日期
+                                  name: String(rawData[i][2] || "").trim(),           // C欄 (Index 2): 姓名
                                   store: rowStore,
-                                  input_status: String(rawData[i][8] || "").trim(), // I欄 (Index 8): 狀態/班別
-                                  input_start: String(rawData[i][9] || "").trim(),  // J欄 (Index 9): 排班上班
-                                  input_end: String(rawData[i][10] || "").trim(),   // K欄 (Index 10): 排班下班
-                                  sys_abnormal: String(rawData[i][15] || "").trim(),// P欄 (Index 15): 系統異常
-                                  sys_leave: String(rawData[i][32] || "").trim(),   // AG欄 (Index 32): 請假
-                                  supports: supportArray
+                                  input_status: String(rawData[i][3] || "").trim(),   // D欄 (Index 3): 排班狀態 (上班/休...)
+                                  input_start: String(rawData[i][4] || "").trim(),    // E欄 (Index 4): 排班上班時間
+                                  input_end: String(rawData[i][5] || "").trim(),      // F欄 (Index 5): 排班下班時間
+                                  sys_clockIn: String(rawData[i][9] || "").trim(),    // J欄 (Index 9): 實際打卡(起)
+                                  sys_clockOut: String(rawData[i][10] || "").trim(),  // K欄 (Index 10): 實際打卡(迄)
+                                  sys_leave: String(rawData[i][11] || "").trim(),     // L欄 (Index 11): 請假時數
+                                  sys_leaveType: String(rawData[i][12] || "").trim(), // M欄 (Index 12): 請假假別
+                                  sys_abnormal: String(rawData[i][15] || "").trim(),  // P欄 (Index 15): 異常
+                                  supports: supportArray                              // AE欄 (Index 30): 跨店支援
                               });
                           }
                       }
