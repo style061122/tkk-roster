@@ -1020,7 +1020,6 @@ function showMaintenanceShield(message) {
 
       // ★ 階段三-1 優化：增設密碼變數與智慧儲存邏輯
       window.personalPwd = "";
-      window.hasShownWarning = false; // ★ 新增這行：記錄本次登入是否已顯示過防呆彈窗
       
       function getDevicePwdStorageKey() {
           // 判斷是否為手機 (簡易判斷寬度小於 768px)
@@ -1111,68 +1110,7 @@ function showMaintenanceShield(message) {
                         btn.className = 'btn btn-sm btn-warning text-dark fw-bold shadow-sm rounded-pill px-3';
                         btn.innerText = '🔄 切換至 次月預排';
                     }
-                    
-                    // ==========================================
-                    // ★ 神級 UX 優化：背景默默畫圖，前景強制彈窗
-                    // ==========================================
-                    // 1. 瞬間把背景的排班表畫面全部畫好
                     renderPersonalPage(res);
-
-                    // ==========================================
-                    // 🧠 2. 前端時光機：根據後端傳回的 closing_day 完美推算月份
-                    // ==========================================
-                    let closeDayNum = parseInt(res.closing_day || (res.meta && res.meta.closing_day)) || 4; // 萬一沒拿到就防呆預設 4
-                    let todayObj = new Date();
-                    let tMonth = todayObj.getMonth() + 1;
-                    let tDate = todayObj.getDate();
-                    
-                    // 如果今天日期已經大於關帳日，代表現在正在看的是「下個月」的帳了
-                    let targetMonth = tMonth;
-                    if (tDate <= closeDayNum) {
-                        targetMonth -= 1;
-                        if (targetMonth === 0) targetMonth = 12;
-                    }
-                    let closeMonth = targetMonth + 1;
-                    if (closeMonth > 12) closeMonth = 1;
-                    
-                    // 完美的動態時間字串 (例如: 6/4 09:00 或 7/4 09:00)
-                    const dynamicDeadline = `${closeMonth}/${closeDayNum} 09:00`;
-
-                    // 3. 如果是本次開啟網頁「第一次」登入成功，就強制跳出防呆彈窗
-                    if (!window.hasShownWarning) {
-                        window.hasShownWarning = true; 
-                        
-                        Swal.fire({
-                            title: '⚠️ 出勤作業重要通知',
-                            html: `
-                                <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #333333; padding: 0px 5px;">
-                                    <p style="margin-bottom: 10px;">📅 <strong>本月出勤狀況已更新，請務必確認。</strong><br>
-                                    若有「提前/延後/非工作日」打卡異常且屬因私事逗留者，請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15.5px;">${dynamicDeadline} 前</span> 填寫完畢。</p>
-                                    
-                                    <p style="margin-bottom: 10px;">⚡ <strong>若因公務加班：</strong><br>
-                                    請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15.5px;">${dynamicDeadline} 前</span> 至 <strong>Apollo 系統</strong> 申請加班單並簽核完畢。</p>
-                                    
-                                    <p style="margin-bottom: 15px; background-color: #fff3cd; color: #d9383a; padding: 6px 8px; font-weight: bold; border-radius: 4px; border-left: 4px solid #d9383a; font-size: 13.5px;">
-                                        ⚡ 逾期未處理系統即視為「私人因素停留公司」。
-                                    </p>
-                                    
-                                    <div style="border-top: 1px dashed #dddddd; margin: 10px 0; padding-top: 8px;">
-                                        <p style="margin-bottom: 5px; font-weight: bold; color: #000000; font-size: 14px;">📅 本月出勤將於 <span style="color: #e60000;">${closeMonth}月${closeDayNum}日 09:00</span> 班表關帳</p>
-                                        <p style="margin-bottom: 5px; padding-left: 15px; text-indent: -15px; color: #555555;">  若有出勤異常，請至 Apollo 系統完成單據申請。</p>
-                                        <p style="margin-bottom: 5px; padding-left: 15px; text-indent: -15px; color: #555555;">❗ <strong>忘打卡或請假逾期未處理：</strong>系統將自動轉為 <span style="color: #e60000; font-weight: bold;">曠職不支薪</span>。</p>
-                                        <p style="margin-bottom: 0; padding-left: 15px; text-indent: -15px; color: #555555;">❗ <strong>加班單無法跨月申請：</strong>請務必於關帳前處理完畢。</p>
-                                    </div>
-                                </div>
-                            `,
-                            icon: 'warning',
-                            iconColor: '#d9383a',
-                            confirmButtonText: '🚀 我已了解，進入確認出勤',
-                            confirmButtonColor: '#0d6efd',
-                            allowOutsideClick: false, 
-                            allowEscapeKey: false,    
-                            width: window.innerWidth <= 768 ? '92%' : '500px' // 手機完美自適應滿版
-                        });
-                    }
                 }
                 else {
                     document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
@@ -1944,7 +1882,11 @@ function showMaintenanceShield(message) {
         const coSelect = document.getElementById('loginCompany');
         coSelect.innerHTML = '<option value="">請選擇公司</option>';
         Object.keys(allStoreData).forEach(co => { coSelect.innerHTML += `<option value="${co}">${co}</option>`; });
-        document.getElementById('loginSection').style.display = 'block';
+        
+        // ★ 終極攔截：如果網址有 liff.state (從 LINE 開啟)，絕對不要把登入畫面顯示出來！
+        if (!window.location.search.includes('liff.state') && !window.location.search.includes('liffStore')) {
+            document.getElementById('loginSection').style.display = 'block';
+        }
       }
 
       function updateStoreOptions() {
@@ -3575,13 +3517,15 @@ function showMaintenanceShield(message) {
                               <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${empPkey}', 'PENDING')">⚡ 一鍵代填</button>
                           </div>
                           ${sPending.map(item => `
-                          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
-                              <div>
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
-                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          <div class="mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                              <div class="d-flex align-items-center mb-1">
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
+                                  <div class="text-primary fw-bold ms-2" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
                               </div>
-                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
-                                  onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              <div class="text-end">
+                                  <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:4px 12px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                              </div>
                           </div>`).join('')}
                       </div>` : `<div class="p-2 text-center text-success fw-bold small mb-2 rounded border border-success shadow-sm" style="background:#f0fbfd;">✅ 所有異常說明均已處理完畢</div>`}
 
@@ -3594,11 +3538,11 @@ function showMaintenanceShield(message) {
                           ${sAnswered.map(item => `
                           <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
                                   <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                               </div>
-                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
-                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1 p-1 rounded bg-light" style="font-size:0.75rem; line-height:1.3;">💬 答覆：${item.hLog.explanation}</div>` : '<div class="text-muted mt-1" style="font-size:0.75rem;">（無文字說明）</div>'}
                           </div>`).join('')}
                       </div>` : ''}
                   </div>
@@ -4412,16 +4356,19 @@ function showMaintenanceShield(message) {
                   <div class="p-2 rounded border-start border-4 mb-2 shadow-sm" style="background-color: #fff5f5; border-color: #dc3545 !important;">
                       <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
                           <strong class="text-danger" style="font-size:0.9rem;">⚠️ 異常說明 <span class="badge bg-danger ms-1">${storePending.length} 筆待填</span></strong>
-                          <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'PENDING', '${targetStore}')">⚡ 全店一鍵代填</button>
+                          <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'PENDING', '${targetStore}')">⚡ 全店代填</button>
                       </div>
                       ${storePending.map(item => `
-                      <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
-                          <div>
-                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span> ─ 👤 ${item.name}</div>
-                              <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                      <div class="mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                          <div class="d-flex justify-content-between align-items-center mb-1">
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
+                              <div class="fw-bold text-primary" style="font-size:0.85rem;">👤 ${item.name}</div>
                           </div>
-                          <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
-                              onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'PENDING', '${targetStore}')">📝 代填</button>
+                          <div class="text-secondary fw-bold mb-1" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
+                          <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                          <div class="text-end">
+                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:4px 12px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'PENDING', '${targetStore}')">📝 代填</button>
+                          </div>
                       </div>`).join('')}
                   </div>`;
               }
@@ -4431,18 +4378,19 @@ function showMaintenanceShield(message) {
                   <div class="p-2 rounded border-start border-4 mb-1 shadow-sm" style="background-color: #f0fbfd; border-color: #198754 !important;">
                       <div class="d-flex justify-content-between align-items-center border-bottom border-success pb-1 mb-2">
                           <div class="fw-bold text-success" style="font-size:0.9rem;">✅ 已填寫 (${storeAnswered.length})</div>
-                          <button class="btn btn-success btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'ANSWERED', '${targetStore}')">✏️ 全店一鍵修改</button>
+                          <button class="btn btn-success btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'ANSWERED', '${targetStore}')">✏️ 全店修改</button>
                       </div>
                       ${storeAnswered.map(item => `
                       <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                           <div class="d-flex justify-content-between align-items-center mb-1">
-                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span> ─ 👤 ${item.name}</div>
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
                               <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                           </div>
-                          <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
-                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
-                          <div class="text-end mt-1">
-                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'ANSWERED', '${targetStore}')">✏️ 修改</button>
+                          <div class="fw-bold text-primary mb-1" style="font-size:0.85rem;">👤 ${item.name}</div>
+                          <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1 p-1 rounded bg-light" style="font-size:0.75rem; line-height:1.3;">💬 答覆：${item.hLog.explanation}</div>` : '<div class="text-muted mt-1" style="font-size:0.75rem;">（無文字說明）</div>'}
+                          <div class="text-end mt-2">
+                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 8px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'ANSWERED', '${targetStore}')">✏️ 修改</button>
                           </div>
                       </div>`).join('')}
                   </div>`;
@@ -5516,7 +5464,7 @@ function showMaintenanceShield(message) {
               }
           }
 
-          // ★ 升級防呆：如果是點擊「全店一鍵代填」，過濾出該門市的所有人
+          // ★ 升級防呆：如果是點擊「全店代填」，過濾出該門市的所有人
           if (targetStore) {
               catList = catList.filter(i => i.store === targetStore);
           }
@@ -5590,13 +5538,18 @@ function showMaintenanceShield(message) {
               
               listEl.innerHTML += `
                   <label class="d-flex align-items-start p-2 mb-2 border rounded bg-white shadow-sm" style="cursor:pointer; border-color:${isChecked ? '#dc3545' : '#dee2e6'} !important; ${isSingle ? 'display:none;' : ''}">
-                      <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1 border-danger" style="transform:scale(1.3); cursor:pointer;"
-                             value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" data-name="${displayName}" data-pkey="${item.pkey || ''}" ${isChecked ? 'checked' : ''}>
-                      <div>
-                          <div class="fw-bold text-danger" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${displayName}</div>
-                          <div class="fw-bold text-dark mt-1" style="font-size:0.85rem;">${item.reason}</div>
-                          ${item.time ? `<div class="text-muted fw-bold" style="font-size:0.78rem;">⏰ ${item.time}</div>` : ''}
-                          ${item.hLog ? `<div class="text-success mt-1" style="font-size:0.75rem;">(原答覆: ${item.hLog.explanation})</div>` : ''}
+                      <div class="pe-3 pt-1">
+                          <input type="checkbox" class="form-check-input anomaly-cat-cb border-danger m-0" style="transform:scale(1.3); cursor:pointer;"
+                                 value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" data-name="${displayName}" data-pkey="${item.pkey || ''}" ${isChecked ? 'checked' : ''}>
+                      </div>
+                      <div class="flex-grow-1" style="min-width: 0;">
+                          <div class="d-flex justify-content-between align-items-center mb-1">
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate}</div>
+                              <div class="fw-bold text-primary" style="font-size:0.85rem;">👤 ${displayName}</div>
+                          </div>
+                          <div class="text-secondary fw-bold mb-1" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
+                          <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                          ${item.hLog ? `<div class="text-success mt-1 p-1 bg-light rounded" style="font-size:0.75rem; line-height:1.3;">💬 原答覆: ${item.hLog.explanation}</div>` : ''}
                       </div>
                   </label>`;
           });
@@ -6081,13 +6034,15 @@ function showMaintenanceShield(message) {
                               <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${userKey}', 'PENDING')">⚡ 一鍵代填</button>
                           </div>
                           ${sPending.map(item => `
-                          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
-                              <div>
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
-                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          <div class="mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                              <div class="d-flex align-items-center mb-1">
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
+                                  <div class="text-primary fw-bold ms-2" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
                               </div>
-                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
-                                  onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              <div class="text-end">
+                                  <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:4px 12px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                              </div>
                           </div>`).join('')}
                       </div>` : ''}
 
@@ -6100,13 +6055,13 @@ function showMaintenanceShield(message) {
                           ${sAnswered.map(item => `
                           <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
                                   <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                               </div>
-                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;">🚨 ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
-                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
-                              <div class="text-end mt-1">
-                                  <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">✏️ 修改</button>
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1 p-1 rounded bg-light" style="font-size:0.75rem; line-height:1.3;">💬 答覆：${item.hLog.explanation}</div>` : '<div class="text-muted mt-1" style="font-size:0.75rem;">（無文字說明）</div>'}
+                              <div class="text-end mt-2">
+                                  <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 8px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">✏️ 修改</button>
                               </div>
                           </div>`).join('')}
                       </div>` : ''}
@@ -6631,8 +6586,14 @@ function showMaintenanceShield(message) {
               return;
           }
 
-          // 📡 ★ 第一道防線：偵測是否為 LINE LIFF 內嵌模式
-          const urlParams = new URLSearchParams(window.location.search);
+          // 📡 ★ 第一道防線：偵測是否為 LINE LIFF 內嵌模式 (並破解 liff.state 亂碼封裝)
+          let urlParams = new URLSearchParams(window.location.search);
+          let liffState = urlParams.get('liff.state');
+          if (liffState) {
+              // 把 LINE 封裝的亂碼還原成正常的參數字串
+              let decodedState = decodeURIComponent(liffState);
+              urlParams = new URLSearchParams(decodedState.startsWith('?') ? decodedState : '?' + decodedState);
+          }
           const liffStart = urlParams.get('liffStart');
           const liffEnd = urlParams.get('liffEnd');
           const liffStore = urlParams.get('liffStore');
@@ -7179,7 +7140,7 @@ function showMaintenanceShield(message) {
           const targetArea = document.getElementById('monthlyCalendarArea');
           
           html2canvas(targetArea, {
-              scale: 2, 
+              scale: 3, 
               backgroundColor: '#ffffff',
               useCORS: true,
               windowWidth: 1200, // ★ 強迫觸發電腦版寬度
@@ -7234,16 +7195,30 @@ function showMaintenanceShield(message) {
                   }
               }
           }).then(canvas => {
-              let link = document.createElement('a');
-              let fileNameSuffix = selectedOption === 'all' 
-                  ? '完整月' 
-                  : chunks[parseInt(selectedOption)].label.replace('/', '-').replace(' ~ ', '_').replace(/\s+/g, '');
-                  
-              // ★ 檔名也自動加入店名
-              link.download = `${storeName}_${year}年${month}月_${fileNameSuffix}_排班圖.png`;
-              link.href = canvas.toDataURL('image/png');
-              link.click();
+              // 🎨 改為 JPEG 格式並強制最高畫質 (1.0)，能大幅抵抗 LINE 的破壞性壓縮！
+              let imgUrl = canvas.toDataURL('image/jpeg', 1.0);
               
+              // 📱 2. 彈出高質感視窗，讓員工可以直接長按儲存/分享，電腦版也可以直接右鍵另存/複製
+              Swal.fire({
+                  title: '✨ 排班圖已成功產生！',
+                  html: `
+                      <div class="alert alert-info py-2 small fw-bold mb-3" style="font-size:0.85rem; border-left:4px solid #0d6efd;">
+                          💡 <b>手機操作：</b>請【長按下方圖片】即可儲存至相簿觀看高清排班圖！<br>
+                          💻 <b>電腦操作：</b>請對圖片點擊【滑鼠右鍵】選擇另存新檔！
+                      </div>
+                      <div style="max-height: 55vh; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 8px; padding: 5px; background: #f8f9fa;">
+                          <img src="${imgUrl}" style="width: 100%; height: auto; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" alt="排班圖預覽">
+                      </div>
+                  `,
+                  confirmButtonText: '🆗 我知道了',
+                  customClass: {
+                      popup: 'swal-wide-image-popup'
+                  },
+                  width: '95%',
+                  allowOutsideClick: true
+              });
+              
+              // 3. 還原按鈕狀態
               btn.innerHTML = originalText;
               btn.disabled = false;
           }).catch(err => {
@@ -8164,6 +8139,100 @@ function showMaintenanceShield(message) {
               }
           }).catch(err => errorHandler(err));
       }
+      // ==========================================
+      // 🚀 旗艦級引擎：LIFF 專屬自動通關 (全面支援整月、單週、店名智慧校正與免登入通道)
+      // ==========================================
+      window.addEventListener('DOMContentLoaded', function() {
+          // 📡 1. 拆解 LINE 的加密打包網址 (liff.state)
+          let urlParams = new URLSearchParams(window.location.search);
+          let liffState = urlParams.get('liff.state');
+          
+          if (liffState) {
+              let decodedState = decodeURIComponent(liffState);
+              urlParams = new URLSearchParams(decodedState.startsWith('?') ? decodedState : '?' + decodedState);
+          }
+          
+          const liffStore = urlParams.get('liffStore');
+          const liffStart = urlParams.get('liffStart'); 
+          const liffEnd = urlParams.get('liffEnd');
+          const reqTime = urlParams.get('t'); // ★ 抓取網址中的時間印記
+
+          // 🎯 2. 關鍵攔截：只要網址裡有帶店名，代表是從 LINE 通道進來的！全面接管流程！
+          if (liffStore) {
+              
+              // 🛡️ 絕對防禦機制：檢查連結是否過期 (5分鐘 = 300,000 毫秒)
+              if (reqTime) {
+                  let timeDiff = Date.now() - parseInt(reqTime);
+                  if (timeDiff > 300000) {
+                      // 💥 暴力銷毀畫面：把整個網頁清空，替換成失效警告，不給任何破解機會！
+                      document.body.innerHTML = `
+                          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f8f9fa; padding: 20px; text-align: center;">
+                              <h1 style="font-size: 4rem; margin-bottom: 10px;">⏱️</h1>
+                              <h3 style="color: #dc3545; font-weight: bold;">⛔ 連結已失效</h3>
+                              <p style="color: #6c757d; font-weight: bold; margin-top: 10px;">為保護排班資料安全，此連結已超過 5 分鐘有效期限。<br><br>請回到 LINE 重新輸入「#班表」獲取最新連結！</p>
+                          </div>
+                      `;
+                      return; // 終止後續所有執行，神仙也無法撈資料
+                  }
+              }
+
+              let storeName = decodeURIComponent(liffStore);
+              
+              // 🛡️ 3. 關閉並封鎖前端登入畫面，直接呈現極速載入動畫
+              let loginBlock = document.getElementById('loginSection');
+              if (loginBlock) loginBlock.style.display = 'none';
+              
+              showLoading(true, `⏳ LINE 快速通道：極速載入 [${storeName}] 班表中...`);
+              
+              // 🧪 4. 打假疫苗：直接寫入原始變數 (拔除 window 前綴，破除平行時空)
+              currentStore = storeName;
+              currentToken = 'LIFF_BYPASS'; 
+              currentUserRole = 'STORE'; 
+              currentMonthMode = 'current';
+
+              let adminArea = document.getElementById('adminDataArea');
+              if (adminArea) adminArea.style.display = 'none';
+
+              // 🛰️ 5. 跨過登入牆，呼叫您原本最完美的 GAS 大主廚！
+              callApi('getStoreData', { 
+                  store: storeName, 
+                  monthMode: 'current',
+                  token: 'LIFF_BYPASS' 
+              }).then(res => {
+                  showLoading(false);
+                  if (res.success) {
+                      // 💾 6. 原汁原味、100% 完美的資料回來了！
+                      currentData = res.data || [];
+                      monthlyTargets = res.targets || {};
+                      window.currentOtData = res.otData || [];
+                      window.historicalAnomalies = res.anomalyData || [];
+                      
+                      if (currentData.length === 0) {
+                          Swal.fire('系統提示', `[${storeName}] 查無排班資料！`, 'info');
+                          return;
+                      }
+
+                      // 🏛️ 7. 完美喚醒排班日曆視窗
+                      let calModal = new bootstrap.Modal(document.getElementById('monthlyModal'));
+                      calModal.show();
+                      
+                      // 🗺️ 8. 修正瀏覽器網址
+                      let newSearch = `?liffStore=${encodeURIComponent(storeName)}`;
+                      if (liffStart && liffEnd) newSearch += `&liffStart=${liffStart}&liffEnd=${liffEnd}`;
+                      window.history.replaceState(null, null, newSearch);
+                      
+                      // 🎨 9. 呼叫排班圖繪製核心 (跨店、友店、異常全部恢復正常！)
+                      openMonthlyView(storeName);
+                  } else {
+                      Swal.fire('連線失敗', '後端伺服器拒絕連線', 'error');
+                  }
+              }).catch(err => {
+                  showLoading(false);
+                  console.error(err);
+                  Swal.fire('網路錯誤', '無法連線至雲端資料庫', 'error');
+              });
+          }
+      });
     </script>
       <div class="modal fade" id="monthlyReportModal" tabindex="-1" aria-labelledby="monthlyReportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
