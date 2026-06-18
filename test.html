@@ -7180,16 +7180,30 @@ function showMaintenanceShield(message) {
                   }
               }
           }).then(canvas => {
-              let link = document.createElement('a');
-              let fileNameSuffix = selectedOption === 'all' 
-                  ? '完整月' 
-                  : chunks[parseInt(selectedOption)].label.replace('/', '-').replace(' ~ ', '_').replace(/\s+/g, '');
-                  
-              // ★ 檔名也自動加入店名
-              link.download = `${storeName}_${year}年${month}月_${fileNameSuffix}_排班圖.png`;
-              link.href = canvas.toDataURL('image/png');
-              link.click();
+              // 🎨 1. 將畫好的畫布轉成手機與電腦通用的 Base64 圖片編碼
+              let imgUrl = canvas.toDataURL('image/png');
               
+              // 📱 2. 彈出高質感視窗，讓員工可以直接長按儲存/分享，電腦版也可以直接右鍵另存/複製
+              Swal.fire({
+                  title: '✨ 排班圖已成功產生！',
+                  html: `
+                      <div class="alert alert-info py-2 small fw-bold mb-3" style="font-size:0.85rem; border-left:4px solid #0d6efd;">
+                          💡 <b>手機操作：</b>請【長按下方圖片】即可儲存至相簿或直接分享到 LINE 聊天室！<br>
+                          💻 <b>電腦操作：</b>請對圖片點擊【滑鼠右鍵】選擇另存新檔或複製圖片！
+                      </div>
+                      <div style="max-height: 55vh; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 8px; padding: 5px; background: #f8f9fa;">
+                          <img src="${imgUrl}" style="width: 100%; height: auto; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" alt="排班圖預覽">
+                      </div>
+                  `,
+                  confirmButtonText: '🆗 我知道了',
+                  customClass: {
+                      popup: 'swal-wide-image-popup'
+                  },
+                  width: '95%',
+                  allowOutsideClick: true
+              });
+              
+              // 3. 還原按鈕狀態
               btn.innerHTML = originalText;
               btn.disabled = false;
           }).catch(err => {
