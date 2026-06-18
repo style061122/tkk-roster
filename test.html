@@ -5538,13 +5538,18 @@ function showMaintenanceShield(message) {
               
               listEl.innerHTML += `
                   <label class="d-flex align-items-start p-2 mb-2 border rounded bg-white shadow-sm" style="cursor:pointer; border-color:${isChecked ? '#dc3545' : '#dee2e6'} !important; ${isSingle ? 'display:none;' : ''}">
-                      <input type="checkbox" class="form-check-input anomaly-cat-cb me-3 mt-1 border-danger" style="transform:scale(1.3); cursor:pointer;"
-                             value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" data-name="${displayName}" data-pkey="${item.pkey || ''}" ${isChecked ? 'checked' : ''}>
-                      <div>
-                          <div class="fw-bold text-danger" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-primary">${item.clockText}</span> ─ 👤 ${displayName}</div>
-                          <div class="fw-bold text-dark mt-1" style="font-size:0.85rem;">${item.reason}</div>
-                          ${item.time ? `<div class="text-muted fw-bold" style="font-size:0.78rem;">⏰ ${item.time}</div>` : ''}
-                          ${item.hLog ? `<div class="text-success mt-1" style="font-size:0.75rem;">(原答覆: ${item.hLog.explanation})</div>` : ''}
+                      <div class="pe-3 pt-1">
+                          <input type="checkbox" class="form-check-input anomaly-cat-cb border-danger m-0" style="transform:scale(1.3); cursor:pointer;"
+                                 value="${item.date}" data-reason="${item.reason}" data-time="${item.time || ''}" data-name="${displayName}" data-pkey="${item.pkey || ''}" ${isChecked ? 'checked' : ''}>
+                      </div>
+                      <div class="flex-grow-1" style="min-width: 0;">
+                          <div class="d-flex justify-content-between align-items-center mb-1">
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate}</div>
+                              <div class="fw-bold text-primary" style="font-size:0.85rem;">👤 ${displayName}</div>
+                          </div>
+                          <div class="text-secondary fw-bold mb-1" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
+                          <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                          ${item.hLog ? `<div class="text-success mt-1 p-1 bg-light rounded" style="font-size:0.75rem; line-height:1.3;">💬 原答覆: ${item.hLog.explanation}</div>` : ''}
                       </div>
                   </label>`;
           });
