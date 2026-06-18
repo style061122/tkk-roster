@@ -8168,42 +8168,55 @@ function showMaintenanceShield(message) {
               // ★★★ 請將下方亂碼替換成您剛剛複製的 主試算表 SHEET_ID ★★★
               const SHEET_ID = '1ocPnSKrzOD9aOz5YeZ8s2TXG5bwd6e9onUF0nDSXFJQ'; 
               
-              // ★ 破除快取魔咒：在網址尾巴加上 `&_=${Date.now()}`，強迫 Google 每次都吐出「當下最新」的資料！
-              const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('當月班表')}&_=${Date.now()}`;
+              // 🛰️ 5. 🚀 啟動極速直連 API 引擎 (GViz)
+              // ★ 強制指定範圍 &range=A:AG，禁止 Google API 自作聰明截斷空白欄位！
+              const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent('當月班表')}&range=A:AG&_=${Date.now()}`;
 
               fetch(gvizUrl)
                   .then(response => response.text())
                   .then(text => {
-                      // 拆解 Google API 的特殊封裝格式
                       const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
                       const gvizData = JSON.parse(jsonStr);
                       
-                      // ★ 嚴謹解析器：防止數字 0 被誤判成空字串而消失的世紀大 Bug！
-                      const rawData = gvizData.table.rows.map(row => row.c.map(cell => {
-                          if (!cell) return "";
-                          if (cell.f !== undefined && cell.f !== null) return cell.f;
-                          if (cell.v !== undefined && cell.v !== null) return cell.v;
-                          return "";
-                      }));
+                      // ★ 強制展開陣列：確保每一行都有完整的 35 格 (A~AI)，拯救消失的支援欄位
+                      const rawData = gvizData.table.rows.map(row => {
+                          let cells = [];
+                          for (let j = 0; j <= 35; j++) {
+                              let cell = row.c[j];
+                              if (!cell) cells.push("");
+                              else if (cell.f !== undefined && cell.f !== null) cells.push(cell.f);
+                              else if (cell.v !== undefined && cell.v !== null) cells.push(cell.v);
+                              else cells.push("");
+                          }
+                          return cells;
+                      });
 
                       let mappedData = [];
                       
-                      // 💾 6. 將秒抓回來的龐大資料，在手機端瞬間過濾成該門市的格式 (完美對齊 TGT 座標)
+                      // 💾 6. 將秒抓回來的龐大資料，在手機端瞬間過濾成該門市的格式
                       for (let i = 1; i < rawData.length; i++) {
-                          if (!rawData[i]) continue; // 防呆：略過空行
+                          if (!rawData[i]) continue; 
 
                           let rowStore = String(rawData[i][17] || "").trim(); // R欄 (Index 17): 門市
                           let supStr = String(rawData[i][30] || "").trim();   // AE欄 (Index 30): 支援
 
                           if (rowStore === storeName || supStr.includes(storeName)) {
+                              
                               let supportArray = [];
-                              try { if (supStr) supportArray = JSON.parse(supStr); } catch(e) {}
+                              if (supStr) {
+                                  try { 
+                                      supportArray = JSON.parse(supStr); 
+                                  } catch(e) {
+                                      // 暴力防呆：如果單引號或特殊字元導致解析失敗，自動修復
+                                      try { supportArray = JSON.parse(supStr.replace(/'/g, '"').replace(/\n/g, '\\n')); } catch(e2) {}
+                                  }
+                              }
 
                               mappedData.push({
                                   date: String(rawData[i][0] || "").trim(),           // A欄 (Index 0): 日期
                                   name: String(rawData[i][2] || "").trim(),           // C欄 (Index 2): 姓名
                                   store: rowStore,
-                                  input_status: String(rawData[i][3] || "").trim(),   // D欄 (Index 3): 排班狀態 (上班/休...)
+                                  input_status: String(rawData[i][3] || "").trim(),   // D欄 (Index 3): 排班狀態
                                   input_start: String(rawData[i][4] || "").trim(),    // E欄 (Index 4): 排班上班時間
                                   input_end: String(rawData[i][5] || "").trim(),      // F欄 (Index 5): 排班下班時間
                                   sys_clockIn: String(rawData[i][9] || "").trim(),    // J欄 (Index 9): 實際打卡(起)
