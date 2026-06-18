@@ -3517,13 +3517,15 @@ function showMaintenanceShield(message) {
                               <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${empPkey}', 'PENDING')">⚡ 一鍵代填</button>
                           </div>
                           ${sPending.map(item => `
-                          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
-                              <div>
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;"> ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1"> ${item.clockText}</span></div>
-                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;"> ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          <div class="mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                              <div class="d-flex align-items-center mb-1">
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
+                                  <div class="text-primary fw-bold ms-2" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
                               </div>
-                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
-                                  onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">代填</button>
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              <div class="text-end">
+                                  <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:4px 12px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                              </div>
                           </div>`).join('')}
                       </div>` : `<div class="p-2 text-center text-success fw-bold small mb-2 rounded border border-success shadow-sm" style="background:#f0fbfd;">✅ 所有異常說明均已處理完畢</div>`}
 
@@ -3536,11 +3538,11 @@ function showMaintenanceShield(message) {
                           ${sAnswered.map(item => `
                           <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
                                   <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                               </div>
-                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;"> ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
-                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1 p-1 rounded bg-light" style="font-size:0.75rem; line-height:1.3;">💬 答覆：${item.hLog.explanation}</div>` : '<div class="text-muted mt-1" style="font-size:0.75rem;">（無文字說明）</div>'}
                           </div>`).join('')}
                       </div>` : ''}
                   </div>
@@ -4357,13 +4359,16 @@ function showMaintenanceShield(message) {
                           <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, null, null, 'PENDING', '${targetStore}')">⚡ 全店一鍵代填</button>
                       </div>
                       ${storePending.map(item => `
-                      <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
-                          <div>
-                              <div class="fw-bold text-dark" style="font-size:0.82rem;">${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">${item.clockText}</span> ─ 👤 ${item.name}</div>
-                              <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;"> ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                      <div class="mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                          <div class="d-flex align-items-center mb-1">
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
+                              <div class="text-primary fw-bold ms-2" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
+                              <div class="text-dark fw-bold ms-2" style="font-size:0.8rem;">👤 ${item.name}</div>
                           </div>
-                          <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
-                              onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'PENDING', '${targetStore}')">代填</button>
+                          <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                          <div class="text-end">
+                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:4px 12px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'PENDING', '${targetStore}')">📝 代填</button>
+                          </div>
                       </div>`).join('')}
                   </div>`;
               }
@@ -4378,13 +4383,13 @@ function showMaintenanceShield(message) {
                       ${storeAnswered.map(item => `
                       <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                           <div class="d-flex justify-content-between align-items-center mb-1">
-                              <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span> ─ 👤 ${item.name}</div>
+                              <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="ms-1 text-dark">👤 ${item.name}</span></div>
                               <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                           </div>
-                          <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;"> ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
-                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
-                          <div class="text-end mt-1">
-                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'ANSWERED', '${targetStore}')">✏️ 修改</button>
+                          <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                          ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1 p-1 rounded bg-light" style="font-size:0.75rem; line-height:1.3;">💬 答覆：${item.hLog.explanation}</div>` : '<div class="text-muted mt-1" style="font-size:0.75rem;">（無文字說明）</div>'}
+                          <div class="text-end mt-2">
+                              <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 8px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}', 'ANSWERED', '${targetStore}')">✏️ 修改</button>
                           </div>
                       </div>`).join('')}
                   </div>`;
@@ -6023,13 +6028,15 @@ function showMaintenanceShield(message) {
                               <button class="btn btn-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:3px 10px;" onclick="openAnomalyModal(null, null, '${name}', '${userKey}', 'PENDING')">⚡ 一鍵代填</button>
                           </div>
                           ${sPending.map(item => `
-                          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
-                              <div>
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">${item.clockText}</span></div>
-                                  <div class="text-danger fw-bold ms-3 mt-1" style="font-size:0.78rem;"> ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
+                          <div class="mb-2 pb-2 border-bottom" style="border-color:#f5c2c7!important;">
+                              <div class="d-flex align-items-center mb-1">
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
+                                  <div class="text-primary fw-bold ms-2" style="font-size:0.8rem;">🕒 ${item.clockText}</div>
                               </div>
-                              <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm ms-2" style="font-size:0.75rem;white-space:nowrap;padding:2px 8px;"
-                                  onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">代填</button>
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              <div class="text-end">
+                                  <button class="btn btn-outline-danger btn-sm fw-bold shadow-sm" style="font-size:0.75rem; padding:4px 12px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">📝 代填</button>
+                              </div>
                           </div>`).join('')}
                       </div>` : ''}
 
@@ -6042,13 +6049,13 @@ function showMaintenanceShield(message) {
                           ${sAnswered.map(item => `
                           <div class="mb-2 p-2 bg-white rounded border shadow-sm">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                  <div class="fw-bold text-dark" style="font-size:0.82rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span> <span class="text-primary ms-1">🕒 ${item.clockText}</span></div>
+                                  <div class="fw-bold text-dark" style="font-size:0.85rem;">🗓️ ${item.shortDate} <span class="text-muted" style="font-size:0.75rem;">(${item.sysStatus})</span></div>
                                   <span class="badge ${item.hLog && item.hLog.reporter === '員工本人' ? 'bg-primary' : 'bg-dark'}" style="font-size:0.65rem;">${item.hLog ? item.hLog.reporter : '─'}</span>
                               </div>
-                              <div class="text-danger fw-bold ms-3 mt-1 mb-1" style="font-size: 0.78rem;"> ${item.reason} ${item.time ? ` <span class="text-muted fw-normal">(${item.time})</span>` : ''}</div>
-                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary ms-3 mt-1" style="font-size:0.75rem;line-height:1.4;">答覆：${item.hLog.explanation}</div>` : '<div class="text-muted ms-3" style="font-size:0.7rem;">（無文字說明）</div>'}
-                              <div class="text-end mt-1">
-                                  <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 6px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">✏️ 修改</button>
+                              <div class="text-danger fw-bold mb-1" style="font-size:0.8rem;">🚨 ${item.reason} ${item.time ? `<span class="text-muted fw-normal" style="font-size:0.75rem;">(${item.time})</span>` : ''}</div>
+                              ${item.hLog && item.hLog.explanation ? `<div class="text-secondary mt-1 p-1 rounded bg-light" style="font-size:0.75rem; line-height:1.3;">💬 答覆：${item.hLog.explanation}</div>` : '<div class="text-muted mt-1" style="font-size:0.75rem;">（無文字說明）</div>'}
+                              <div class="text-end mt-2">
+                                  <button class="btn btn-sm btn-outline-success fw-bold" style="font-size:0.7rem; padding: 2px 8px;" onclick="openAnomalyModal('${item.date}','${item.reason}','${item.name}','${item.pkey}')">✏️ 修改</button>
                               </div>
                           </div>`).join('')}
                       </div>` : ''}
