@@ -874,8 +874,8 @@ function showMaintenanceShield(message) {
       async function handleFilterChange(el, filterType) {
           if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
               
-              // 1. 記住店長「想去」的目的地 (例如點了 C 員工)
-              const targetValue = el.value; 
+              // 1. 記住店長「想去」的目的地 (例如點了 C 員工，或督導想點 ALL_STORES)
+              const targetValue = el.value;
 
               // ★ 手機版太極打法：這裡「刪除」原本的瞬間退回！
               // 順著手機系統的意，讓原生選單先變成 C，避免手機瀏覽器引擎崩潰跳回第一筆。
@@ -909,6 +909,13 @@ function showMaintenanceShield(message) {
                   // 存完解除安全鎖
                   window.lockedSaveState = null;
                   
+                  // ★ 督導退場專屬通道：存檔完畢後，直接打開任意門回全區總覽！
+                  if (filterType === 'adminExit') {
+                      document.getElementById('adminBackButtonContainer').remove();
+                      window.switchToAdminStore('ALL_STORES');
+                      return;
+                  }
+                  
               } else if (result.isDenied) {
                   // ★★★ 大師級優雅還原 (0 流量！瞬間讀取無損快照！) ★★★
                   pendingUnsaved = false;
@@ -919,6 +926,13 @@ function showMaintenanceShield(message) {
                   
                   // 因為一開始手機已經把選單變成 C 了，所以我們只要確保它依然是 C
                   el.value = targetValue;
+
+                  // ★ 督導退場專屬通道：放棄修改後，直接打開任意門回全區總覽！
+                  if (filterType === 'adminExit') {
+                      document.getElementById('adminBackButtonContainer').remove();
+                      window.switchToAdminStore('ALL_STORES');
+                      return;
+                  }
 
                   // ★ 狀態篩選聯動：即使放棄修改，切換人名時也要更新對應的狀態清單
                   if (filterType === 'name') updateStatusFilterMenu(targetValue);
@@ -940,6 +954,13 @@ function showMaintenanceShield(message) {
           } else {
               // --- 沒有未存檔的髒資料，正常執行切換 ---
               
+              // ★ 督導退場專屬通道：沒動過資料，直接開門！
+              if (filterType === 'adminExit') {
+                  document.getElementById('adminBackButtonContainer').remove();
+                  window.switchToAdminStore('ALL_STORES');
+                  return;
+              }
+
               if (filterType === 'name') {
                   // 正常切換人名：更新該員專屬的狀態選單
                   updateStatusFilterMenu(el.value);
@@ -1384,10 +1405,12 @@ function showMaintenanceShield(message) {
                   let btn = document.createElement('button');
                   btn.className = 'btn btn-danger fw-bold rounded-pill shadow-sm px-4 py-1';
                   btn.innerHTML = '🔙 結束代排，返回全區總覽';
+                  
+                  // ★ 安全鎖修復：不直接跳轉，而是把這顆按鈕偽裝成一個選單，送進超級攔截器！
+                  // 這樣如果督導改了沒存檔，就會跳出「您有修改尚未儲存」的防呆警告了！
+                  btn.value = 'ALL_STORES'; 
                   btn.onclick = function() { 
-                      window.switchToAdminStore('ALL_STORES'); 
-                      // 點擊後順便把橫幅移除
-                      document.getElementById('adminBackButtonContainer').remove();
+                      handleFilterChange(this, 'adminExit'); 
                   };
                   
                   btnContainer.appendChild(btn);
@@ -3052,7 +3075,10 @@ function showMaintenanceShield(message) {
              if (tr.getAttribute('data-name') !== name) return;
              const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
              let usage = getWeeklyUsage(name, dateStr); let currentDay = parseInt(dateStr.split('/')[2]).toString();
-             let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
+             
+             // ★ 總公司特權：只要是總公司，天天都是國定假日(可以自由排「國」)！
+             let isHourlyHoliday = (currentStore === "總公司") ? true : (monthlyTargets.holidays || []).includes(currentDay);
+             
              let allowed = [];
              if (isHourlyHoliday) allowed = ["", "上班", "國"]; else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || currentVal === '休') allowed.push("休"); if (usage.reg < 1 || currentVal === '例') allowed.push("例"); }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
