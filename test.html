@@ -3036,9 +3036,12 @@ function showMaintenanceShield(message) {
            if (currentUserRole === 'HQ') return ""; // ★ 上帝模式：後勤排班時，直接無視所有法規防呆與額度限制！
            if (isCascade) return ""; // 系統自動連動時不檢查
 
+           // ★ 總公司防呆特權：不論外部傳入什麼，只要當下門市是總公司，大腦內部一律強制採用時薪制檢核！
+           let finalIsMonthly = (currentStore === "總公司") ? false : isMonthly;
+
            // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
-          if (!isMonthly) {
-              let usage = getWeeklyUsage(name, date);
+           if (!finalIsMonthly) {
+               let usage = getWeeklyUsage(name, date);
               if (usage.isFullWeek && usage.emptyRows === 0) {
                   if (usage.rest < 1 || usage.reg < 1) {
                       return `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
