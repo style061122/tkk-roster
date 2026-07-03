@@ -1320,16 +1320,18 @@ function showMaintenanceShield(message) {
               if(typeof initAdminFilters === 'function') initAdminFilters(); 
           }
           else if (currentUserRole === 'HQ') {
-              // 總公司視角：直接飛進營運中心 (A畫面)
-              if(adminSec) {
-                  adminSec.style.display = 'block';
-                  // 1. 標題自動更換為部門名稱
-                  document.getElementById('adminTitle').innerText = "🏢 " + currentStore;
-                  // 2. 隱藏對總公司來說多餘的選單
-                  document.getElementById('adminCompanyCol').style.display = 'none';
-                  document.getElementById('adminStoreCol').style.display = 'none';
-                  // 3. 啟動自動載入引擎 (不需要點擊「載入」)
-                  if(typeof loadAdminData === 'function') loadAdminData();
+              // ★ 總公司視角：全面恢復排班功能 (比照店長，但自帶上帝模式)
+              document.getElementById('displayStoreName').innerText = currentStore;
+              
+              const savedMonthMode = sessionStorage.getItem('tkk_month_mode');
+              if (savedMonthMode) {
+                  enterMode(savedMonthMode);
+              } else {
+                  // 背景預載當月班表
+                  window.bgFetchPromises = {
+                      'current': callApi('getStoreData', { store: currentStore, monthMode: 'current' })
+                  };
+                  document.getElementById('modeSelectionSection').style.display = 'block';
               }
           }
           else {
@@ -1348,6 +1350,45 @@ function showMaintenanceShield(message) {
               }
           }
       }
+
+      // ==========================================
+      // 👑 督導專屬切換引擎：全區總覽 ⇌ 單店排班
+      // ==========================================
+      window.switchToAdminStore = function(targetStore) {
+          if (!targetStore || targetStore === 'ALL_STORES' || targetStore === 'SUPERVISOR_ALL') {
+              // ★ 動作一：回到全區戰情總覽
+              document.getElementById('appSection').style.display = 'none';
+              document.getElementById('modeSelectionSection').style.display = 'none';
+              document.getElementById('adminSection').style.display = 'block';
+              
+              // 拔除返回按鈕
+              let backBtn = document.getElementById('adminBackButton');
+              if (backBtn) backBtn.remove();
+              
+              // 清除店長畫面的記憶，確保下次切換乾淨
+              sessionStorage.removeItem('tkk_month_mode');
+          } else {
+              // ★ 動作二：進入單店排班畫面
+              currentStore = targetStore;
+              document.getElementById('displayStoreName').innerText = currentStore;
+              document.getElementById('adminSection').style.display = 'none';
+
+              // 動態在「店名」旁邊注入一顆紅色的「🔙 返回全區總覽」按鈕
+              let storeDisplay = document.getElementById('displayStoreName');
+              if (storeDisplay && !document.getElementById('adminBackButton')) {
+                  let btn = document.createElement('button');
+                  btn.id = 'adminBackButton';
+                  btn.className = 'btn btn-sm btn-outline-danger ms-2 fw-bold rounded-pill shadow-sm';
+                  btn.innerHTML = '🔙 返回全區總覽';
+                  btn.onclick = function() { window.switchToAdminStore('ALL_STORES'); };
+                  storeDisplay.parentNode.insertBefore(btn, storeDisplay.nextSibling);
+              }
+
+              // 啟動排班畫面
+              const savedMonthMode = sessionStorage.getItem('tkk_month_mode') || 'current';
+              enterMode(savedMonthMode);
+          }
+      };
 
       function logout() { 
         currentStore = ""; currentData = []; currentToken = "";
@@ -1589,10 +1630,11 @@ function showMaintenanceShield(message) {
         showLoading(true, "儲存中...");
         
         // ★ 呼叫後端時帶上 Token 與 月份模式
+        let finalForceSave = force || (currentUserRole === 'HQ'); // ★ HQ 永遠自帶強制存檔免死金牌
         callApi('saveStoreData', { 
             store: currentStore, 
             inputData: inputData, 
-            forceSave: force,
+            forceSave: finalForceSave, // ★ 傳送免死金牌給後端
             token: currentToken,
             monthMode: currentMonthMode, 
             // ★ 終極保險：確保它絕對不會是 undefined
@@ -1647,8 +1689,8 @@ function showMaintenanceShield(message) {
 
                      let quotaWarnings = [];
 
-                     // ★ 2. 將「月薪制專屬檢查」包起來
-                     if (!isHourly) {
+                     // ★ 2. 將「月薪制專屬檢查」包起來 (HQ 後勤上帝模式：無視所有額度警告)
+                     if (!isHourly && currentUserRole !== 'HQ') {
                          if (monthlyTargets.hrs > 0 && stats.h > monthlyTargets.hrs) quotaWarnings.push(`應有工時 已超過 (目前 ${stats.h.toFixed(1)}H)`);
                          if (monthlyTargets.rest > 0 && restCount > monthlyTargets.rest) quotaWarnings.push(`休假 已超過 (目前 ${restCount}天)`);
                          if (monthlyTargets.reg > 0 && regCount > monthlyTargets.reg) quotaWarnings.push(`例假 已超過 (目前 ${regCount}天)`);
@@ -1771,12 +1813,13 @@ function showMaintenanceShield(message) {
                      loadData(); 
                  }); 
              }
-             // ★★★ 樂觀鎖：專屬優雅退件與強制重整 ★★★
+             // ★★★ 樂觀鎖：專屬優雅退件與強制重整 (雙重鎖升級) ★★★
              else if (res.status === 'OUTDATED_SYNC') {
                  Swal.fire({
                      icon: 'warning',
                      title: '資料已過期',
-                     text: '⚠️ 系統已同步手動排班資料，為避免覆蓋，已為您載入最新畫面。',
+                     // ★ 動態接收後端傳來的精準退件原因 (防系統 / 防人類)
+                     text: res.message || '⚠️ 系統已同步最新排班資料，為避免覆蓋，已為您載入最新畫面。',
                      confirmButtonText: '確認',
                      allowOutsideClick: false
                  }).then(() => {
