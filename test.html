@@ -1476,7 +1476,8 @@ function showMaintenanceShield(message) {
              lockoutStart.setHours(closingDeadline.getHours() - 24); 
 
              // 3. 判斷是否在鎖定區間內 (★ 如果是次月預排模式，永遠不鎖定！)
-             let isSuperAdmin = (currentUserRole === 'ADMIN' && allowedStoresList === "ALL"); // ★ 最高督導特權：無條件無視關帳鎖定！
+             // ★ 修復特權判定：最高督導在前端的 allowedStoresList 是一個包含所有門市的超大陣列
+             let isSuperAdmin = (currentUserRole === 'ADMIN' && Array.isArray(allowedStoresList) && allowedStoresList.length > 10); 
              if (!isSuperAdmin && currentMonthMode !== 'next' && now >= lockoutStart && now < closingDeadline) {
                  
                  // 4. 定義日期格式化工具 (轉成 "2月3日 09:00" 格式)
