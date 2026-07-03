@@ -4554,6 +4554,16 @@ function showMaintenanceShield(message) {
 
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
 
+          // ==========================================
+          // ★★★ 督導專屬任意門：攔截單店查詢，跳轉至排班畫面 ★★★
+          // ==========================================
+          if (currentUserRole === 'ADMIN' && targetStore !== 'ALL_STORES') {
+              // 記錄督導在下拉選單選的月份，確保任意門打開時月份一致
+              sessionStorage.setItem('tkk_month_mode', monthMode); 
+              window.switchToAdminStore(targetStore);
+              return; // ★ 攔截成功！跳出函式，終止舊版的戰情圖表載入
+          }
+
           // ★ 判斷是否為全區總覽模式
           window.isRegionOverview = (targetStore === 'ALL_STORES');
           let apiStoreParam = window.isRegionOverview ? allowedStoresList.join(',') : targetStore;
