@@ -1320,18 +1320,16 @@ function showMaintenanceShield(message) {
               if(typeof initAdminFilters === 'function') initAdminFilters(); 
           }
           else if (currentUserRole === 'HQ') {
-              // ★ 總公司視角：全面恢復排班功能 (比照店長，但自帶上帝模式)
-              document.getElementById('displayStoreName').innerText = currentStore;
-              
-              const savedMonthMode = sessionStorage.getItem('tkk_month_mode');
-              if (savedMonthMode) {
-                  enterMode(savedMonthMode);
-              } else {
-                  // 背景預載當月班表
-                  window.bgFetchPromises = {
-                      'current': callApi('getStoreData', { store: currentStore, monthMode: 'current' })
-                  };
-                  document.getElementById('modeSelectionSection').style.display = 'block';
+              // 總公司視角：直接飛進營運中心 (A畫面)
+              if(adminSec) {
+                  adminSec.style.display = 'block';
+                  // 1. 標題自動更換為部門名稱
+                  document.getElementById('adminTitle').innerText = "🏢 " + currentStore;
+                  // 2. 隱藏對總公司來說多餘的選單
+                  document.getElementById('adminCompanyCol').style.display = 'none';
+                  document.getElementById('adminStoreCol').style.display = 'none';
+                  // 3. 啟動自動載入引擎 (不需要點擊「載入」)
+                  if(typeof loadAdminData === 'function') loadAdminData();
               }
           }
           else {
@@ -2633,9 +2631,12 @@ function showMaintenanceShield(message) {
 
           // 3. ★★★ 鄭重補回：依人名模式或「異常過濾模式」下的動態下拉選單更新 ★★★
           if (currentMode === 'name' || currentMode === 'error') { 
-              if (salary.includes("時薪") && typeof refreshHourlyDropdowns === 'function') {
+              // ★ 總公司防呆特權：只要當下門市是總公司，一律當作時薪人員處理選單！
+              let treatAsHourly = (currentStore === "總公司") ? true : salary.includes("時薪");
+              
+              if (treatAsHourly && typeof refreshHourlyDropdowns === 'function') {
                   refreshHourlyDropdowns(name);
-              } else if (salary.includes("月薪") && typeof refreshMonthlyDropdowns === 'function') {
+              } else if (!treatAsHourly && typeof refreshMonthlyDropdowns === 'function') {
                   refreshMonthlyDropdowns(name);
               }
               if (currentMode === 'name') updateLiveSummary(name);
@@ -2663,7 +2664,9 @@ function showMaintenanceShield(message) {
           const name = tr.getAttribute('data-name');
           const date = tr.getAttribute('data-date');
           const salaryType = tr.getAttribute('data-salary');
-          const isMonthly = salaryType.includes("月薪");
+          
+          // ★ 總公司防呆特權：只要當下門市是總公司，一律當作時薪(isMonthly = false)來通過防呆！
+          const isMonthly = (currentStore === "總公司") ? false : salaryType.includes("月薪");
           
           let startVal = startSelect.value;
           let endVal = endSelect.value;
