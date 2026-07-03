@@ -1373,15 +1373,27 @@ function showMaintenanceShield(message) {
               document.getElementById('displayStoreName').innerText = currentStore;
               document.getElementById('adminSection').style.display = 'none';
 
-              // 動態在「店名」旁邊注入一顆紅色的「🔙 返回全區總覽」按鈕
-              let storeDisplay = document.getElementById('displayStoreName');
-              if (storeDisplay && !document.getElementById('adminBackButton')) {
+              // ★ 任意門按鈕優化：獨立專屬橫幅！放在整個排班畫面 (appSection) 的最上方！
+              let appSection = document.getElementById('appSection');
+              if (appSection && !document.getElementById('adminBackButtonContainer')) {
+                  let btnContainer = document.createElement('div');
+                  btnContainer.id = 'adminBackButtonContainer';
+                  // 橫幅設計：滿版、黃底警示、置中對齊、浮動置頂
+                  btnContainer.className = 'w-100 text-center py-2 mb-3 shadow-sm sticky-top'; 
+                  btnContainer.style.backgroundColor = '#fff3cd'; // 醒目的警示黃底色
+                  btnContainer.style.zIndex = '1050'; // 確保不會被表格蓋住
+                  
                   let btn = document.createElement('button');
-                  btn.id = 'adminBackButton';
-                  btn.className = 'btn btn-sm btn-outline-danger ms-2 fw-bold rounded-pill shadow-sm';
-                  btn.innerHTML = '🔙 返回全區總覽';
-                  btn.onclick = function() { window.switchToAdminStore('ALL_STORES'); };
-                  storeDisplay.parentNode.insertBefore(btn, storeDisplay.nextSibling);
+                  btn.className = 'btn btn-danger fw-bold rounded-pill shadow-sm px-4 py-1';
+                  btn.innerHTML = '🔙 結束代排，返回全區總覽';
+                  btn.onclick = function() { 
+                      window.switchToAdminStore('ALL_STORES'); 
+                      // 點擊後順便把橫幅移除
+                      document.getElementById('adminBackButtonContainer').remove();
+                  };
+                  
+                  btnContainer.appendChild(btn);
+                  appSection.prepend(btnContainer); // 插入到排班畫面最上面
               }
 
               // 啟動排班畫面
@@ -1461,14 +1473,15 @@ function showMaintenanceShield(message) {
             closingDeadline.setHours(9, 0, 0, 0);
 
             // 2. 設定鎖定開始時間 (在此修改小時數)
-            let lockoutStart = new Date(closingDeadline);
-            // ★★★ 設定區：這裡輸入 -24, -30, -48 皆可 ★★★
-            lockoutStart.setHours(closingDeadline.getHours() - 24); 
+             let lockoutStart = new Date(closingDeadline);
+             // ★★★ 設定區：這裡輸入 -24, -30, -48 皆可 ★★★
+             lockoutStart.setHours(closingDeadline.getHours() - 24); 
 
-            // 3. 判斷是否在鎖定區間內 (★ 如果是次月預排模式，永遠不鎖定！)
-            if (currentMonthMode !== 'next' && now >= lockoutStart && now < closingDeadline) {
-                
-                // 4. 定義日期格式化工具 (轉成 "2月3日 09:00" 格式)
+             // 3. 判斷是否在鎖定區間內 (★ 如果是次月預排模式，永遠不鎖定！)
+             let isSuperAdmin = (currentUserRole === 'ADMIN' && allowedStoresList === "ALL"); // ★ 最高督導特權：無條件無視關帳鎖定！
+             if (!isSuperAdmin && currentMonthMode !== 'next' && now >= lockoutStart && now < closingDeadline) {
+                 
+                 // 4. 定義日期格式化工具 (轉成 "2月3日 09:00" 格式)
                 const fmt = (d) => {
                     let m = d.getMonth() + 1;
                     let dd = d.getDate();
@@ -2992,10 +3005,11 @@ function showMaintenanceShield(message) {
       }
     
        // ★ 獨立出來的法規防護網
-      function checkLawLimits(name, date, isMonthly, isCascade) {
-          if (isCascade) return ""; // 系統自動連動時不檢查
+       function checkLawLimits(name, date, isMonthly, isCascade) {
+           if (currentUserRole === 'HQ') return ""; // ★ 上帝模式：後勤排班時，直接無視所有法規防呆與額度限制！
+           if (isCascade) return ""; // 系統自動連動時不檢查
 
-          // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
+           // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
           if (!isMonthly) {
               let usage = getWeeklyUsage(name, date);
               if (usage.isFullWeek && usage.emptyRows === 0) {
