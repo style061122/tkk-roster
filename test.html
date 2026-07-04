@@ -2544,8 +2544,15 @@ function showMaintenanceShield(message) {
              let usage = getWeeklyUsage(row.name, row.date);
              
              if (isHQUnit) {
-                 // ★ 總公司專屬：初始渲染時無條件給予「國」，並檢查休/例
-                 allowed = ["", "上班", "空班", "國"];
+                 // ★★★ 總公司專屬：初始渲染時的智慧總量控管 ★★★
+                 let maxNatQuota = (monthlyTargets.holidays || []).length;
+                 let currentNatCount = currentData.filter(r => r.name === row.name && r.store === currentStore && r.input_status === '國').length;
+                 
+                 allowed = ["", "上班", "空班"];
+                 if (currentNatCount < maxNatQuota || row.input_status === '國') {
+                     allowed.push("國");
+                 }
+                 
                  if (usage.rest < 1 || row.input_status === '休') allowed.push("休");
                  if (usage.reg < 1 || row.input_status === '例') allowed.push("例");
              } else {
@@ -3115,8 +3122,20 @@ function showMaintenanceShield(message) {
              
              let allowed = [];
              if (isHQUnit) {
-                 // ★ 總公司專屬：選單大解放！無條件擁有「國」，且保有正常時薪的休/例檢查
-                 allowed = ["", "上班", "空班", "國"];
+                 // ★★★ 總公司專屬：智慧總量控管與選單解放 ★★★
+                 // 1. 從 B8 載入的 holidays 陣列長度，即為本月國定假日總額度
+                 let maxNatQuota = (monthlyTargets.holidays || []).length;
+                 
+                 // 2. 即時掃描記憶體，計算該員工本月目前「已排定」的國定假日天數
+                 let currentNatCount = currentData.filter(r => r.name === name && r.store === currentStore && r.input_status === '國').length;
+                 
+                 allowed = ["", "上班", "空班"];
+                 
+                 // 3. 智慧動態分流：如果額度還沒滿，或者「這一天本來就是選國」，才允許出現「國」選項
+                 if (currentNatCount < maxNatQuota || currentVal === '國') {
+                     allowed.push("國");
+                 }
+                 
                  if (usage.rest < 1 || currentVal === '休') allowed.push("休");
                  if (usage.reg < 1 || currentVal === '例') allowed.push("例");
              } else {
