@@ -2655,8 +2655,9 @@ function showMaintenanceShield(message) {
 
           // 3. ★★★ 鄭重補回：依人名模式或「異常過濾模式」下的動態下拉選單更新 ★★★
           if (currentMode === 'name' || currentMode === 'error') { 
-              // ★ 總公司防呆特權：只要當下門市是總公司，一律當作時薪人員處理選單！
-              let treatAsHourly = (currentStore === "總公司") ? true : salary.includes("時薪");
+              // ★ 總公司防呆特權：只要是總公司轄下單位，一律當作時薪人員處理選單！
+              let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+              let treatAsHourly = isHQUnit ? true : salary.includes("時薪");
               
               if (treatAsHourly && typeof refreshHourlyDropdowns === 'function') {
                   refreshHourlyDropdowns(name);
@@ -2689,8 +2690,9 @@ function showMaintenanceShield(message) {
           const date = tr.getAttribute('data-date');
           const salaryType = tr.getAttribute('data-salary');
           
-          // ★ 總公司防呆特權：只要當下門市是總公司，一律當作時薪(isMonthly = false)來通過防呆！
-          const isMonthly = (currentStore === "總公司") ? false : salaryType.includes("月薪");
+          // ★ 總公司防呆特權：只要是總公司轄下單位，一律當作時薪(isMonthly = false)來通過防呆！
+          let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+          const isMonthly = isHQUnit ? false : salaryType.includes("月薪");
           
           let startVal = startSelect.value;
           let endVal = endSelect.value;
@@ -3033,16 +3035,16 @@ function showMaintenanceShield(message) {
     
        // ★ 獨立出來的法規防護網
        function checkLawLimits(name, date, isMonthly, isCascade) {
-           // ★ 終極上帝模式升級：只要「角色是後勤 (HQ)」或者「目前正在改總公司 (currentStore === '總公司')」，
-           // 排班當下直接無視並跳過所有(時薪一例一休 / 月薪區間下限)的法規與額度檢查，徹底開大門放行！
-           if (currentUserRole === 'HQ' || currentStore === "總公司") return ""; 
-           
            if (isCascade) return ""; // 系統自動連動時不檢查
 
-           // ★ 總公司防呆特權 (備用相容)：不論外部傳入什麼，只要當下門市是總公司，大腦內部一律強制採用時薪制檢核！
-           let finalIsMonthly = (currentStore === "總公司") ? false : isMonthly;
+           // ★ 智慧單位判定：判斷當前畫面是不是在排「總公司」轄下單位 (支援後勤登入 或 督導切換)
+           let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+
+           // ★ 總公司防呆特權：只要是總公司轄下單位，大腦內部一律強制採用「時薪制 (七天一例一休)」檢核！
+           let finalIsMonthly = isHQUnit ? false : isMonthly;
 
            // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
+           if (!finalIsMonthly) {
            if (!finalIsMonthly) {
                let usage = getWeeklyUsage(name, date);
               if (usage.isFullWeek && usage.emptyRows === 0) {
@@ -3082,8 +3084,9 @@ function showMaintenanceShield(message) {
              const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
              let usage = getWeeklyUsage(name, dateStr); let currentDay = parseInt(dateStr.split('/')[2]).toString();
              
-             // ★ 總公司特權：只要是總公司，天天都是國定假日(可以自由排「國」)！
-             let isHourlyHoliday = (currentStore === "總公司") ? true : (monthlyTargets.holidays || []).includes(currentDay);
+             // ★ 總公司特權：只要是總公司轄下單位，天天都是國定假日(可以自由排「國」)！
+             let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+             let isHourlyHoliday = isHQUnit ? true : (monthlyTargets.holidays || []).includes(currentDay);
              
              let allowed = [];
              if (isHourlyHoliday) allowed = ["", "上班", "國"]; else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || currentVal === '休') allowed.push("休"); if (usage.reg < 1 || currentVal === '例') allowed.push("例"); }
