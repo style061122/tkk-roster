@@ -1800,6 +1800,11 @@ function showMaintenanceShield(message) {
                              });
                          }
 
+                         // ★ 新增：接收後端派發的最新雙重鎖鑰匙！(確保連續存檔不過期)
+                         if (res.newSyncVersion) {
+                             window.currentSyncVersion = res.newSyncVersion;
+                         }
+
                          // 1. 洗掉所有髒標記
                          currentData.forEach(r => r.isModified = false);
                          
@@ -1830,6 +1835,10 @@ function showMaintenanceShield(message) {
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
              }
              else if (res.status === 'PARTIAL') { 
+                 // ★ 新增：部分成功也有更新 G 欄，必須接收新鑰匙！
+                 if (res.newSyncVersion) {
+                     window.currentSyncVersion = res.newSyncVersion;
+                 }
                  Swal.fire({ icon: 'warning', title: '⚠️ 部分儲存成功', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => {
                      // ★ 部分成功時：也要保護目的地！
                      if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
