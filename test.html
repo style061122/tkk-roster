@@ -3033,10 +3033,13 @@ function showMaintenanceShield(message) {
     
        // ★ 獨立出來的法規防護網
        function checkLawLimits(name, date, isMonthly, isCascade) {
-           if (currentUserRole === 'HQ') return ""; // ★ 上帝模式：後勤排班時，直接無視所有法規防呆與額度限制！
+           // ★ 終極上帝模式升級：只要「角色是後勤 (HQ)」或者「目前正在改總公司 (currentStore === '總公司')」，
+           // 排班當下直接無視並跳過所有(時薪一例一休 / 月薪區間下限)的法規與額度檢查，徹底開大門放行！
+           if (currentUserRole === 'HQ' || currentStore === "總公司") return ""; 
+           
            if (isCascade) return ""; // 系統自動連動時不檢查
 
-           // ★ 總公司防呆特權：不論外部傳入什麼，只要當下門市是總公司，大腦內部一律強制採用時薪制檢核！
+           // ★ 總公司防呆特權 (備用相容)：不論外部傳入什麼，只要當下門市是總公司，大腦內部一律強制採用時薪制檢核！
            let finalIsMonthly = (currentStore === "總公司") ? false : isMonthly;
 
            // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
