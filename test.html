@@ -1672,8 +1672,9 @@ function showMaintenanceShield(message) {
             forceSave: finalForceSave, // ★ 傳送免死金牌給後端
             token: currentToken,
             monthMode: currentMonthMode, 
-            // ★ 終極保險：確保它絕對不會是 undefined
-            syncVersion: window.currentSyncVersion || "" 
+            syncVersion: window.currentSyncVersion || "",
+            // ★ 最高督導免檢通道：將登入時的真實本名一起送給後端查驗
+            adminBypassName: sessionStorage.getItem('tkk_store') || ""
         })
           .then(res => {
              showLoading(false); 
