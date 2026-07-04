@@ -3045,7 +3045,6 @@ function showMaintenanceShield(message) {
 
            // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
            if (!finalIsMonthly) {
-           if (!finalIsMonthly) {
                let usage = getWeeklyUsage(name, date);
               if (usage.isFullWeek && usage.emptyRows === 0) {
                   if (usage.rest < 1 || usage.reg < 1) {
