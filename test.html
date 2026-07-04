@@ -2526,7 +2526,12 @@ function showMaintenanceShield(message) {
           let currentDay = parseInt(row.date.split('/')[2]);
           let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay.toString());
           let allowed = [];
-          if (row.salaryType.includes("時薪")) {
+          
+          // ★ 修正：初始渲染時，也要讓總部轄下單位強制使用時薪(一例一休)的選單邏輯！
+          let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+          let treatAsHourly = isHQUnit ? true : row.salaryType.includes("時薪");
+
+          if (treatAsHourly) {
              let usage = getWeeklyUsage(row.name, row.date);
              if (isHourlyHoliday) {
                   allowed = ["上班", "國"];
@@ -3083,9 +3088,8 @@ function showMaintenanceShield(message) {
              const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
              let usage = getWeeklyUsage(name, dateStr); let currentDay = parseInt(dateStr.split('/')[2]).toString();
              
-             // ★ 總公司特權：只要是總公司轄下單位，天天都是國定假日(可以自由排「國」)！
-             let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
-             let isHourlyHoliday = isHQUnit ? true : (monthlyTargets.holidays || []).includes(currentDay);
+             // ★ 修正：拔除「天天都是國定假日」的錯誤特權，讓國定假日嚴格遵守 B8 參數設定的日期！
+             let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
              
              let allowed = [];
              if (isHourlyHoliday) allowed = ["", "上班", "國"]; else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || currentVal === '休') allowed.push("休"); if (usage.reg < 1 || currentVal === '例') allowed.push("例"); }
