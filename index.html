@@ -874,8 +874,8 @@ function showMaintenanceShield(message) {
       async function handleFilterChange(el, filterType) {
           if (typeof pendingUnsaved !== 'undefined' && pendingUnsaved) {
               
-              // 1. 記住店長「想去」的目的地 (例如點了 C 員工)
-              const targetValue = el.value; 
+              // 1. 記住店長「想去」的目的地 (例如點了 C 員工，或督導想點 ALL_STORES)
+              const targetValue = el.value;
 
               // ★ 手機版太極打法：這裡「刪除」原本的瞬間退回！
               // 順著手機系統的意，讓原生選單先變成 C，避免手機瀏覽器引擎崩潰跳回第一筆。
@@ -909,6 +909,13 @@ function showMaintenanceShield(message) {
                   // 存完解除安全鎖
                   window.lockedSaveState = null;
                   
+                  // ★ 督導退場專屬通道：存檔完畢後，直接打開任意門回全區總覽！
+                  if (filterType === 'adminExit') {
+                      document.getElementById('adminBackButtonContainer').remove();
+                      window.switchToAdminStore('ALL_STORES');
+                      return;
+                  }
+                  
               } else if (result.isDenied) {
                   // ★★★ 大師級優雅還原 (0 流量！瞬間讀取無損快照！) ★★★
                   pendingUnsaved = false;
@@ -919,6 +926,13 @@ function showMaintenanceShield(message) {
                   
                   // 因為一開始手機已經把選單變成 C 了，所以我們只要確保它依然是 C
                   el.value = targetValue;
+
+                  // ★ 督導退場專屬通道：放棄修改後，直接打開任意門回全區總覽！
+                  if (filterType === 'adminExit') {
+                      document.getElementById('adminBackButtonContainer').remove();
+                      window.switchToAdminStore('ALL_STORES');
+                      return;
+                  }
 
                   // ★ 狀態篩選聯動：即使放棄修改，切換人名時也要更新對應的狀態清單
                   if (filterType === 'name') updateStatusFilterMenu(targetValue);
@@ -940,6 +954,13 @@ function showMaintenanceShield(message) {
           } else {
               // --- 沒有未存檔的髒資料，正常執行切換 ---
               
+              // ★ 督導退場專屬通道：沒動過資料，直接開門！
+              if (filterType === 'adminExit') {
+                  document.getElementById('adminBackButtonContainer').remove();
+                  window.switchToAdminStore('ALL_STORES');
+                  return;
+              }
+
               if (filterType === 'name') {
                   // 正常切換人名：更新該員專屬的狀態選單
                   updateStatusFilterMenu(el.value);
@@ -1349,6 +1370,59 @@ function showMaintenanceShield(message) {
           }
       }
 
+      // ==========================================
+      // 👑 督導專屬切換引擎：全區總覽 ⇌ 單店排班
+      // ==========================================
+      window.switchToAdminStore = function(targetStore) {
+          if (!targetStore || targetStore === 'ALL_STORES' || targetStore === 'SUPERVISOR_ALL') {
+              // ★ 動作一：回到全區戰情總覽
+              document.getElementById('appSection').style.display = 'none';
+              document.getElementById('modeSelectionSection').style.display = 'none';
+              document.getElementById('adminSection').style.display = 'block';
+              
+              // 拔除返回按鈕
+              let backBtn = document.getElementById('adminBackButton');
+              if (backBtn) backBtn.remove();
+              
+              // 清除店長畫面的記憶，確保下次切換乾淨
+              sessionStorage.removeItem('tkk_month_mode');
+          } else {
+              // ★ 動作二：進入單店排班畫面
+              currentStore = targetStore;
+              document.getElementById('displayStoreName').innerText = currentStore;
+              document.getElementById('adminSection').style.display = 'none';
+
+              // ★ 任意門按鈕優化：獨立專屬橫幅！放在整個排班畫面 (appSection) 的最上方！
+              let appSection = document.getElementById('appSection');
+              if (appSection && !document.getElementById('adminBackButtonContainer')) {
+                  let btnContainer = document.createElement('div');
+                  btnContainer.id = 'adminBackButtonContainer';
+                  // 橫幅設計：滿版、黃底警示、置中對齊、浮動置頂
+                  btnContainer.className = 'w-100 text-center py-2 mb-3 shadow-sm sticky-top'; 
+                  btnContainer.style.backgroundColor = '#fff3cd'; // 醒目的警示黃底色
+                  btnContainer.style.zIndex = '1050'; // 確保不會被表格蓋住
+                  
+                  let btn = document.createElement('button');
+                  btn.className = 'btn btn-danger fw-bold rounded-pill shadow-sm px-4 py-1';
+                  btn.innerHTML = '🔙 結束代排，返回全區總覽';
+                  
+                  // ★ 安全鎖修復：不直接跳轉，而是把這顆按鈕偽裝成一個選單，送進超級攔截器！
+                  // 這樣如果督導改了沒存檔，就會跳出「您有修改尚未儲存」的防呆警告了！
+                  btn.value = 'ALL_STORES'; 
+                  btn.onclick = function() { 
+                      handleFilterChange(this, 'adminExit'); 
+                  };
+                  
+                  btnContainer.appendChild(btn);
+                  appSection.prepend(btnContainer); // 插入到排班畫面最上面
+              }
+
+              // 啟動排班畫面
+              const savedMonthMode = sessionStorage.getItem('tkk_month_mode') || 'current';
+              enterMode(savedMonthMode);
+          }
+      };
+
       function logout() { 
         currentStore = ""; currentData = []; currentToken = "";
         sessionStorage.removeItem('tkk_store'); 
@@ -1420,14 +1494,16 @@ function showMaintenanceShield(message) {
             closingDeadline.setHours(9, 0, 0, 0);
 
             // 2. 設定鎖定開始時間 (在此修改小時數)
-            let lockoutStart = new Date(closingDeadline);
-            // ★★★ 設定區：這裡輸入 -24, -30, -48 皆可 ★★★
-            lockoutStart.setHours(closingDeadline.getHours() - 24); 
+             let lockoutStart = new Date(closingDeadline);
+             // ★★★ 設定區：這裡輸入 -24, -30, -48 皆可 ★★★
+             lockoutStart.setHours(closingDeadline.getHours() - 24); 
 
-            // 3. 判斷是否在鎖定區間內 (★ 如果是次月預排模式，永遠不鎖定！)
-            if (currentMonthMode !== 'next' && now >= lockoutStart && now < closingDeadline) {
-                
-                // 4. 定義日期格式化工具 (轉成 "2月3日 09:00" 格式)
+             // 3. 判斷是否在鎖定區間內 (★ 如果是次月預排模式，永遠不鎖定！)
+             // ★ 修復特權判定：最高督導在前端的 allowedStoresList 是一個包含所有門市的超大陣列
+             let isSuperAdmin = (currentUserRole === 'ADMIN' && Array.isArray(allowedStoresList) && allowedStoresList.length > 10); 
+             if (!isSuperAdmin && currentMonthMode !== 'next' && now >= lockoutStart && now < closingDeadline) {
+                 
+                 // 4. 定義日期格式化工具 (轉成 "2月3日 09:00" 格式)
                 const fmt = (d) => {
                     let m = d.getMonth() + 1;
                     let dd = d.getDate();
@@ -1589,14 +1665,16 @@ function showMaintenanceShield(message) {
         showLoading(true, "儲存中...");
         
         // ★ 呼叫後端時帶上 Token 與 月份模式
+        let finalForceSave = force || (currentUserRole === 'HQ'); // ★ HQ 永遠自帶強制存檔免死金牌
         callApi('saveStoreData', { 
             store: currentStore, 
             inputData: inputData, 
-            forceSave: force,
+            forceSave: finalForceSave, // ★ 傳送免死金牌給後端
             token: currentToken,
             monthMode: currentMonthMode, 
-            // ★ 終極保險：確保它絕對不會是 undefined
-            syncVersion: window.currentSyncVersion || "" 
+            syncVersion: window.currentSyncVersion || "",
+            // ★ 最高督導免檢通道：將登入時的真實本名一起送給後端查驗
+            adminBypassName: sessionStorage.getItem('tkk_store') || ""
         })
           .then(res => {
              showLoading(false); 
@@ -1647,8 +1725,8 @@ function showMaintenanceShield(message) {
 
                      let quotaWarnings = [];
 
-                     // ★ 2. 將「月薪制專屬檢查」包起來
-                     if (!isHourly) {
+                     // ★ 2. 將「月薪制專屬檢查」包起來 (HQ 後勤上帝模式：無視所有額度警告)
+                     if (!isHourly && currentUserRole !== 'HQ') {
                          if (monthlyTargets.hrs > 0 && stats.h > monthlyTargets.hrs) quotaWarnings.push(`應有工時 已超過 (目前 ${stats.h.toFixed(1)}H)`);
                          if (monthlyTargets.rest > 0 && restCount > monthlyTargets.rest) quotaWarnings.push(`休假 已超過 (目前 ${restCount}天)`);
                          if (monthlyTargets.reg > 0 && regCount > monthlyTargets.reg) quotaWarnings.push(`例假 已超過 (目前 ${regCount}天)`);
@@ -1723,6 +1801,11 @@ function showMaintenanceShield(message) {
                              });
                          }
 
+                         // ★ 新增：接收後端派發的最新雙重鎖鑰匙！(確保連續存檔不過期)
+                         if (res.newSyncVersion) {
+                             window.currentSyncVersion = res.newSyncVersion;
+                         }
+
                          // 1. 洗掉所有髒標記
                          currentData.forEach(r => r.isModified = false);
                          
@@ -1753,6 +1836,10 @@ function showMaintenanceShield(message) {
                  Swal.fire({ icon: 'error', title: '❌ 驗證失敗', html: res.message, confirmButtonText: '確定', allowOutsideClick: false }).then(() => logout()); 
              }
              else if (res.status === 'PARTIAL') { 
+                 // ★ 新增：部分成功也有更新 G 欄，必須接收新鑰匙！
+                 if (res.newSyncVersion) {
+                     window.currentSyncVersion = res.newSyncVersion;
+                 }
                  Swal.fire({ icon: 'warning', title: '⚠️ 部分儲存成功', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => {
                      // ★ 部分成功時：也要保護目的地！
                      if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
@@ -1771,12 +1858,13 @@ function showMaintenanceShield(message) {
                      loadData(); 
                  }); 
              }
-             // ★★★ 樂觀鎖：專屬優雅退件與強制重整 ★★★
+             // ★★★ 樂觀鎖：專屬優雅退件與強制重整 (雙重鎖升級) ★★★
              else if (res.status === 'OUTDATED_SYNC') {
                  Swal.fire({
                      icon: 'warning',
                      title: '資料已過期',
-                     text: '⚠️ 系統已同步手動排班資料，為避免覆蓋，已為您載入最新畫面。',
+                     // ★ 動態接收後端傳來的精準退件原因 (防系統 / 防人類)
+                     text: res.message || '⚠️ 系統已同步最新排班資料，為避免覆蓋，已為您載入最新畫面。',
                      confirmButtonText: '確認',
                      allowOutsideClick: false
                  }).then(() => {
@@ -2448,13 +2536,37 @@ function showMaintenanceShield(message) {
           let currentDay = parseInt(row.date.split('/')[2]);
           let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay.toString());
           let allowed = [];
-          if (row.salaryType.includes("時薪")) {
+          
+          // ★ 修正：初始渲染時，也要讓總部轄下單位強制使用時薪(一例一休)的選單邏輯！
+          let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+          let treatAsHourly = isHQUnit ? true : row.salaryType.includes("時薪");
+
+          if (treatAsHourly) {
              let usage = getWeeklyUsage(row.name, row.date);
-             if (isHourlyHoliday) {
-                  allowed = ["上班", "國"];
-                  if (!row.input_status || row.input_status === "") row.input_status = "國";
-              }
-             else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || row.input_status === '休') allowed.push("休"); if (usage.reg < 1 || row.input_status === '例') allowed.push("例"); }
+             
+             if (isHQUnit) {
+                 // ★★★ 總公司專屬：初始渲染時的智慧總量控管 ★★★
+                 let maxNatQuota = (monthlyTargets.holidays || []).length;
+                 let currentNatCount = currentData.filter(r => r.name === row.name && r.store === currentStore && r.input_status === '國').length;
+                 
+                 allowed = ["", "上班", "空班"];
+                 if (currentNatCount < maxNatQuota || row.input_status === '國') {
+                     allowed.push("國");
+                 }
+                 
+                 if (usage.rest < 1 || row.input_status === '休') allowed.push("休");
+                 if (usage.reg < 1 || row.input_status === '例') allowed.push("例");
+             } else {
+                 // ★ 一般門市時薪
+                 if (isHourlyHoliday) {
+                      allowed = ["", "上班", "國"];
+                      if (!row.input_status || row.input_status === "") row.input_status = "國";
+                 } else { 
+                      allowed = ["", "上班", "空班"]; 
+                      if (usage.rest < 1 || row.input_status === '休') allowed.push("休"); 
+                      if (usage.reg < 1 || row.input_status === '例') allowed.push("例"); 
+                 }
+             }
           } else {
              let activeRules = (monthlyTargets.customRules || []).filter(r => currentDay >= r.start && currentDay <= r.end);
              if (activeRules.length > 0) {
@@ -2577,9 +2689,13 @@ function showMaintenanceShield(message) {
 
           // 3. ★★★ 鄭重補回：依人名模式或「異常過濾模式」下的動態下拉選單更新 ★★★
           if (currentMode === 'name' || currentMode === 'error') { 
-              if (salary.includes("時薪") && typeof refreshHourlyDropdowns === 'function') {
+              // ★ 總公司防呆特權：只要是總公司轄下單位，一律當作時薪人員處理選單！
+              let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+              let treatAsHourly = isHQUnit ? true : salary.includes("時薪");
+              
+              if (treatAsHourly && typeof refreshHourlyDropdowns === 'function') {
                   refreshHourlyDropdowns(name);
-              } else if (salary.includes("月薪") && typeof refreshMonthlyDropdowns === 'function') {
+              } else if (!treatAsHourly && typeof refreshMonthlyDropdowns === 'function') {
                   refreshMonthlyDropdowns(name);
               }
               if (currentMode === 'name') updateLiveSummary(name);
@@ -2607,7 +2723,10 @@ function showMaintenanceShield(message) {
           const name = tr.getAttribute('data-name');
           const date = tr.getAttribute('data-date');
           const salaryType = tr.getAttribute('data-salary');
-          const isMonthly = salaryType.includes("月薪");
+          
+          // ★ 總公司防呆特權：只要是總公司轄下單位，一律當作時薪(isMonthly = false)來通過防呆！
+          let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+          const isMonthly = isHQUnit ? false : salaryType.includes("月薪");
           
           let startVal = startSelect.value;
           let endVal = endSelect.value;
@@ -2949,12 +3068,18 @@ function showMaintenanceShield(message) {
       }
     
        // ★ 獨立出來的法規防護網
-      function checkLawLimits(name, date, isMonthly, isCascade) {
-          if (isCascade) return ""; // 系統自動連動時不檢查
+       function checkLawLimits(name, date, isMonthly, isCascade) {
+           if (isCascade) return ""; // 系統自動連動時不檢查
 
-          // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
-          if (!isMonthly) {
-              let usage = getWeeklyUsage(name, date);
+           // ★ 智慧單位判定：判斷當前畫面是不是在排「總公司」轄下單位 (支援後勤登入 或 督導切換)
+           let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+
+           // ★ 總公司防呆特權：只要是總公司轄下單位，大腦內部一律強制採用「時薪制 (七天一例一休)」檢核！
+           let finalIsMonthly = isHQUnit ? false : isMonthly;
+
+           // ★★★ 時薪人員：七天防護網 (一例一休事後算帳機制) ★★★
+           if (!finalIsMonthly) {
+               let usage = getWeeklyUsage(name, date);
               if (usage.isFullWeek && usage.emptyRows === 0) {
                   if (usage.rest < 1 || usage.reg < 1) {
                       return `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
@@ -2991,9 +3116,39 @@ function showMaintenanceShield(message) {
              if (tr.getAttribute('data-name') !== name) return;
              const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
              let usage = getWeeklyUsage(name, dateStr); let currentDay = parseInt(dateStr.split('/')[2]).toString();
+             
+             // ★ 總公司特權：判斷是否為總公司轄下單位
+             let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
              let isHourlyHoliday = (monthlyTargets.holidays || []).includes(currentDay);
+             
              let allowed = [];
-             if (isHourlyHoliday) allowed = ["", "上班", "國"]; else { allowed = ["", "上班", "空班"]; if (usage.rest < 1 || currentVal === '休') allowed.push("休"); if (usage.reg < 1 || currentVal === '例') allowed.push("例"); }
+             if (isHQUnit) {
+                 // ★★★ 總公司專屬：智慧總量控管與選單解放 ★★★
+                 // 1. 從 B8 載入的 holidays 陣列長度，即為本月國定假日總額度
+                 let maxNatQuota = (monthlyTargets.holidays || []).length;
+                 
+                 // 2. 即時掃描記憶體，計算該員工本月目前「已排定」的國定假日天數
+                 let currentNatCount = currentData.filter(r => r.name === name && r.store === currentStore && r.input_status === '國').length;
+                 
+                 allowed = ["", "上班", "空班"];
+                 
+                 // 3. 智慧動態分流：如果額度還沒滿，或者「這一天本來就是選國」，才允許出現「國」選項
+                 if (currentNatCount < maxNatQuota || currentVal === '國') {
+                     allowed.push("國");
+                 }
+                 
+                 if (usage.rest < 1 || currentVal === '休') allowed.push("休");
+                 if (usage.reg < 1 || currentVal === '例') allowed.push("例");
+             } else {
+                 // ★ 一般門市時薪：嚴格遵守國定假日只能排上班或國
+                 if (isHourlyHoliday) {
+                     allowed = ["", "上班", "國"];
+                 } else {
+                     allowed = ["", "上班", "空班"];
+                     if (usage.rest < 1 || currentVal === '休') allowed.push("休");
+                     if (usage.reg < 1 || currentVal === '例') allowed.push("例");
+                 }
+             }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
              // ★ 終極修復：只要記憶體裡曾經有狀態，或是當下選了狀態，徹底拔除「請選擇」的資格！
              let originalIndex = parseInt(tr.getAttribute('data-index'));
@@ -4510,6 +4665,16 @@ function showMaintenanceShield(message) {
           }
 
           if (!targetStore) { Swal.fire('提示', '請先選擇門市', 'warning'); return; }
+
+          // ==========================================
+          // ★★★ 督導專屬任意門：攔截單店查詢，跳轉至排班畫面 ★★★
+          // ==========================================
+          if (currentUserRole === 'ADMIN' && targetStore !== 'ALL_STORES') {
+              // 記錄督導在下拉選單選的月份，確保任意門打開時月份一致
+              sessionStorage.setItem('tkk_month_mode', monthMode); 
+              window.switchToAdminStore(targetStore);
+              return; // ★ 攔截成功！跳出函式，終止舊版的戰情圖表載入
+          }
 
           // ★ 判斷是否為全區總覽模式
           window.isRegionOverview = (targetStore === 'ALL_STORES');
