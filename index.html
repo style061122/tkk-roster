@@ -1204,6 +1204,7 @@ function showMaintenanceShield(message) {
                             padding: '1.25em', // ★ 醫美 4：縮小彈窗本身的留白邊距，視覺更緊湊
                             width: window.innerWidth <= 768 ? '90%' : '450px' // ★ 醫美 5：稍微縮小電腦版寬度，手機版佔比從92%微調至90%
                         });
+                    }
                 }
                 else {
                     document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
