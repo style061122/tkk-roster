@@ -258,7 +258,7 @@
     <div id="loadingOverlay"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div><h5 class="mt-3 text-dark fw-bold" id="loadingText">系統載入中...</h5></div>
     <datalist id="storeDataList"></datalist>
     <div id="loginSection" style="display:none;">
-      <h3 class="mb-4 fw-bold text-primary">「上月」完整排班資料</h3>
+      <h3 class="mb-4 fw-bold text-primary">頂呱呱門市排班系統</h3>
       <div class="mb-3 text-start"><label class="form-label fw-bold">所屬公司</label><select id="loginCompany" class="form-select form-select-lg" onchange="updateStoreOptions()"><option value="">載入中...</option></select></div>
       <div class="mb-3 text-start"><label class="form-label fw-bold">選擇門市</label><select id="loginStore" class="form-select form-select-lg"><option value="">請先選擇公司</option></select></div>
       <div class="mb-4 text-start"><label class="form-label fw-bold">登入密碼</label><input type="password" id="loginPassword" class="form-control form-select-lg" placeholder="請輸入密碼"></div>
@@ -1131,7 +1131,68 @@ function showMaintenanceShield(message) {
                         btn.className = 'btn btn-sm btn-warning text-dark fw-bold shadow-sm rounded-pill px-3';
                         btn.innerText = '🔄 切換至 次月預排';
                     }
+                    
+                    // ==========================================
+                    // ★ 神級 UX 優化：背景默默畫圖，前景強制彈窗
+                    // ==========================================
+                    // 1. 瞬間把背景的排班表畫面全部畫好
                     renderPersonalPage(res);
+
+                    // ==========================================
+                    // 🧠 2. 前端時光機：根據後端傳回的 closing_day 完美推算月份
+                    // ==========================================
+                    let closeDayNum = parseInt(res.closing_day || (res.meta && res.meta.closing_day)) || 4; // 萬一沒拿到就防呆預設 4
+                    let todayObj = new Date();
+                    let tMonth = todayObj.getMonth() + 1;
+                    let tDate = todayObj.getDate();
+                    
+                    // 如果今天日期已經大於關帳日，代表現在正在看的是「下個月」的帳了
+                    let targetMonth = tMonth;
+                    if (tDate <= closeDayNum) {
+                        targetMonth -= 1;
+                        if (targetMonth === 0) targetMonth = 12;
+                    }
+                    let closeMonth = targetMonth + 1;
+                    if (closeMonth > 12) closeMonth = 1;
+                    
+                    // 完美的動態時間字串 (例如: 6/4 09:00 或 7/4 09:00)
+                    const dynamicDeadline = `${closeMonth}/${closeDayNum} 09:00`;
+
+                    // 3. 如果是本次開啟網頁「第一次」登入成功，就強制跳出防呆彈窗
+                    if (!window.hasShownWarning) {
+                        window.hasShownWarning = true; 
+                        
+                        Swal.fire({
+                            title: '⚠️ 出勤作業重要通知',
+                            html: `
+                                <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #333333; padding: 0px 5px;">
+                                    <p style="margin-bottom: 10px;">📅 <strong>本月出勤狀況已更新，請務必確認。</strong><br>
+                                    若有「提前/延後/非工作日」打卡異常且屬因私事逗留者，請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15.5px;">${dynamicDeadline} 前</span> 填寫完畢。</p>
+                                    
+                                    <p style="margin-bottom: 10px;">⚡ <strong>若因公務加班：</strong><br>
+                                    請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15.5px;">${dynamicDeadline} 前</span> 至 <strong>Apollo 系統</strong> 申請加班單並簽核完畢。</p>
+                                    
+                                    <p style="margin-bottom: 15px; background-color: #fff3cd; color: #d9383a; padding: 6px 8px; font-weight: bold; border-radius: 4px; border-left: 4px solid #d9383a; font-size: 13.5px;">
+                                        ⚡ 逾期未處理系統即視為「私人因素停留公司」。
+                                    </p>
+                                    
+                                    <div style="border-top: 1px dashed #dddddd; margin: 10px 0; padding-top: 8px;">
+                                        <p style="margin-bottom: 5px; font-weight: bold; color: #000000; font-size: 14px;">📅 本月出勤將於 <span style="color: #e60000;">${closeMonth}月${closeDayNum}日 09:00</span> 班表關帳</p>
+                                        <p style="margin-bottom: 5px; padding-left: 15px; text-indent: -15px; color: #555555;">  若有出勤異常，請至 Apollo 系統完成單據申請。</p>
+                                        <p style="margin-bottom: 5px; padding-left: 15px; text-indent: -15px; color: #555555;">❗ <strong>忘打卡或請假逾期未處理：</strong>系統將自動轉為 <span style="color: #e60000; font-weight: bold;">曠職不支薪</span>。</p>
+                                        <p style="margin-bottom: 0; padding-left: 15px; text-indent: -15px; color: #555555;">❗ <strong>加班單無法跨月申請：</strong>請務必於關帳前處理完畢。</p>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'warning',
+                            iconColor: '#d9383a',
+                            confirmButtonText: '🚀 我已了解，進入確認出勤',
+                            confirmButtonColor: '#0d6efd',
+                            allowOutsideClick: false, 
+                            allowEscapeKey: false,    
+                            width: window.innerWidth <= 768 ? '92%' : '500px' // 手機完美自適應滿版
+                        });
+                    }
                 }
                 else {
                     document.body.innerHTML = `<div class="container text-center text-danger mt-5"><h3>❌ ${res.message}</h3></div>`;
