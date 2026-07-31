@@ -1163,34 +1163,44 @@ function showMaintenanceShield(message) {
                         window.hasShownWarning = true; 
                         
                         Swal.fire({
-                            title: '⚠️ 出勤作業重要通知',
                             html: `
-                                <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #333333; padding: 0px 5px;">
-                                    <p style="margin-bottom: 10px;">📅 <strong>本月出勤狀況已更新，請務必確認。</strong><br>
-                                    若有「提前/延後/非工作日」打卡異常且屬因私事逗留者，請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15.5px;">${dynamicDeadline} 前</span> 填寫完畢。</p>
+                                <div style="text-align: left; font-size: 14.5px; line-height: 1.5; color: #212529; padding: 0;">
                                     
-                                    <p style="margin-bottom: 10px;">⚡ <strong>若因公務加班：</strong><br>
-                                    請務必於 <span style="color: #e60000; font-weight: bold; font-size: 15.5px;">${dynamicDeadline} 前</span> 至 <strong>Apollo 系統</strong> 申請加班單並簽核完畢。</p>
+                                    <div style="display: flex; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;">
+                                        <div style="background-color: #fde8e8; color: #d9383a; width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 15px; margin-right: 8px; flex-shrink: 0;">
+                                            ⚠️
+                                        </div>
+                                        <div style="font-size: 24px; font-weight: bold; color: #000;">出勤作業重要通知</div>
+                                    </div>
                                     
-                                    <p style="margin-bottom: 15px; background-color: #fff3cd; color: #d9383a; padding: 6px 8px; font-weight: bold; border-radius: 4px; border-left: 4px solid #d9383a; font-size: 13.5px;">
-                                        ⚡ 逾期未處理系統即視為「私人因素停留公司」。
-                                    </p>
+                                    <p style="margin-bottom: 10px;">📅 <strong>本月出勤狀況已更新，請確認</strong><br>
+                                    若有「提前/延後/非工作日」打卡異常且屬因私事逗留者，請務必於 <span style="color: #e60000; font-weight: bold;">${dynamicDeadline} 前</span> 填寫完畢</p>
                                     
-                                    <div style="border-top: 1px dashed #dddddd; margin: 10px 0; padding-top: 8px;">
-                                        <p style="margin-bottom: 5px; font-weight: bold; color: #000000; font-size: 14px;">📅 本月出勤將於 <span style="color: #e60000;">${closeMonth}月${closeDayNum}日 09:00</span> 班表關帳</p>
-                                        <p style="margin-bottom: 5px; padding-left: 15px; text-indent: -15px; color: #555555;">  若有出勤異常，請至 Apollo 系統完成單據申請。</p>
-                                        <p style="margin-bottom: 5px; padding-left: 15px; text-indent: -15px; color: #555555;">❗ <strong>忘打卡或請假逾期未處理：</strong>系統將自動轉為 <span style="color: #e60000; font-weight: bold;">曠職不支薪</span>。</p>
-                                        <p style="margin-bottom: 0; padding-left: 15px; text-indent: -15px; color: #555555;">❗ <strong>加班單無法跨月申請：</strong>請務必於關帳前處理完畢。</p>
+                                    <p style="margin-bottom: 12px;">⚡ <strong>若因公務加班：</strong><br>
+                                    請務必於 <span style="color: #e60000; font-weight: bold;">${dynamicDeadline} 前</span> 至 <strong>Apollo 系統</strong> 申請加班單並簽核完畢</p>
+                                    
+                                    <div style="background-color: #fff3cd; color: #d9383a; padding: 8px; font-weight: bold; border-left: 4px solid #d9383a; font-size: 14px; margin-bottom: 14px;">
+                                        ⚡ 逾期未處理系統即視為「私人因素停留公司」
+                                    </div>
+                                    
+                                    <div style="background-color: #f8f9fa; border-radius: 6px; padding: 10px 8px; border: 1px solid #e9ecef;">
+                                        <div style="font-weight: bold; color: #000; font-size: 15px; margin-bottom: 8px;">
+                                            📅 本月出勤將於 <span style="color: #e60000;">${closeMonth}月${closeDayNum}日 09:00</span> 關帳
+                                        </div>
+                                        <div style="color: #444; font-size: 14px;">
+                                            <div style="display: flex; margin-bottom: 5px;"><span style="margin-right: 4px;">🔹</span><span>若有出勤異常，請至 Apollo 系統完成單據申請</span></div>
+                                            <div style="display: flex; margin-bottom: 5px;"><span style="margin-right: 4px;">❗</span><span><strong>忘打卡或逾期未處理：</strong><br>系統將自動轉為 <span style="color: #e60000; font-weight: bold;">曠職不支薪</span></span></div>
+                                            <div style="display: flex; margin-bottom: 0px;"><span style="margin-right: 4px;">❗</span><span><strong>加班單無法跨月申請：</strong><br>請務必於關帳前處理完畢</span></div>
+                                        </div>
                                     </div>
                                 </div>
                             `,
-                            icon: 'warning',
-                            iconColor: '#d9383a',
-                            confirmButtonText: '🚀 我已了解，進入確認出勤',
+                            confirmButtonText: '🚀 我了解，進入確認出勤',
                             confirmButtonColor: '#0d6efd',
                             allowOutsideClick: false, 
                             allowEscapeKey: false,    
-                            width: window.innerWidth <= 768 ? '92%' : '500px' // 手機完美自適應滿版
+                            padding: '16px 0px', // ★ 關鍵：極致壓縮 Swal 預設的肥厚留白！左右只留 12px
+                            width: window.innerWidth <= 768 ? '96%' : '500px' // ★ 關鍵：手機版直接撐到 96% 滿版
                         });
                     }
                 }
