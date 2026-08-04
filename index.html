@@ -1965,7 +1965,8 @@ function showMaintenanceShield(message) {
           });
       }
 
-      function callApi(op, params = {}) {
+      // ★ 微創 1：加上 retriesLeft 參數。如果是存檔(危險動作)直接給 0 次，其他安全動作給 2 次！
+      function callApi(op, params = {}, retriesLeft = (op === 'saveStoreData' ? 0 : 2)) {
          params.op = op;
          return fetch(API_URL, {
              method: 'POST',
@@ -2000,10 +2001,27 @@ function showMaintenanceShield(message) {
                      if (e.message === "MAINTENANCE_LOCKED") {
                          throw e; // 將維護鎖定的錯誤繼續往外丟，確保後續的 .then 都不會被執行
                      }
+                     
+                     // ★ 微創 2：若是伺服器打噴嚏回傳亂碼，且還有扣打，就等 1.5 秒後偷偷重試
+                     if (retriesLeft > 0) {
+                         console.warn(`API [${op}] 伺服器忙碌，1.5秒後自動重試... (剩餘 ${retriesLeft} 次)`);
+                         return new Promise(r => setTimeout(r, 1500)).then(() => callApi(op, params, retriesLeft - 1));
+                     }
+                     
                      console.error("API Error Raw:", text);
                      throw new Error("後端回應非 JSON 格式");
                  }
              });
+         }).catch(err => {
+             // ★ 微創 3：若是真正的網路斷線 (Network Error)，且還有扣打，一樣偷偷重試
+             if (err.message === "MAINTENANCE_LOCKED") throw err; // 維護鎖定堅決不重試
+             
+             if (retriesLeft > 0) {
+                 console.warn(`API [${op}] 網路不穩，1.5秒後自動重試... (剩餘 ${retriesLeft} 次)`);
+                 return new Promise(r => setTimeout(r, 1500)).then(() => callApi(op, params, retriesLeft - 1));
+             }
+             
+             throw err; // 扣打用完，或是存檔遇到斷線，直接把錯誤丟給前端顯示
          });
       }
 
