@@ -2739,14 +2739,14 @@ function showMaintenanceShield(message) {
           const tr = select.closest('tr');
           if (!tr) return;
           
-          let idx = parseInt(tr.getAttribute('data-index'));
+          let idx = parseInt(tr.getAttribute('data-index')); // 統一只在這裡宣告一次 idx
+          let roleTag = String(currentData[idx] ? currentData[idx].roleTag || "" : "").trim(); // 提早抓取身分
+
           currentData[idx].isModified = true; // ★ 打上髒標記 (新功能)
           pendingUnsaved = true;              // ★ 開啟全域防呆 (共識5)
 
           if (select.classList.contains('status-select')) {
               const status = select.value;
-              let idx = parseInt(tr.getAttribute('data-index'));
-              let roleTag = String(currentData[idx] ? currentData[idx].roleTag || "" : "").trim();
               
               if (status !== "") {
                   const emptyOpt = select.querySelector('option[value=""]');
@@ -2785,9 +2785,6 @@ function showMaintenanceShield(message) {
 
           // 3. ★★★ 鄭重補回：依人名模式或「異常過濾模式」下的動態下拉選單更新 ★★★
           if (currentMode === 'name' || currentMode === 'error') { 
-              // ★ 總公司防呆特權：只要是總公司轄下單位，一律當作時薪人員處理選單！
-              let idx = parseInt(tr.getAttribute('data-index'));
-              let roleTag = String(currentData[idx] ? currentData[idx].roleTag || "" : "").trim();
               let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore)) || (roleTag === "總公司");
               let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
               let isForeign34 = (roleTag === "門市-外籍3+4(四週挪移)");
@@ -3227,7 +3224,7 @@ function showMaintenanceShield(message) {
              const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
              let usage = getWeeklyUsage(name, dateStr); let currentDay = parseInt(dateStr.split('/')[2]).toString();
              
-             let originalIndex = parseInt(tr.getAttribute('data-index'));
+             let originalIndex = parseInt(tr.getAttribute('data-index')); // 統一只在這裡宣告一次
              let roleTag = String(currentData[originalIndex] ? currentData[originalIndex].roleTag || "" : "").trim();
              let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore)) || (roleTag === "總公司");
              let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
@@ -3258,8 +3255,8 @@ function showMaintenanceShield(message) {
                  }
              }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
-             // ★ 終極修復：只要記憶體裡曾經有狀態，或是當下選了狀態，徹底拔除「請選擇」的資格！
-             let originalIndex = parseInt(tr.getAttribute('data-index'));
+             
+             // ★ 終極修復：直接使用上方已宣告的 originalIndex
              let dbStatus = currentData[originalIndex] ? currentData[originalIndex].input_status : "";
              if (dbStatus !== "" || currentVal !== "") {
                  allowed = allowed.filter(o => o !== "");
@@ -3275,7 +3272,8 @@ function showMaintenanceShield(message) {
              if (tr.getAttribute('data-name') !== name) return;
              const dateStr = tr.getAttribute('data-date'); const select = tr.querySelector('.status-select'); const currentVal = select.value;
              const currentDay = parseInt(dateStr.split('/')[2]);
-             let originalIndex = parseInt(tr.getAttribute('data-index'));
+             
+             let originalIndex = parseInt(tr.getAttribute('data-index')); // 統一只在這裡宣告一次
              let roleTag = String(currentData[originalIndex] ? currentData[originalIndex].roleTag || "" : "").trim();
              
              let targetRules = monthlyTargets.customRules || [];
@@ -3284,10 +3282,22 @@ function showMaintenanceShield(message) {
 
              let activeRules = targetRules.filter(r => currentDay >= r.start && currentDay <= r.end);
              let allowed = [];
-             if (activeRules.length > 0) { allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班"); activeRules.forEach(r => { let used = getRangeUsage(name, r.type, r.start, r.end); if (used < r.limit || currentVal === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } }); } else { allowed = statusOpts; }
+             if (activeRules.length > 0) { 
+                 allowed = ["", "空班"]; 
+                 let hasWorkRule = activeRules.some(r => r.type === '上班'); 
+                 if (!hasWorkRule) allowed.push("上班"); 
+                 activeRules.forEach(r => { 
+                     let used = getRangeUsage(name, r.type, r.start, r.end); 
+                     if (used < r.limit || currentVal === r.type) { 
+                         if (!allowed.includes(r.type)) allowed.push(r.type); 
+                     } 
+                 }); 
+             } else { 
+                 allowed = statusOpts; 
+             }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
-             // ★ 終極修復：只要記憶體裡曾經有狀態，或是當下選了狀態，徹底拔除「請選擇」的資格！
-             let originalIndex = parseInt(tr.getAttribute('data-index'));
+             
+             // ★ 終極修復：直接使用上方已宣告的 originalIndex
              let dbStatus = currentData[originalIndex] ? currentData[originalIndex].input_status : "";
              if (dbStatus !== "" || currentVal !== "") {
                  allowed = allowed.filter(o => o !== "");
