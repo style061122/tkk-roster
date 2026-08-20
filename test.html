@@ -2372,6 +2372,9 @@ function showMaintenanceShield(message) {
           // 3. 最後執行畫面重繪
           renderTable();
       }
+      // ==========================================
+      // ★ 核心時段切割與計算引擎 (全記憶體版，無 DOM 陷阱)
+      // ==========================================
       function getWeeklyUsage(name, dateStr) {
          let currDate = new Date(dateStr);
          let startDayParam = monthlyTargets.weekStart || 1; 
@@ -2380,6 +2383,7 @@ function showMaintenanceShield(message) {
          let weekStart = new Date(currDate); weekStart.setDate(currDate.getDate() - adjDay);
          let weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
+         
          let weekData = personData.filter(r => { let d = new Date(r.date); return d >= weekStart && d <= weekEnd; });
          
          // ★ 升級回傳物件：加入空班檢查與完整週檢查
