@@ -2632,7 +2632,8 @@ function showMaintenanceShield(message) {
           let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
           let isForeign34 = (roleTag === "門市-外籍3+4(四週挪移)");
           
-          let treatAsHourly = (isHQUnit || isForeignAgency || isForeign34) ? true : row.salaryType.includes("時薪");
+          // ★ 重新定義：總公司走月薪防呆，外籍走時薪防呆
+          let treatAsHourly = (isForeignAgency || isForeign34) ? true : (isHQUnit ? false : row.salaryType.includes("時薪"));
 
           if (treatAsHourly) {
              let usage = getWeeklyUsage(row.name, row.date);
@@ -2642,15 +2643,13 @@ function showMaintenanceShield(message) {
                  allowed = ["", "上班", "空班"];
                  if (usage.rest < 1 || row.input_status === '休') allowed.push("休");
                  if (usage.reg < 1 || row.input_status === '例') allowed.push("例");
-             } else if (isHQUnit || isForeign34) {
-                 // ★ 總公司 & 門市-外籍3+4(四週挪移)：全月國定假日總量控管
+             } else if (isForeign34) {
+                 // ★ 門市-外籍3+4(四週挪移)：全月國定假日總量控管 (動態讀取B8有幾天給幾天)
                  let maxNatQuota = (monthlyTargets.holidays || []).length;
                  let currentNatCount = currentData.filter(r => r.name === row.name && r.store === currentStore && r.input_status === '國').length;
                  
                  allowed = ["", "上班", "空班"];
-                 if (currentNatCount < maxNatQuota || row.input_status === '國') {
-                     allowed.push("國");
-                 }
+                 if (currentNatCount < maxNatQuota || row.input_status === '國') allowed.push("國");
                  if (usage.rest < 1 || row.input_status === '休') allowed.push("休");
                  if (usage.reg < 1 || row.input_status === '例') allowed.push("例");
              } else {
@@ -2665,16 +2664,27 @@ function showMaintenanceShield(message) {
                  }
              }
           } else {
-             // ★ 依據身分選擇專屬應休規則：萬點雙週 / 萬點會計 / 一般月薪 (四週變形)
+             // ★ 依據身分選擇專屬應休規則：萬點雙週 / 萬點會計 / 總公司 / 一般月薪
              let targetRules = monthlyTargets.customRules || [];
              if (roleTag === "萬點雙週") targetRules = monthlyTargets.biweekRules || [];
-             else if (roleTag === "萬點-會計") targetRules = monthlyTargets.accountingRules || [];
+             else if (roleTag === "萬點-會計" || isHQUnit) targetRules = monthlyTargets.accountingRules || []; // 總公司與會計共用參數
+
+             // 總公司依然保留全月國定總量控管的選單彈性
+             let maxNatQuota = (monthlyTargets.holidays || []).length;
+             let currentNatCount = currentData.filter(r => r.name === row.name && r.store === currentStore && r.input_status === '國').length;
 
              let activeRules = targetRules.filter(r => currentDay >= r.start && currentDay <= r.end);
              if (activeRules.length > 0) {
-                 allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班");
+                 allowed = ["", "空班"]; 
+                 if (isHQUnit && (currentNatCount < maxNatQuota || row.input_status === '國')) allowed.push("國");
+                 let hasWorkRule = activeRules.some(r => r.type === '上班'); 
+                 if (!hasWorkRule) allowed.push("上班");
+                 
                  activeRules.forEach(r => { let used = getRangeUsage(row.name, r.type, r.start, r.end); if (used < r.limit || row.input_status === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } });
-             } else { allowed = statusOpts; }
+             } else { 
+                 allowed = statusOpts; 
+                 if (isHQUnit && currentNatCount >= maxNatQuota && row.input_status !== '國') allowed = allowed.filter(opt => opt !== "國");
+             }
           }
           if (row.input_status && !allowed.includes(row.input_status)) allowed.push(row.input_status);
           // ==========================================
@@ -2771,10 +2781,16 @@ function showMaintenanceShield(message) {
                   if (emptyOpt) emptyOpt.remove();
               }
               
-              // ★ 新增防呆：萬點雙週與萬點會計，排「上班」自動帶入 8 ~ 17 休息 1
+              // ★ 總公司/萬點 自動帶入時間邏輯
+              let roleTag = String(currentData[idx] ? currentData[idx].roleTag || "" : "").trim();
               if (status === "上班" && (roleTag === "萬點雙週" || roleTag === "萬點-會計")) {
                   tr.querySelector('.start-select').value = "8";
                   tr.querySelector('.end-select').value = "17";
+                  tr.querySelector('.rest-select').value = "1";
+                  tr.querySelector('.z-select').value = "0";
+              } else if (status === "上班" && roleTag === "總公司") {
+                  tr.querySelector('.start-select').value = "9";
+                  tr.querySelector('.end-select').value = "18";
                   tr.querySelector('.rest-select').value = "1";
                   tr.querySelector('.z-select').value = "0";
               } else {
@@ -2803,15 +2819,15 @@ function showMaintenanceShield(message) {
 
           // 3. ★★★ 鄭重補回：依人名模式或「異常過濾模式」下的動態下拉選單更新 ★★★
           if (currentMode === 'name' || currentMode === 'error') { 
-              // ★ 總公司防呆特權：只要是總公司轄下單位，一律當作時薪人員處理選單！
               let idx = parseInt(tr.getAttribute('data-index'));
               let roleTag = String(currentData[idx] ? currentData[idx].roleTag || "" : "").trim();
+              
               let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore)) || (roleTag === "總公司");
               let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
               let isForeign34 = (roleTag === "門市-外籍3+4(四週挪移)");
               
-              // ★ 外籍仲介與外籍 3+4 不論月/時薪，一律強迫走時薪防呆
-              let treatAsHourly = (isHQUnit || isForeignAgency || isForeign34) ? true : salary.includes("時薪");
+              // ★ 重大修正：總公司改走「月薪」區塊防呆，外籍人員維持「時薪」防呆！
+              let treatAsHourly = (isForeignAgency || isForeign34) ? true : (isHQUnit ? false : salary.includes("時薪"));
               
               if (treatAsHourly && typeof refreshHourlyDropdowns === 'function') {
                   refreshHourlyDropdowns(name);
@@ -3198,23 +3214,23 @@ function showMaintenanceShield(message) {
            let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
            let isForeign34 = (roleTag === "門市-外籍3+4(四週挪移)");
 
-           // ★ 外籍仲介與外籍 3+4 無論月/時薪，強迫走七天一例一休檢核！
-           let finalIsMonthly = (isHQUnit || isForeignAgency || isForeign34) ? false : isMonthly;
+           // ★ 修正核心：總公司也走月薪防呆，外籍走時薪
+           let finalIsMonthly = (isForeignAgency || isForeign34) ? false : (isHQUnit ? true : isMonthly);
 
            // ★★★ 時薪/外籍人員：七天防護網 (一例一休事後算帳機制) ★★★
            if (!finalIsMonthly) {
                let usage = getWeeklyUsage(name, date);
-              if (usage.isFullWeek && usage.emptyRows === 0) {
-                  if (usage.rest < 1 || usage.reg < 1) {
-                      return `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
-                  }
-              }
-          } 
-          // ★★★ 月薪/萬點人員：區塊防護網 (排滿自動檢查下限) ★★★
-          else {
-              let targetRules = monthlyTargets.customRules || [];
-              if (roleTag === "萬點雙週") targetRules = monthlyTargets.biweekRules || [];
-              else if (roleTag === "萬點-會計") targetRules = monthlyTargets.accountingRules || [];
+               if (usage.isFullWeek && usage.emptyRows === 0) {
+                   if (usage.rest < 1 || usage.reg < 1) {
+                       return `❌ 本週排班未達一例一休標準 (須至少1例1休)，請調整班表`;
+                   }
+               }
+           } 
+           // ★★★ 月薪/萬點/總公司：區塊防護網 (排滿自動檢查下限) ★★★
+           else {
+               let targetRules = monthlyTargets.customRules || [];
+               if (roleTag === "萬點雙週") targetRules = monthlyTargets.biweekRules || [];
+               else if (roleTag === "萬點-會計" || isHQUnit) targetRules = monthlyTargets.accountingRules || []; // 總公司吃會計防呆
 
               let currentDay = parseInt(date.split('/')[2]);
               let activeRules = targetRules.filter(r => currentDay >= r.start && currentDay <= r.end);
@@ -3258,8 +3274,8 @@ function showMaintenanceShield(message) {
                  allowed = ["", "上班", "空班"];
                  if (usage.rest < 1 || currentVal === '休') allowed.push("休");
                  if (usage.reg < 1 || currentVal === '例') allowed.push("例");
-             } else if (isHQUnit || isForeign34) {
-                 // ★ 總公司 & 外籍3+4：全月總量控管
+             } else if (isForeign34) {
+                 // ★ 外籍3+4：全月總量控管
                  let maxNatQuota = (monthlyTargets.holidays || []).length;
                  let currentNatCount = currentData.filter(r => r.name === name && r.store === currentStore && r.input_status === '國').length;
                  allowed = ["", "上班", "空班"];
@@ -3294,14 +3310,37 @@ function showMaintenanceShield(message) {
              const currentDay = parseInt(dateStr.split('/')[2]);
              let originalIndex = parseInt(tr.getAttribute('data-index'));
              let roleTag = String(currentData[originalIndex] ? currentData[originalIndex].roleTag || "" : "").trim();
-             
+             // ★ 新增：判定總公司身分
+             let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore)) || (roleTag === "總公司");
+
              let targetRules = monthlyTargets.customRules || [];
              if (roleTag === "萬點雙週") targetRules = monthlyTargets.biweekRules || [];
-             else if (roleTag === "萬點-會計") targetRules = monthlyTargets.accountingRules || [];
+             else if (roleTag === "萬點-會計" || isHQUnit) targetRules = monthlyTargets.accountingRules || []; // ★ 總公司吃會計的區段防呆
+
+             // ★ 總公司專屬的全月國定假日總量控管 (計算額度與已使用量)
+             let maxNatQuota = (monthlyTargets.holidays || []).length;
+             let currentNatCount = currentData.filter(r => r.name === name && r.store === currentStore && r.input_status === '國').length;
 
              let activeRules = targetRules.filter(r => currentDay >= r.start && currentDay <= r.end);
              let allowed = [];
-             if (activeRules.length > 0) { allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班"); activeRules.forEach(r => { let used = getRangeUsage(name, r.type, r.start, r.end); if (used < r.limit || currentVal === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } }); } else { allowed = statusOpts; }
+             if (activeRules.length > 0) { 
+                 allowed = ["", "空班"]; 
+                 // ★ 總公司專屬：額度未滿或是當下已經選「國定」，才允許選單出現「國」選項
+                 if (isHQUnit && (currentNatCount < maxNatQuota || currentVal === '國')) allowed.push("國");
+                 
+                 let hasWorkRule = activeRules.some(r => r.type === '上班'); 
+                 if (!hasWorkRule) allowed.push("上班"); 
+                 activeRules.forEach(r => { 
+                     let used = getRangeUsage(name, r.type, r.start, r.end); 
+                     if (used < r.limit || currentVal === r.type) { 
+                         if (!allowed.includes(r.type)) allowed.push(r.type); 
+                     } 
+                 }); 
+             } else { 
+                 allowed = statusOpts; 
+                 // ★ 總公司專屬：若無區段規則時，且國定額度已滿、當下也不是國，則從完整名單中拔除「國」選項
+                 if (isHQUnit && currentNatCount >= maxNatQuota && currentVal !== '國') allowed = allowed.filter(opt => opt !== "國");
+             }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
              // ★ 終極修復：只要記憶體裡曾經有狀態，或是當下選了狀態，徹底拔除「請選擇」的資格！
              let dbStatus = currentData[originalIndex] ? currentData[originalIndex].input_status : "";
