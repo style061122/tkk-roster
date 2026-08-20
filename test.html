@@ -3304,7 +3304,6 @@ function showMaintenanceShield(message) {
              if (activeRules.length > 0) { allowed = ["", "空班"]; let hasWorkRule = activeRules.some(r => r.type === '上班'); if (!hasWorkRule) allowed.push("上班"); activeRules.forEach(r => { let used = getRangeUsage(name, r.type, r.start, r.end); if (used < r.limit || currentVal === r.type) { if (!allowed.includes(r.type)) allowed.push(r.type); } }); } else { allowed = statusOpts; }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
              // ★ 終極修復：只要記憶體裡曾經有狀態，或是當下選了狀態，徹底拔除「請選擇」的資格！
-             let originalIndex = parseInt(tr.getAttribute('data-index'));
              let dbStatus = currentData[originalIndex] ? currentData[originalIndex].input_status : "";
              if (dbStatus !== "" || currentVal !== "") {
                  allowed = allowed.filter(o => o !== "");
