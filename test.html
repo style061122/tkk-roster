@@ -2484,6 +2484,68 @@ function showMaintenanceShield(message) {
          return usage;
       }
 
+        // ★★★ 全新動態 UI 目標列渲染引擎 ★★★
+      function updateTargetInfoDisplay() {
+          const infoEl = document.getElementById('monthTargetInfo');
+          if (!infoEl) return;
+
+          let selectedRole = "門市"; // 預設值
+
+          if (currentMode === 'name') {
+              // 1. 人名模式：動態抓取當前選中員工的 roleTag
+              const currentName = document.getElementById('selectName') ? document.getElementById('selectName').value : "";
+              const personRow = currentData.find(r => r.name === currentName && r.store === currentStore);
+              if (personRow && personRow.roleTag) {
+                  selectedRole = String(personRow.roleTag).trim();
+              }
+          } else {
+              // 2. 日期模式：統計全店當月資料中各 roleTag 出現次數 (多數決)
+              let roleCounts = {};
+              let firstSeenOrder = [];
+              currentData.forEach(r => {
+                  if (r.store === currentStore) {
+                      let tag = String(r.roleTag || "門市").trim();
+                      if (!roleCounts[tag]) {
+                          roleCounts[tag] = 0;
+                          firstSeenOrder.push(tag); // 記錄出現順序 (處理平手狀況)
+                      }
+                      roleCounts[tag]++;
+                  }
+              });
+
+              let maxCount = -1;
+              firstSeenOrder.forEach(tag => {
+                  if (roleCounts[tag] > maxCount) {
+                      maxCount = roleCounts[tag];
+                      selectedRole = tag; // 多數決，平手時取最早出現者
+                  }
+              });
+          }
+
+          // 3. 根據選出的身分，指向精準的應有應休目標包
+          let tObj = monthlyTargets.store || {};
+          let roleNameLabel = "門市";
+
+          if (selectedRole === "萬點雙週") {
+              tObj = monthlyTargets.biweek || {};
+              roleNameLabel = "萬點雙週";
+          } else if (selectedRole === "萬點-會計" || selectedRole === "總公司") {
+              tObj = monthlyTargets.accounting || {};
+              roleNameLabel = (selectedRole === "萬點-會計") ? "萬點-會計" : "總公司";
+          } else if (selectedRole === "門市-外籍仲介(無國定)") {
+              roleNameLabel = "外籍仲介(無國定)";
+          } else if (selectedRole === "門市-外籍3+4(四週挪移)") {
+              roleNameLabel = "外籍3+4";
+          }
+
+          let hrsVal = tObj.hrs || 0;
+          let restVal = tObj.rest || 0;
+          let regVal = tObj.reg || 0;
+          let natVal = tObj.nat || 0;
+
+          infoEl.innerText = `[${roleNameLabel}] 目標: 應有${hrsVal} | 休${restVal} | 例${regVal} | 國${natVal}`;
+      }
+
       function renderTable() {
         const tbody = document.getElementById('staffTable'); tbody.innerHTML = '';
         const summaryBar = document.getElementById('liveSummaryBar'); summaryBar.style.display = 'none'; 
@@ -2750,6 +2812,7 @@ function showMaintenanceShield(message) {
         if (currentMode === 'name') {
             updateLiveSummary(targetName);
         }
+        updateTargetInfoDisplay(); // ★ 每次重繪畫面時，同步更新動態 UI 目標列！
           // ★ 狀態定錨：記錄畫面上最真實的狀態 (加在 renderTable 結尾的 } 之前)
           window.lastRenderedState = {
               name: document.getElementById('selectName') ? document.getElementById('selectName').value : "",
@@ -3226,10 +3289,10 @@ function showMaintenanceShield(message) {
                }
            } 
            // ★★★ 月薪/萬點/總公司：區塊防護網 (排滿自動檢查下限) ★★★
-           else {
-               let targetRules = monthlyTargets.customRules || [];
-               if (roleTag === "萬點雙週") targetRules = monthlyTargets.biweekRules || [];
-               else if (roleTag === "萬點-會計" || isHQUnit) targetRules = monthlyTargets.accountingRules || []; // 總公司吃會計防呆
+          else {
+              let targetRules = monthlyTargets.customRules || [];
+              if (roleTag === "萬點雙週") targetRules = monthlyTargets.biweekRules || [];
+              else if (roleTag === "萬點-會計" || isHQUnit) targetRules = monthlyTargets.accountingRules || []; // A44~D65 區段
 
               let currentDay = parseInt(date.split('/')[2]);
               let activeRules = targetRules.filter(r => currentDay >= r.start && currentDay <= r.end);
@@ -3317,15 +3380,17 @@ function showMaintenanceShield(message) {
              else if (roleTag === "萬點-會計" || isHQUnit) targetRules = monthlyTargets.accountingRules || []; // ★ 總公司吃會計的區段防呆
 
              // ★ 總公司專屬的全月國定假日總量控管 (計算額度與已使用量)
-             let maxNatQuota = (monthlyTargets.holidays || []).length;
+             // ★ 精準抓取總公司/會計的 B43 國定天數目標
+             let accObj = monthlyTargets.accounting || {};
+             let maxNatQuota = accObj.nat || 0; // 當 B43 = 0 時，maxNatQuota 就是 0
              let currentNatCount = currentData.filter(r => r.name === name && r.store === currentStore && r.input_status === '國').length;
 
              let activeRules = targetRules.filter(r => currentDay >= r.start && currentDay <= r.end);
              let allowed = [];
              if (activeRules.length > 0) { 
                  allowed = ["", "空班"]; 
-                 // ★ 總公司專屬：額度未滿或是當下已經選「國定」，才允許選單出現「國」選項
-                 if (isHQUnit && (currentNatCount < maxNatQuota || currentVal === '國')) allowed.push("國");
+                 // ★ 只要 B43 > 0 且額度未滿，才允許出現「國」
+                 if (isHQUnit && maxNatQuota > 0 && (currentNatCount < maxNatQuota || currentVal === '國')) allowed.push("國");
                  
                  let hasWorkRule = activeRules.some(r => r.type === '上班'); 
                  if (!hasWorkRule) allowed.push("上班"); 
