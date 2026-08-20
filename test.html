@@ -3277,7 +3277,6 @@ function showMaintenanceShield(message) {
              }
              if (currentVal && !allowed.includes(currentVal)) allowed.push(currentVal);
              // ★ 終極修復：只要記憶體裡曾經有狀態，或是當下選了狀態，徹底拔除「請選擇」的資格！
-             let originalIndex = parseInt(tr.getAttribute('data-index'));
              let dbStatus = currentData[originalIndex] ? currentData[originalIndex].input_status : "";
              if (dbStatus !== "" || currentVal !== "") {
                  allowed = allowed.filter(o => o !== "");
