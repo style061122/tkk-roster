@@ -2782,7 +2782,6 @@ function showMaintenanceShield(message) {
               }
               
               // ★ 總公司/萬點 自動帶入時間邏輯
-              let roleTag = String(currentData[idx] ? currentData[idx].roleTag || "" : "").trim();
               if (status === "上班" && (roleTag === "萬點雙週" || roleTag === "萬點-會計")) {
                   tr.querySelector('.start-select').value = "8";
                   tr.querySelector('.end-select').value = "17";
