@@ -2508,7 +2508,7 @@ function showMaintenanceShield(message) {
           let natVal = tObj.nat || 0;
 
           infoEl.innerText = `${prefix}目標: 應有${hrsVal} | 休${restVal} | 例${regVal} | 國${natVal}`;
-
+      }
       function renderTable() {
         const tbody = document.getElementById('staffTable'); tbody.innerHTML = '';
         const summaryBar = document.getElementById('liveSummaryBar'); summaryBar.style.display = 'none'; 
