@@ -2897,11 +2897,15 @@ function showMaintenanceShield(message) {
           let isBiweek = (roleTag === "萬點雙週");
           let isAccounting = (roleTag === "萬點-會計");
 
-          // ★ 絕對階級制度同步
-          let treatAsHourly = false;
-          if (isHQUnit || isBiweek || isAccounting) treatAsHourly = false;
-          else if (isForeignAgency || isForeign34) treatAsHourly = true;
-          else treatAsHourly = salary.includes("時薪");
+          // ★ 絕對階級制度：強制決定誰是月薪 (isMonthly = true)，誰是時薪
+          let isMonthly = false;
+          if (isHQUnit || isBiweek || isAccounting) {
+              isMonthly = true; // 強制走月薪區塊防呆
+          } else if (isForeignAgency || isForeign34) {
+              isMonthly = false; // 強制走時薪七天防呆
+          } else {
+              isMonthly = salaryType.includes("月薪"); // 一般門市看B欄
+          }
           
           let startVal = startSelect.value;
           let endVal = endSelect.value;
