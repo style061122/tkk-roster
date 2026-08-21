@@ -2380,6 +2380,22 @@ function showMaintenanceShield(message) {
          let weekStart = new Date(currDate); weekStart.setDate(currDate.getDate() - adjDay);
          let weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
+         
+         // ★ 終極修復：無論什麼模式，只要畫面上找得到這個人的行，就優先用畫面上的狀態！
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             // 確保這行是我們要找的這個人
+             if (tr.getAttribute('data-name') === name) {
+                 let d = tr.getAttribute('data-date'); 
+                 let sel = tr.querySelector('.status-select');
+                 // 如果這個下拉選單是 disabled (例如國定假日被鎖死、或被防呆鎖死)，我們還是要去抓它的值，但如果是剛換成空白被鎖的，那它就是空白。
+                 let s = sel ? sel.value : ""; 
+                 
+                 let t = personData.find(x => x.date === d); 
+                 if (t) t.input_status = s; 
+             }
+         });
+         
          let weekData = personData.filter(r => { let d = new Date(r.date); return d >= weekStart && d <= weekEnd; });
          
          // ★ 升級回傳物件：加入空班檢查與完整週檢查
@@ -2423,6 +2439,16 @@ function showMaintenanceShield(message) {
 
       function getRangeUsage(name, type, startDay, endDay) {
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
+         // ★ 終極修復：無論什麼模式，只要畫面上找得到這個人的行，就優先用畫面上的狀態！
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             if (tr.getAttribute('data-name') === name) {
+                 let d = tr.getAttribute('data-date'); 
+                 let sel = tr.querySelector('.status-select');
+                 let s = sel ? sel.value : ""; 
+                 let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
+             }
+         });
          let count = 0;
          personData.forEach(r => { let d = parseInt(r.date.split('/')[2]); if (d >= startDay && d <= endDay && r.input_status === type) count++; });
          return count;
@@ -2431,6 +2457,16 @@ function showMaintenanceShield(message) {
       // ★ 新增：月薪區塊下限防護網專用雷達
       function getMonthlyBlockUsage(name, startDay, endDay) {
          let personData = currentData.filter(r => r.name === name).map(r => ({...r}));
+         const rows = document.querySelectorAll('#staffTable tr');
+         rows.forEach(tr => {
+             if (tr.getAttribute('data-name') === name) {
+                 let d = tr.getAttribute('data-date'); 
+                 let sel = tr.querySelector('.status-select');
+                 let s = sel ? sel.value : ""; 
+                 let t = personData.find(x => x.date === d); if (t) t.input_status = s; 
+             }
+         });
+         
          let usage = { counts: {}, emptyRows: 0, totalDaysInBlock: 0, isFullBlock: false };
          personData.forEach(r => {
              let d = parseInt(r.date.split('/')[2]);
@@ -2488,14 +2524,18 @@ function showMaintenanceShield(message) {
 
           // 3. 根據選出的身分，指向精準的應有應休目標包
           let tObj = monthlyTargets.store || {};
-          let prefix = ""; // 預設無前綴 (門市與外籍都不顯示名稱)
+          let roleNameLabel = "門市";
 
           if (selectedRole === "萬點雙週") {
               tObj = monthlyTargets.biweek || {};
-              prefix = "[萬點雙週] ";
+              roleNameLabel = "萬點雙週";
           } else if (selectedRole === "萬點-會計" || selectedRole === "總公司") {
               tObj = monthlyTargets.accounting || {};
-              prefix = `[${selectedRole}] `;
+              roleNameLabel = (selectedRole === "萬點-會計") ? "萬點-會計" : "總公司";
+          } else if (selectedRole === "門市-外籍仲介(無國定)") {
+              roleNameLabel = "外籍仲介(無國定)";
+          } else if (selectedRole === "門市-外籍3+4(四週挪移)") {
+              roleNameLabel = "外籍3+4";
           }
 
           let hrsVal = tObj.hrs || 0;
@@ -2503,7 +2543,8 @@ function showMaintenanceShield(message) {
           let regVal = tObj.reg || 0;
           let natVal = tObj.nat || 0;
 
-          infoEl.innerText = `${prefix}目標: 應有${hrsVal} | 休${restVal} | 例${regVal} | 國${natVal}`;
+          infoEl.innerText = `[${roleNameLabel}] 目標: 應有${hrsVal} | 休${restVal} | 例${regVal} | 國${natVal}`;
+      }
 
       function renderTable() {
         const tbody = document.getElementById('staffTable'); tbody.innerHTML = '';
@@ -2653,14 +2694,8 @@ function showMaintenanceShield(message) {
           let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
           let isForeign34 = (roleTag === "門市-外籍3+4(四週挪移)");
           
-          let isBiweek = (roleTag === "萬點雙週");
-          let isAccounting = (roleTag === "萬點-會計");
-
-          // ★ 絕對階級制度同步
-          let treatAsHourly = false;
-          if (isHQUnit || isBiweek || isAccounting) treatAsHourly = false;
-          else if (isForeignAgency || isForeign34) treatAsHourly = true;
-          else treatAsHourly = row.salaryType.includes("時薪");
+          // ★ 重新定義：總公司走月薪防呆，外籍走時薪防呆
+          let treatAsHourly = (isForeignAgency || isForeign34) ? true : (isHQUnit ? false : row.salaryType.includes("時薪"));
 
           if (treatAsHourly) {
              let usage = getWeeklyUsage(row.name, row.date);
@@ -2887,26 +2922,17 @@ function showMaintenanceShield(message) {
           const date = tr.getAttribute('data-date');
           const salaryType = tr.getAttribute('data-salary');
           
-          // ★ 提早取得陣列索引與身分標籤，供全域使用
-          let originalIndex = parseInt(tr.getAttribute('data-index'));
-          let roleTag = String(currentData[originalIndex] ? currentData[originalIndex].roleTag || "" : "").trim();
-          
-          let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore)) || (roleTag === "總公司");
-          let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
-          let isForeign34 = (roleTag === "門市-外籍3+4(四週挪移)");
-          let isBiweek = (roleTag === "萬點雙週");
-          let isAccounting = (roleTag === "萬點-會計");
-
-          // ★ 絕對階級制度同步
-          let treatAsHourly = false;
-          if (isHQUnit || isBiweek || isAccounting) treatAsHourly = false;
-          else if (isForeignAgency || isForeign34) treatAsHourly = true;
-          else treatAsHourly = salary.includes("時薪");
+          // ★ 總公司防呆特權：只要是總公司轄下單位，一律當作時薪(isMonthly = false)來通過防呆！
+          let isHQUnit = (currentUserRole === 'HQ') || (allStoreData["總公司"] && allStoreData["總公司"].includes(currentStore));
+          const isMonthly = isHQUnit ? false : salaryType.includes("月薪");
           
           let startVal = startSelect.value;
           let endVal = endSelect.value;
           let restVal = parseFloat(restSelect.value) || 0;
           let zInputVal = parseFloat(zSelect.value) || 0;
+
+          // ★ 提早取得陣列索引，供全域使用
+          let originalIndex = parseInt(tr.getAttribute('data-index'));
 
           // ★★★ 終極幽靈資料殺手：自動清除失效的支援紀錄 ★★★
           // 只要狀態不是上班，或起迄時間沒填滿，就沒資格擁有支援資料，系統自動抹除！
@@ -3007,14 +3033,8 @@ function showMaintenanceShield(message) {
           }
 
           let stats = getAccumulatedStats(name, date);
-          
-          // ★ 身分包裹導航：精準抓取對應的 H 上限
-          let targetObj = monthlyTargets.store || {};
-          if (isBiweek) targetObj = monthlyTargets.biweek || {};
-          else if (isHQUnit || isAccounting) targetObj = monthlyTargets.accounting || {};
-          let maxMonthH = parseFloat(targetObj.hrs) || 0; 
-          
-          let availableZ = Math.max(0, 46 - stats.z);
+          let maxMonthH = parseFloat(monthlyTargets.hrs) || 0; 
+          let availableZ = Math.max(0, 46 - stats.z); 
 
           if (status === "上班") {
               // ★ 智慧溢流閥修復 1：解除 UI 強制沒收額度的行為！
@@ -3256,14 +3276,8 @@ function showMaintenanceShield(message) {
            let isForeignAgency = (roleTag === "門市-外籍仲介(無國定)");
            let isForeign34 = (roleTag === "門市-外籍3+4(四週挪移)");
 
-           let isBiweek = (roleTag === "萬點雙週");
-           let isAccounting = (roleTag === "萬點-會計");
-
-           // ★ 絕對階級制度同步
-           let finalIsMonthly = false;
-           if (isHQUnit || isBiweek || isAccounting) finalIsMonthly = true;
-           else if (isForeignAgency || isForeign34) finalIsMonthly = false;
-           else finalIsMonthly = isMonthly;
+           // ★ 修正核心：總公司也走月薪防呆，外籍走時薪
+           let finalIsMonthly = (isForeignAgency || isForeign34) ? false : (isHQUnit ? true : isMonthly);
 
            // ★★★ 時薪/外籍人員：七天防護網 (一例一休事後算帳機制) ★★★
            if (!finalIsMonthly) {
