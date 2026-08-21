@@ -2524,18 +2524,14 @@ function showMaintenanceShield(message) {
 
           // 3. 根據選出的身分，指向精準的應有應休目標包
           let tObj = monthlyTargets.store || {};
-          let roleNameLabel = "門市";
+          let prefix = ""; // ★ 預設為空字串，門市與外籍人員一律不顯示前綴
 
           if (selectedRole === "萬點雙週") {
               tObj = monthlyTargets.biweek || {};
-              roleNameLabel = "萬點雙週";
+              prefix = "[萬點雙週] ";
           } else if (selectedRole === "萬點-會計" || selectedRole === "總公司") {
               tObj = monthlyTargets.accounting || {};
-              roleNameLabel = (selectedRole === "萬點-會計") ? "萬點-會計" : "總公司";
-          } else if (selectedRole === "門市-外籍仲介(無國定)") {
-              roleNameLabel = "外籍仲介(無國定)";
-          } else if (selectedRole === "門市-外籍3+4(四週挪移)") {
-              roleNameLabel = "外籍3+4";
+              prefix = `[${selectedRole}] `;
           }
 
           let hrsVal = tObj.hrs || 0;
@@ -2543,7 +2539,7 @@ function showMaintenanceShield(message) {
           let regVal = tObj.reg || 0;
           let natVal = tObj.nat || 0;
 
-          infoEl.innerText = `[${roleNameLabel}] 目標: 應有${hrsVal} | 休${restVal} | 例${regVal} | 國${natVal}`;
+          infoEl.innerText = `${prefix}目標: 應有${hrsVal} | 休${restVal} | 例${regVal} | 國${natVal}`;
       }
 
       function renderTable() {
@@ -3033,8 +3029,20 @@ function showMaintenanceShield(message) {
           }
 
           let stats = getAccumulatedStats(name, date);
-          let maxMonthH = parseFloat(monthlyTargets.hrs) || 0; 
-          let availableZ = Math.max(0, 46 - stats.z); 
+          
+          // ★ 身分包裹導航：精準抓取對應的 H 上限 (解決 0H Bug)
+          let targetObj = monthlyTargets.store || {};
+          let originalIndex = parseInt(tr.getAttribute('data-index'));
+          let roleTag = String(currentData[originalIndex] ? currentData[originalIndex].roleTag || "" : "").trim();
+          
+          if (roleTag === "萬點雙週") {
+              targetObj = monthlyTargets.biweek || {};
+          } else if (roleTag === "萬點-會計" || roleTag === "總公司" || isHQUnit) {
+              targetObj = monthlyTargets.accounting || {};
+          }
+          
+          let maxMonthH = parseFloat(targetObj.hrs) || 0; 
+          let availableZ = Math.max(0, 46 - stats.z);
 
           if (status === "上班") {
               // ★ 智慧溢流閥修復 1：解除 UI 強制沒收額度的行為！
