@@ -2727,8 +2727,9 @@ function showMaintenanceShield(message) {
              if (roleTag === "萬點雙週") targetRules = monthlyTargets.biweekRules || [];
              else if (roleTag === "萬點-會計" || isHQUnit) targetRules = monthlyTargets.accountingRules || []; // 總公司與會計共用參數
 
-             // 總公司依然保留全月國定總量控管的選單彈性
-             let maxNatQuota = (monthlyTargets.holidays || []).length;
+             // ★ 總公司與會計專屬的全月國定總量控管 (精準抓取 B43 額度)
+             let accObj = monthlyTargets.accounting || {};
+             let maxNatQuota = accObj.nat || 0; 
              let currentNatCount = currentData.filter(r => r.name === row.name && r.store === currentStore && r.input_status === '國').length;
 
              let activeRules = targetRules.filter(r => currentDay >= r.start && currentDay <= r.end);
