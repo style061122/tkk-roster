@@ -3045,7 +3045,6 @@ function showMaintenanceShield(message) {
           
           // ★ 身分包裹導航：精準抓取對應的 H 上限 (解決 0H Bug)
           let targetObj = monthlyTargets.store || {};
-          let roleTag = String(currentData[originalIndex] ? currentData[originalIndex].roleTag || "" : "").trim();
           
           if (roleTag === "萬點雙週") {
               targetObj = monthlyTargets.biweek || {};
