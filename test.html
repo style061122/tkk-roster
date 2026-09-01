@@ -5744,7 +5744,8 @@ function showMaintenanceShield(message) {
                   let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
                   let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
                   
-                  let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+                  llet sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
+                      
                       let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
                       let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
 
@@ -5762,8 +5763,9 @@ function showMaintenanceShield(message) {
                           abnDetailsHTML = `<div class="text-danger fw-bold" style="font-size:0.85rem;">${rawSysAbnormal}</div>`;
                           
                           if (rawSysAbnormal.includes("提前打卡異常") || rawSysAbnormal.includes("延後打卡異常") || rawSysAbnormal.includes("非工作日打卡")) {
-                              let myPend = sPending.filter(a => a.date === r.date);
-                              let myAns = sAnswered.filter(a => a.date === r.date);
+                              // 直接利用前面已經分類好的 pending / answered
+                              let myPend = pendingCatList.filter(a => a.date === r.date);
+                              let myAns = answeredCatList.filter(a => a.date === r.date);
                               let allAnomalies = [...myPend, ...myAns];
                               
                               let outExps = [], outReps = [], outReasons = [], outTimes = [];
@@ -5781,8 +5783,9 @@ function showMaintenanceShield(message) {
                                       }
                                   });
                               } else {
+                                  // 防呆：萬一沒被抓進陣列，直接讀取 AD 欄位資料 (r.sys_anomaly_time)
                                   outReasons.push(rawSysAbnormal);
-                                  outTimes.push("無");
+                                  outTimes.push(r.sys_anomaly_time || "無");
                                   outExps.push("尚未填寫");
                                   outReps.push("無");
                               }
@@ -5796,11 +5799,11 @@ function showMaintenanceShield(message) {
                               // ★ 移植 PDF 變色龍引擎
                               let expColor = "#212529";
                               if (joinedExp.includes("尚未填寫") || joinedExp.includes("公事已申請加班")) {
-                                  expColor = "#dc3545"; // Bootstrap Danger (紅)
+                                  expColor = "#dc3545"; // 紅色
                               } else if (joinedExp.includes("私事其他-")) {
-                                  expColor = "#0d6efd"; // Bootstrap Primary (藍)
+                                  expColor = "#0d6efd"; // 藍色
                               } else if (joinedExp.includes("私事")) {
-                                  expColor = "#198754"; // Bootstrap Success (綠)
+                                  expColor = "#198754"; // 綠色
                               }
                               
                               abnDetailsHTML += `<div style="font-size:0.75rem; margin-top:4px; color:#212529; font-weight:bold; text-align:left; line-height:1.4;">
@@ -5819,10 +5822,10 @@ function showMaintenanceShield(message) {
                               <td style="${tdLeft}">${strH}</td>
                               <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
                               <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
-                              <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
+                              <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545; font-weight:bold;">${aaVal > 0 ? aaVal.toFixed(1) : "-"}</td>
                               <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
                               
-                              <td style="${tdRight}">${r.sys_status}</td>
+                              <td style="${tdRight}">${r.sys_status || ""}</td>
                               <td style="${tdRight}">${sysIn}</td>
                               <td style="${tdRight}">${sysOut}</td>
                               <td style="${tdRight}">${sysLeaveRange}</td>
@@ -5833,8 +5836,6 @@ function showMaintenanceShield(message) {
                               <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 140px; padding: 6px;">
                                   ${abnDetailsHTML}
                               </td>
-
-                              <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important; vertical-align: top;">${r.log || ""}</td>
                           </tr>
                       `;
                   });
