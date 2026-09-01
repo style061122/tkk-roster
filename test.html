@@ -5744,39 +5744,100 @@ function showMaintenanceShield(message) {
                   let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
                   let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
                   
-                  let sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
-                  
-                  let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
-                  let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
+                  let sysLeaveRange = r.sys_leave ? formatTime(r.sys_leave) : "";
+                      let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
+                      let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
 
-                  const tdLeftCorner = `position: sticky; left: 0; z-index: 10; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
-                  const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
-                  const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
+                      const tdLeftCorner = `position: sticky; left: 0; z-index: 10; background-color: #f4f9ff; padding: 4px 2px; line-height: 1.2; box-shadow: inset -1px -1px 0 #e2eaf5, 2px 0 4px rgba(0,0,0,0.05); text-align: center; border: none;`;
+                      const tdLeft = `background-color: #f4f9ff; border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px solid #e2eaf5 !important;`;
+                      const tdRight = `border: none; border-bottom: 1px solid #e9ecef !important; border-right: 1px dashed #f1f3f5 !important;`;
 
-                  tbody.innerHTML += `
-                      <tr>
-                          <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
-                          <td class="fw-bold" style="${tdLeft} color:#084298;">${status}</td>
-                          <td style="${tdLeft}">${strH}</td>
-                          <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
-                          <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
-                          <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545; font-weight:bold;">${aaVal > 0 ? aaVal.toFixed(1) : "-"}</td>
-                          <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
+                      // ==========================================
+                      // ★ 完美移植 PDF 異常詳細說明 (多色狀態與細節展現)
+                      // ==========================================
+                      let rawSysAbnormal = String(r.sys_abnormal || "").trim();
+                      let abnDetailsHTML = "";
+
+                      if (rawSysAbnormal !== "") {
+                          abnDetailsHTML = `<div class="text-danger fw-bold" style="font-size:0.85rem;">${rawSysAbnormal}</div>`;
                           
-                          <td style="${tdRight}">${r.sys_status || ""}</td>
-                          <td style="${tdRight}">${sysIn}</td>
-                          <td style="${tdRight}">${sysOut}</td>
-                          <td style="${tdRight}">${sysLeaveRange}</td>
-                          <td style="${tdRight}">${r.sys_leaveType||""}</td>
-                          <td style="${tdRight}">${sysOtRange}</td>
-                          <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
-                          
-                          <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 140px; padding: 6px;">
-                              <div class="text-danger fw-bold" style="font-size:0.85rem;">${r.sys_abnormal || ""}</div>
-                          </td>
-                      </tr>
-                  `;
-              });
+                          if (rawSysAbnormal.includes("提前打卡異常") || rawSysAbnormal.includes("延後打卡異常") || rawSysAbnormal.includes("非工作日打卡")) {
+                              let myPend = sPending.filter(a => a.date === r.date);
+                              let myAns = sAnswered.filter(a => a.date === r.date);
+                              let allAnomalies = [...myPend, ...myAns];
+                              
+                              let outExps = [], outReps = [], outReasons = [], outTimes = [];
+                              
+                              if (allAnomalies.length > 0) {
+                                  allAnomalies.forEach(a => {
+                                      outReasons.push(a.reason || "無");
+                                      outTimes.push(a.time || "無");
+                                      if (a.hLog && a.hLog.explanation) {
+                                          outExps.push(a.hLog.explanation);
+                                          outReps.push(a.hLog.reporter || "無");
+                                      } else {
+                                          outExps.push("尚未填寫");
+                                          outReps.push("無");
+                                      }
+                                  });
+                              } else {
+                                  outReasons.push(rawSysAbnormal);
+                                  outTimes.push("無");
+                                  outExps.push("尚未填寫");
+                                  outReps.push("無");
+                              }
+                              
+                              // 去除陣列重複值並串接
+                              let joinedReason = [...new Set(outReasons)].join(' / ');
+                              let joinedTime = [...new Set(outTimes)].join(' / ');
+                              let joinedExp = outExps.join(' / ');
+                              let joinedRep = outReps.join(' / ');
+                              
+                              // ★ 移植 PDF 變色龍引擎
+                              let expColor = "#212529";
+                              if (joinedExp.includes("尚未填寫") || joinedExp.includes("公事已申請加班")) {
+                                  expColor = "#dc3545"; // Bootstrap Danger (紅)
+                              } else if (joinedExp.includes("私事其他-")) {
+                                  expColor = "#0d6efd"; // Bootstrap Primary (藍)
+                              } else if (joinedExp.includes("私事")) {
+                                  expColor = "#198754"; // Bootstrap Success (綠)
+                              }
+                              
+                              abnDetailsHTML += `<div style="font-size:0.75rem; margin-top:4px; color:#212529; font-weight:bold; text-align:left; line-height:1.4;">
+                                  事由: ${joinedReason}<br>
+                                  時段: ${joinedTime}<br>
+                                  原因: <span style="color:${expColor};">${joinedExp}</span><br>
+                                  <span class="text-muted">填寫: ${joinedRep}</span>
+                              </div>`;
+                          }
+                      }
+
+                      tbody.innerHTML += `
+                          <tr>
+                              <td class="fw-bold" style="${tdLeftCorner}">${dateDisplay}</td>
+                              <td class="fw-bold" style="${tdLeft} color:#084298;">${status}</td>
+                              <td style="${tdLeft}">${strH}</td>
+                              <td class="fw-bold" style="${tdLeft} color:#0d6efd;">${r.calc_hours || "-"}</td>
+                              <td style="${tdLeft} background-color: #fcf8e3; color:#997404;">${strZ}</td>
+                              <td style="${tdLeft} background-color: #fdf3f4; color:#dc3545;">${strAA}</td>
+                              <td style="${tdLeft} background-color: #f9f6ff; color:#6f42c1; border-right: 3px solid #dee2e6 !important;">${supStr}</td>
+                              
+                              <td style="${tdRight}">${r.sys_status}</td>
+                              <td style="${tdRight}">${sysIn}</td>
+                              <td style="${tdRight}">${sysOut}</td>
+                              <td style="${tdRight}">${sysLeaveRange}</td>
+                              <td style="${tdRight}">${r.sys_leaveType||""}</td>
+                              <td style="${tdRight}">${sysOtRange}</td>
+                              <td class="fw-bold text-success" style="${tdRight}">${sysOtHrsStr}</td>
+                              
+                              <td style="border: none; border-bottom: 1px solid #e9ecef !important; vertical-align: top; min-width: 140px; padding: 6px;">
+                                  ${abnDetailsHTML}
+                              </td>
+
+                              <td class="text-muted small" style="border: none; background-color: #fff; border-bottom: 1px solid #e9ecef !important; vertical-align: top;">${r.log || ""}</td>
+                          </tr>
+                      `;
+                  });
 
               // ==========================================
               // ★ 5. 終極絲滑體驗：雙捲軸硬體加速引擎
