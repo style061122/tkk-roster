@@ -5744,7 +5744,7 @@ function showMaintenanceShield(message) {
                   let sysOtRange = dailyOt.length > 0 ? dailyOt.map(o => o.timeRange.replace('~','-')).join(', ') : "";
                   let sysOtHrsStr = dailyOt.length > 0 ? dailyOt.reduce((sum, o)=>sum+(parseFloat(o.hours)||0), 0).toFixed(1) : "";
                   
-                  llet sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
+                  let sysLeaveRange = r.sys_leave ? (typeof formatTime === 'function' ? formatTime(r.sys_leave) : r.sys_leave) : "";
                       
                       let dateObj = new Date(r.date); let weekDay = dateObj.toLocaleDateString('zh-TW', {weekday: 'short'});
                       let dateDisplay = `<span style="font-size: 0.9rem;">${r.date.split('/')[1]}/${r.date.split('/')[2]}</span><br><span style="font-size: 0.75rem; font-weight: normal; color: #6c757d;">(${weekDay})</span>`;
