@@ -54,7 +54,7 @@
                         <h4 style="margin: 15px 0 5px 0;">${job["職缺名稱"]}</h4>
                         <p style="color: #7f8c8d; font-size: 14px; margin: 0 0 15px 0;">ID: ${job["職缺編號"]}</p>
                         <button style="width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            查看應徵者 (即將開放)
+                            查看應徵者
                         </button>
                     `;
                     container.appendChild(card);
@@ -64,6 +64,41 @@
                 console.error("載入失敗:", error);
                 document.getElementById("job-container").innerHTML = "<p style='color:red;'>無法連接至資料庫，請檢查 GAS 網址。</p>";
             });
+        // 綁定在「查看應徵者」按鈕上的功能
+function loadResumes(jobName) {
+    const container = document.getElementById("job-container");
+    container.innerHTML = "<p>🔍 正在調閱履歷資料...</p>";
+    
+    // 加上 ?action=resumes 呼叫履歷資料
+    fetch(GAS_URL + "?action=resumes")
+        .then(res => res.json())
+        .then(data => {
+            container.innerHTML = `<button onclick="location.reload()" style="margin-bottom:15px;">⬅️ 返回職缺清單</button><br>`;
+            
+            // 只過濾出該門市、該職缺的應徵者
+            const applicants = data.filter(r => r["所屬門市"] === currentStore && r["職缺名稱"] === jobName);
+            
+            if(applicants.length === 0) {
+                container.innerHTML += "<p>目前尚無應徵者。</p>";
+                return;
+            }
+            
+            applicants.forEach(app => {
+                // 這裡套用您最擅長的精美 UI 魔法
+                container.innerHTML += `
+                    <div class="job-card" style="display:flex; gap:15px; align-items:center;">
+                        <img src="${app["大頭貼"] || 'https://via.placeholder.com/60'}" style="width:60px; height:60px; border-radius:50%; object-fit:cover;">
+                        <div>
+                            <h4 style="margin:0;">${app["求職者姓名"]} <span class="status-badge">${app["狀態"]}</span></h4>
+                            <p style="font-size:12px; color:#666; margin:5px 0;">${app["學歷"]}</p>
+                            <a href="${app["104專屬網址"]}" target="_blank" style="font-size:12px; color:#3498db; text-decoration:none;">💬 前往 104 傳送訊息</a>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+}
+  
     </script>
 </body>
 </html>
