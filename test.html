@@ -1978,27 +1978,37 @@ function showMaintenanceShield(message) {
                      let data = JSON.parse(text);
                      
                      // ==========================================
-                     // ★ 終極讀寫雙鎖：第一時間攔截維護狀態
-                     // ==========================================
-                     if (data && data.isMaintenance) {
-                         if (data.forceLogout) {
-                             // 如果是 Step 1 傳來的強制登出，拔除鑰匙並退回登入畫面
-                             sessionStorage.removeItem('tkk_store');
-                             sessionStorage.removeItem('tkk_token');
-                             sessionStorage.removeItem('tkk_month_mode');
-                             document.getElementById('appSection').style.display = 'none';
-                             document.getElementById('modeSelectionSection').style.display = 'none';
-                             document.getElementById('loginSection').style.display = 'block';
-                         }
-                         showMaintenanceShield(data.message);
-                         // 丟出一個特殊的錯誤，強制中斷後面的所有程式碼執行！
-                         throw new Error("MAINTENANCE_LOCKED"); 
-                     }
-                     
-                     return data; // 如果沒被攔截，就正常回傳資料
-                     
-                 } catch (e) {
-                     if (e.message === "MAINTENANCE_LOCKED") {
+                      // ★ 終極讀寫雙鎖：第一時間攔截維護狀態
+                      // ==========================================
+                      if (data && data.isMaintenance) {
+                          if (data.forceLogout) {
+                              // 如果是 Step 1 傳來的強制登出，拔除鑰匙並退回登入畫面
+                              sessionStorage.removeItem('tkk_store');
+                              sessionStorage.removeItem('tkk_token');
+                              sessionStorage.removeItem('tkk_month_mode');
+                              document.getElementById('appSection').style.display = 'none';
+                              document.getElementById('modeSelectionSection').style.display = 'none';
+                              document.getElementById('loginSection').style.display = 'block';
+                          }
+                          showMaintenanceShield(data.message);
+                          // 丟出一個特殊的錯誤，強制中斷後面的所有程式碼執行！
+                          throw new Error("MAINTENANCE_LOCKED"); 
+                      }
+
+                      // ==========================================
+                      // ★ 方案 B 聯防：攔截 Google 掉封包，特許隱形重試！
+                      // ==========================================
+                      if (data && data.status === 'PAYLOAD_DROPPED') {
+                          // 就算是最危險的存檔動作 (retriesLeft=0)，遇到漏接也要特許給予 2 次隱形重試機會
+                          let specialRetries = (retriesLeft > 0) ? retriesLeft - 1 : 2;
+                          console.warn(`API [${op}] 遭遇 Google 漏接封包，1.5秒後啟動隱形重試... (特許剩餘 ${specialRetries} 次)`);
+                          return new Promise(r => setTimeout(r, 1500)).then(() => callApi(op, params, specialRetries));
+                      }
+                      
+                      return data; // 如果沒被攔截，就正常回傳資料
+                      
+                  } catch (e) {
+                      if (e.message === "MAINTENANCE_LOCKED") {
                          throw e; // 將維護鎖定的錯誤繼續往外丟，確保後續的 .then 都不會被執行
                      }
                      
