@@ -1411,21 +1411,9 @@ function showMaintenanceShield(message) {
               }
               if(typeof initAdminFilters === 'function') initAdminFilters(); 
           }
-          else if (currentUserRole === 'HQ') {
-              // 總公司視角：直接飛進營運中心 (A畫面)
-              if(adminSec) {
-                  adminSec.style.display = 'block';
-                  // 1. 標題自動更換為部門名稱
-                  document.getElementById('adminTitle').innerText = "🏢 " + currentStore;
-                  // 2. 隱藏對總公司來說多餘的選單
-                  document.getElementById('adminCompanyCol').style.display = 'none';
-                  document.getElementById('adminStoreCol').style.display = 'none';
-                  // 3. 啟動自動載入引擎 (不需要點擊「載入」)
-                  if(typeof loadAdminData === 'function') loadAdminData();
-              }
-          }
+          // ★ 微創切除：拔除原本 HQ 進入唯讀畫面的路由，讓 HQ 直接掉進下方的 else 區塊
           else {
-              // 店長視角 (C畫面)
+              // 店長與總公司親自排班視角 (C畫面)
               document.getElementById('displayStoreName').innerText = currentStore;
               
               const savedMonthMode = sessionStorage.getItem('tkk_month_mode');
