@@ -2191,6 +2191,10 @@ function showMaintenanceShield(message) {
                  window.currentOtData = res.otData || []; // 📥 接收加班包裹！
                  // ★★★★ 必須要有這行！店長端才抓得到歷史紀錄！ ★★★★
                  window.historicalAnomalies = res.anomalyData || [];
+                 
+                 // ★ 新增：接收後端傳來的七休一違規名單！
+                 window.currentViolations = res.violations || [];
+
                  // ★★★ 終極無損快照：在拿到最新資料的瞬間，立刻備份一份最乾淨的狀態！★★★
                  window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                  window.currentSyncVersion = res.syncVersion || ""; // ★ 記下現在的系統版本號
@@ -2273,7 +2277,43 @@ function showMaintenanceShield(message) {
                      window.pendingSwitchMode = null;
                      switchMode(m); // 交給 switchMode 切換按鈕樣式與重繪
                  } else {
-                     renderTable();
+                     // ★ 終極攔截：如果有七休一違規名單，強制跳出精美警告並跳轉異常畫面！
+                     if (window.currentViolations && window.currentViolations.length > 0) {
+                         let vHtml = '<div style="text-align: left; max-height: 45vh; overflow-y: auto; overflow-x: hidden; padding-right: 5px;">';
+                         window.currentViolations.forEach(v => {
+                             // 將 2026/09/29 轉為 09/29
+                             let shortS = v.sDate.replace(/^\d{4}\//, "");
+                             let shortE = v.eDate.replace(/^\d{4}\//, "");
+                             vHtml += `
+                             <div style="margin-bottom: 12px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">
+                                 <div style="font-size: 15px; color: #333;">
+                                     👤 <strong>${v.name}</strong> <span style="color:#888; font-size:13px; font-weight:bold;">(${shortS}~${shortE})</span>
+                                 </div>
+                                 <div style="color: #dc3545; font-weight: bold; font-size: 14px; margin: 4px 0;">
+                                     🚨 連續 ${v.days} 日
+                                 </div>
+                                 <div style="font-size: 12px; color: #495057; line-height: 1.5;">
+                                     ${v.details}
+                                 </div>
+                             </div>`;
+                         });
+                         vHtml += '</div>';
+
+                         Swal.fire({
+                             icon: 'warning',
+                             title: '⚠️ 重大排班異常',
+                             html: `<div style="font-weight:bold; color:#dc3545; margin-bottom:12px; font-size:15px; text-align:left;">請立刻修正以下違法班表：</div>${vHtml}`,
+                             confirmButtonText: '👉 前往異常排班畫面',
+                             confirmButtonColor: '#dc3545',
+                             allowOutsideClick: false,
+                             width: '380px' // 適應手機版寬度，排版更精緻
+                         }).then(() => {
+                             switchMode('error'); // 點擊確認後，強制把畫面切換到異常
+                         });
+                     } else {
+                         // 5. 留在原畫面，直接瞬間重繪，省下 15 秒！
+                         renderTable();
+                     }
                  }
              } else { Swal.fire('錯誤', '資料讀取失敗', 'error'); }
         }).catch(err => errorHandler(err));
