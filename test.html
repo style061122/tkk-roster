@@ -1883,9 +1883,16 @@ function showMaintenanceShield(message) {
                          // 1. 洗掉所有髒標記
                          currentData.forEach(r => r.isModified = false);
                          
-                         // ★ 瞬間解除警報：異常模式下存檔成功，視同店長已處理，清空前端違規快取！
+                         // ★ 精準解除警報：異常模式下存檔成功，只剔除「真正存檔成功」的違規者，保留其他尚未處理的幽靈名單！
                          if (currentMode === 'error' && window.currentViolations) {
-                             window.currentViolations = [];
+                             // 從後端回傳的 updatedLogs 中，整理出真正成功存檔的員工名單
+                             let successNames = [];
+                             if (res.updatedLogs && Array.isArray(res.updatedLogs)) {
+                                 successNames = [...new Set(res.updatedLogs.map(log => log.name))];
+                             }
+                             
+                             // 核心過濾：把成功存檔的人從違規快取中拔除，留下還沒改的
+                             window.currentViolations = window.currentViolations.filter(v => !successNames.includes(v.name));
                          }
 
                          // 2. 將包含最新 Q 欄註記的記憶體，認定為最新的「純淨快照」！
