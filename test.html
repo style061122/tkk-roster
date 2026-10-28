@@ -1642,6 +1642,21 @@ function showMaintenanceShield(message) {
                 if (logStr.includes("失敗") || logStr.includes("退件") || logStr.includes("錯誤")) {
                     isRowOnScreen = true;
                 }
+                
+                // ★ 擴充視野：檢查這筆資料是否落在「七休一盤點」違規區間內
+                if (window.currentViolations && window.currentViolations.length > 0) {
+                    let rTime = new Date(row.date.replace(/-/g, "/")).getTime();
+                    for (let v of window.currentViolations) {
+                        if (v.name === row.name) {
+                            let sTime = new Date(v.sDate.replace(/-/g, "/")).getTime();
+                            let eTime = new Date(v.eDate.replace(/-/g, "/")).getTime();
+                            if (rTime >= sTime && rTime <= eTime) {
+                                isRowOnScreen = true;
+                                break;
+                            }
+                        }
+                    }
+                }
             } 
             // 正常的 日期/人名 模式判斷
             else {
@@ -1868,6 +1883,11 @@ function showMaintenanceShield(message) {
                          // 1. 洗掉所有髒標記
                          currentData.forEach(r => r.isModified = false);
                          
+                         // ★ 瞬間解除警報：異常模式下存檔成功，視同店長已處理，清空前端違規快取！
+                         if (currentMode === 'error' && window.currentViolations) {
+                             window.currentViolations = [];
+                         }
+
                          // 2. 將包含最新 Q 欄註記的記憶體，認定為最新的「純淨快照」！
                          window.cleanSnapshot = JSON.parse(JSON.stringify(currentData));
                          
