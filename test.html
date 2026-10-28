@@ -2630,13 +2630,33 @@ function showMaintenanceShield(message) {
 
         let targetData = [], targetName = "";
           
-        // ★★★ 實踐共識 6：異常與退件過濾模式 ★★★
+        // ★★★ 實踐共識 6：異常與退件過濾模式 (擴充七休一防呆顯示) ★★★
         if (currentMode === 'error') {
-            // 如果開啟了過濾器，無視日期/人名模式，直接抓出全月有「失敗、退件」等字眼的資料
+            // 如果開啟了過濾器，無視日期/人名模式，直接抓出全月有「失敗、退件」等字眼，或「七休一違規」的資料
             targetData = currentData.filter(row => {
                 if (row.store !== currentStore) return false; // ★ 微創：阻擋外店員工出現在異常列表
+                
                 let logStr = String(row.log || "");
-                return logStr.includes("失敗") || logStr.includes("退件") || logStr.includes("錯誤");
+                let hasQError = logStr.includes("失敗") || logStr.includes("退件") || logStr.includes("錯誤");
+                let isViolation = false;
+                
+                // ★ 擴充視野：檢查這筆資料是否落在「七休一盤點」違規區間內
+                if (window.currentViolations && window.currentViolations.length > 0) {
+                    let rTime = new Date(row.date.replace(/-/g, "/")).getTime();
+                    for (let v of window.currentViolations) {
+                        if (v.name === row.name) {
+                            let sTime = new Date(v.sDate.replace(/-/g, "/")).getTime();
+                            let eTime = new Date(v.eDate.replace(/-/g, "/")).getTime();
+                            if (rTime >= sTime && rTime <= eTime) {
+                                isViolation = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // 只要 Q 欄有錯，或是落在違規區間內，就強制顯示在異常畫面上！
+                return hasQError || isViolation;
             });
             targetData.sort((a,b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
             summaryBar.style.display = 'none'; 
