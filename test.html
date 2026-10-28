@@ -2867,19 +2867,27 @@ function showMaintenanceShield(message) {
         });
         
         // 更新異常按鈕的數字 (每次重繪表格時偷偷計算一次)
-        const btnErr = document.getElementById('btnModeError'); // 改抓新 ID
+        const btnErr = document.getElementById('btnModeError'); 
         const badgeErr = document.getElementById('errorBadge');
         if (btnErr && badgeErr) {
-            let errCount = currentData.filter(r => {
+            // 1. 計算 Q 欄錯誤的筆數
+            let qErrorCount = currentData.filter(r => {
                 let l = String(r.log || ""); return l.includes("失敗") || l.includes("退件") || l.includes("錯誤");
             }).length;
-            badgeErr.innerText = errCount;
             
-            if (errCount > 0) {
-                btnErr.classList.remove('d-none'); // 有異常才顯示這顆按鈕
+            // 2. ★ 新增：計算七休一違規的人數 (從記憶體中抓取)
+            let violationCount = (window.currentViolations) ? window.currentViolations.length : 0;
+            
+            // 3. 兩者相加，作為是否顯示按鈕的最終條件
+            let totalErrCount = qErrorCount + violationCount;
+            
+            badgeErr.innerText = totalErrCount;
+            
+            if (totalErrCount > 0) {
+                btnErr.classList.remove('d-none'); // 只要有任何一種異常，就顯示這顆按鈕
             } else {
-                btnErr.classList.add('d-none'); // 沒錯誤就藏起來
-                // ★ 神級 UX 2：如果店長剛好把最後一個異常修好了，系統自動幫他跳回「日期模式」！
+                btnErr.classList.add('d-none'); // 真的完全沒錯誤了才藏起來
+                // ★ 神級 UX 2：只有當兩種異常都修好了，才自動幫他跳回「日期模式」！
                 if (currentMode === 'error') setTimeout(() => switchMode('date'), 100); 
             }
         }
