@@ -1883,16 +1883,27 @@ function showMaintenanceShield(message) {
                          // 1. 洗掉所有髒標記
                          currentData.forEach(r => r.isModified = false);
                          
-                         // ★ 精準解除警報：異常模式下存檔成功，只剔除「真正存檔成功」的違規者，保留其他尚未處理的幽靈名單！
+                         // ★ 精準解除警報升級版：不但要認人，還要認「修改日期是否命中違規區間」！
                          if (currentMode === 'error' && window.currentViolations) {
-                             // 從後端回傳的 updatedLogs 中，整理出真正成功存檔的員工名單
-                             let successNames = [];
                              if (res.updatedLogs && Array.isArray(res.updatedLogs)) {
-                                 successNames = [...new Set(res.updatedLogs.map(log => log.name))];
+                                 // 針對每一筆真正存檔成功的紀錄進行比對
+                                 res.updatedLogs.forEach(log => {
+                                     let editT = new Date(log.date.replace(/-/g, "/")).getTime();
+                                     
+                                     // 過濾掉命中的那一個違規區間，保留同一個人但還沒改的其他區間
+                                     window.currentViolations = window.currentViolations.filter(v => {
+                                         if (v.name === log.name) {
+                                             let sTime = new Date(v.sDate.replace(/-/g, "/")).getTime();
+                                             let eTime = new Date(v.eDate.replace(/-/g, "/")).getTime();
+                                             // 如果修改的日期剛好落在這筆違規區間內，就把它從記憶中剔除 (return false)
+                                             if (editT >= sTime && editT <= eTime) {
+                                                 return false;
+                                             }
+                                         }
+                                         return true; // 沒命中區間，或是不同人，就乖乖保留在畫面上
+                                     });
+                                 });
                              }
-                             
-                             // 核心過濾：把成功存檔的人從違規快取中拔除，留下還沒改的
-                             window.currentViolations = window.currentViolations.filter(v => !successNames.includes(v.name));
                          }
 
                          // 2. 將包含最新 Q 欄註記的記憶體，認定為最新的「純淨快照」！
