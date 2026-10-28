@@ -1937,11 +1937,23 @@ function showMaintenanceShield(message) {
              } 
              else if (res.status === 'FAILED') { 
                  Swal.fire({ icon: 'error', title: '❌ 儲存失敗', html: `<div style="text-align:left; font-size:0.9rem;">${res.message}</div>`, confirmButtonText: '確認' }).then(() => {
+                     // ★★★ 啟動時光機：瞬間恢復為存檔前乾淨的記憶體，洗掉畫面上錯誤的修改！
+                     if (window.cleanSnapshot) {
+                         currentData = JSON.parse(JSON.stringify(window.cleanSnapshot));
+                     }
+
                      if (!window.tempFilterName) window.tempFilterName = document.getElementById('selectName').value;
                      if (!window.tempFilterWeek) window.tempFilterWeek = document.getElementById('selectWeek').value;
                      if (!window.tempStatusFilter) window.tempStatusFilter = document.getElementById('selectStatusFilter').value;
-                     if (window.tempMode) { window.pendingSwitchMode = window.tempMode; window.tempMode = null; }
-                     loadData(); 
+                     
+                     // ★ 拔除 loadData()，改為原地瞬間重繪！
+                     if (window.tempMode) { 
+                         window.pendingSwitchMode = window.tempMode; 
+                         window.tempMode = null; 
+                         switchMode(window.pendingSwitchMode);
+                     } else {
+                         renderTable(); // 畫面重繪後，9/22 就會立刻從「例」變回「上班」
+                     }
                  }); 
              }
              // ★★★ 樂觀鎖：專屬優雅退件與強制重整 (雙重鎖升級) ★★★
@@ -2308,14 +2320,21 @@ function showMaintenanceShield(message) {
 
                          Swal.fire({
                              icon: 'warning',
-                             title: '⚠️ 排班異常',
+                             title: '⚠️ 重大異常',
                              html: `<div style="font-weight:bold; color:#dc3545; margin-bottom:12px; font-size:15px; text-align:left;">請立即修正班表：</div>${vHtml}`,
                              confirmButtonText: '👉 前往異常畫面',
                              confirmButtonColor: '#dc3545',
                              allowOutsideClick: false,
-                             width: '380px' // 適應手機版寬度，排版更精緻
+                             width: '380px' 
                          }).then(() => {
-                             switchMode('error'); // 點擊確認後，強制把畫面切換到異常
+                             // ★ 破除幽靈殘留 Bug：
+                             // 如果店長已經在「異常」畫面，switchMode 會直接 return 導致不重繪！
+                             // 所以若已在異常畫面，必須強制手動重繪。
+                             if (currentMode === 'error') {
+                                 renderTable(); 
+                             } else {
+                                 switchMode('error'); 
+                             }
                          });
                      } else {
                          // 5. 留在原畫面，直接瞬間重繪，省下 15 秒！
