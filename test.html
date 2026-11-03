@@ -2508,18 +2508,30 @@ function showMaintenanceShield(message) {
          if (isFirstWeek) {
              // 跨月週：本月天數 = 7 - 上個月天數 (利用 weekEnd 的號碼推算)
              let expectedThisMonthDays = weekEnd.getDate();
+             let expectedPastDays = 7 - expectedThisMonthDays; // ★ 算出上個月在這週佔了幾天 (例如 6 天)
              
              if (monthlyTargets.crossMonthUsage && monthlyTargets.crossMonthUsage[name]) {
                  let pastUsage = monthlyTargets.crossMonthUsage[name];
                  usage.rest += (pastUsage.rest || 0);
                  usage.reg += (pastUsage.reg || 0);
                  
-                 // 如果本月天數全滿，且上個月有紀錄，代表是完整 7 天的員工
-                 if (weekData.length === expectedThisMonthDays) {
+                 // ★ 精準破週判定：計算上個月跨月區間的「空缺天數」
+                 let pastRecords = pastUsage.totalRecords || 0;
+                 let pastEmpties = pastUsage.emptyDays || 0;
+                 let missingDays = expectedPastDays - pastRecords; 
+                 
+                 // 如果上個月有缺紀錄(missingDays > 0, 例如月中才到職) 或有空白未排班，就累加到 emptyRows
+                 let actualPastEmpties = pastEmpties + (missingDays > 0 ? missingDays : 0);
+                 usage.emptyRows += actualPastEmpties;
+                 
+                 // ★ 只有當「本月排滿」且「上個月也完全沒有空缺」時，才認定為完整 7 天的員工
+                 if (weekData.length === expectedThisMonthDays && usage.emptyRows === 0) {
                      usage.isFullWeek = true;
+                 } else {
+                     usage.isFullWeek = false;
                  }
              } else {
-                 // 上個月沒紀錄，代表是本月剛到職的破月員工 (豁免防呆)
+                 // 上個月完全沒紀錄，代表是本月剛到職的破月員工 (豁免防呆)
                  usage.isFullWeek = false;
              }
          } else {
